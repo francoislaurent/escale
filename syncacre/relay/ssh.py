@@ -1,8 +1,11 @@
 
-from .interface import Interface
+from .relay import Relay
 
 
-class SSH(Interface):
+class SSH(Relay):
+	"""
+	NOT IMPLEMENTED YET
+	"""
 
 	__protocol__ = 'ssh'
 

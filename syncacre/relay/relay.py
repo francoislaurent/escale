@@ -45,34 +45,37 @@ class Relay(object):
 	def listReady(self, remote_dir):
 		ls = self._list(remote_dir)
 		return [ filename for filename in ls \
-			if not (filename.startswith(lock_prefix) and filename.endswith(lock_suffix)) \
-			and not (filename.startswith(placeholder_prefix) and filename.endswith(placeholder_suffix)) \
-			and not (
+			if not (filename.startswith(self._lock_prefix) \
+					and filename.endswith(self._lock_suffix)) \
+				and not (filename.startswith(self._placeholder_prefix) \
+					and filename.endswith(self._placeholder_suffix)) \
+				and '{}{}{}'.format(self._lock_prefix, filename, self._lock_suffix) \
+					not in ls ]
 
 	def listTransfered(self, remote_dir, end2end=True):
 		ls = self._list(remote_dir)
 		if end2end:
-			if placeholder_suffix:
-				end = -len(placeholder_suffix)
+			if self._placeholder_suffix:
+				end = -len(self._placeholder_suffix)
 			else:
 				end = None
-			return [ filename[len(placeholder_prefix):end] \
+			return [ filename[len(self._placeholder_prefix):end] \
 				for filename in ls \
-				if filename.startswith(placeholder_prefix) \
-					and filename.endswith(placeholder_suffix) ]
+				if filename.startswith(self._placeholder_prefix) \
+					and filename.endswith(self._placeholder_suffix) ]
 		else:
 			raise NotImplementedError
 
 	def listLocked(self, remote_dir):
 		ls = self._list(remote_dir)
-		if lock_suffix:
-			end = -len(lock_suffix)
+		if self._lock_suffix:
+			end = -len(self._lock_suffix)
 		else:
 			end = None
-		return [ filename[len(lock_prefix):end] \
+		return [ filename[len(self._lock_prefix):end] \
 			for filename in ls \
-			if filename.startswith(lock_prefix) \
-				and filename.endswith(lock_suffix) ]
+			if filename.startswith(self._lock_prefix) \
+				and filename.endswith(self._lock_suffix) ]
 
 	def checkLocked(self, remote_file):
 		remote_dir, filename = os.path.split(remote_file)
@@ -89,14 +92,14 @@ class Relay(object):
 				time.sleep(blocking)
 		elif checkLock(self, remote_file):
 			return
-		_special_push(self, remote_file, lock_prefix, lock_suffix)
+		_special_push(self, remote_file, self._lock_prefix, self._lock_suffix)
 
 	def push(self, local_file, remote_dest):
 		raise NotImplementedError('abstract method')
 
 	def safePush(self, local_file, remote_dest, placeholder=True):
 		_, filename = os.path.split(local_file)
-		remote_dir = remote_dest # TODO: check and adjust
+		remote_dir = remote_dest # TODO: check this and adjust
 		remote_file = os.path.join(remote_dir, filename)
 		self.acquireLock(remote_file)
 		if placeholder:
@@ -117,13 +120,14 @@ class Relay(object):
 		self.releaseLock(remote_file)
 
 	def updatePlaceholder(self, remote_file, last_modified=None):
-		_special_push(self, remote_file, placeholder_prefix, placeholder_suffix, last_modified)
+		_special_push(self, remote_file, self._placeholder_prefix, self._placeholder_suffix, \
+			last_modified)
 
 	def unlinkPlaceholder(self, remote_file):
-		_special_unlink(self, remote_file, placeholder_prefix, placeholder_suffix)
+		_special_unlink(self, remote_file, self._placeholder_prefix, self._placeholder_suffix)
 
 	def releaseLock(self, remote_file):
-		_special_unlink(self, remote_file, lock_prefix, lock_suffix)
+		_special_unlink(self, remote_file, self._lock_prefix, self._lock_suffix)
 
 	def close(self):
 		pass

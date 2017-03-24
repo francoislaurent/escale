@@ -1,7 +1,8 @@
 
-from .interface import Interface
+from .relay import Relay
+from .manager import Manager
 
-__all__ = ['__protocols__', 'by_protocol']
+__all__ = []
 
 __protocols__ = []
 
@@ -21,7 +22,7 @@ except ImportError:
 
 
 def by_protocol(protocol):
-	for p in __protocols__.reverse():
+	for p in __protocols__[::-1]:
 		if isinstance(p.__protocol__, list):
 			if protocol in p.__protocol__:
 				return p
@@ -29,4 +30,6 @@ def by_protocol(protocol):
 			return p
 	raise KeyError('cannot find protocol {}'.format(protocol))
 
+
+__all__ += ['__protocols__', 'by_protocol', 'Manager']
 

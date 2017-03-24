@@ -6,16 +6,16 @@ from setuptools import setup, find_packages
 from codecs import open
 from os import path
 
-install_requires = ['six', 'easywebdav']
+install_requires = ['six', 'easywebdav', 'blowfish']
 
 
 pwd = path.abspath(path.dirname(__file__))
 
 setup(
-	name = 'across',
+	name = 'syncacre',
 	version = '0.1',
-	description = 'ACRosS - All Clients Relay Synchronizer',
-	url = 'https://github.com/francoislaurent/across',
+	description = 'Syncacre - Client-to-client synchronization based on external relay storage',
+	url = 'https://github.com/francoislaurent/syncacre',
 	author = 'François Laurent',
 	author_email = 'francois.laurent1@protonmail.com',
 	license = 'MIT',
