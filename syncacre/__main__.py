@@ -28,7 +28,8 @@ fields = dict(path=['local path', 'path'], \
 	password=['password', 'secret', 'secret file', 'secrets file', 'credential', 'credentials'], \
 	refresh=('float', ['refresh']), \
 	encryption=['encryption'], \
-	passphrase=['passphrase', 'key'])
+	passphrase=['passphrase', 'key'], \
+	verbose=['verbose'])
 
 
 def getters(config, _type=None):
@@ -52,6 +53,7 @@ def syncacre(config, repository):
 				break
 			except NoOptionError:
 				pass
+	verbose = args.get('verbose', True)
 	if 'password' in args and os.path.isfile(args['password']):
 		with open(args['password'], 'r') as f:
 			content = f.readlines()
@@ -77,11 +79,11 @@ def syncacre(config, repository):
 				if verbose:
 					print('cannot read login information from credential file {}'.format(args['password']))
 				del args['password']
-	#
+	# define permissions; terms read and write apply to the client, not the remote host
 	try:
 		write_only = config.getboolean(repository, 'write only')
 		if write_only:
-			args['mode'] = 'upload'
+			args['mode'] = 'download'
 	except NoOptionError:
 		pass
 	try:
@@ -92,7 +94,7 @@ def syncacre(config, repository):
 					print('both read only and write only; cannot determine mode')
 				return
 			else:
-				args['mode'] = 'download'
+				args['mode'] = 'upload'
 	except NoOptionError:
 		pass
 	# parse encryption passphrase
