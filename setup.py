@@ -7,7 +7,7 @@ from codecs import open
 from os import path
 import sys
 
-install_requires = ['six', 'easywebdav', 'pycrypt']
+install_requires = ['six', 'easywebdav'] #, 'pycrypt'
 
 if sys.version_info[0] == 3: # Python 3
 	install_requires.append('blowfish')
