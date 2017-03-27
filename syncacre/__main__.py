@@ -28,8 +28,7 @@ fields = dict(path=['local path', 'path'], \
 	password=['password', 'secret', 'secret file', 'secrets file', 'credential', 'credentials'], \
 	refresh=('float', ['refresh']), \
 	encryption=['encryption'], \
-	passphrase=['passphrase', 'key'], \
-	verbose=['verbose'])
+	passphrase=['passphrase', 'key'])
 
 
 def getters(config, _type=None):
@@ -53,7 +52,6 @@ def syncacre(config, repository):
 				break
 			except NoOptionError:
 				pass
-	verbose = args.get('verbose', True)
 	if 'password' in args and os.path.isfile(args['password']):
 		with open(args['password'], 'r') as f:
 			content = f.readlines()
@@ -79,7 +77,7 @@ def syncacre(config, repository):
 				if verbose:
 					print('cannot read login information from credential file {}'.format(args['password']))
 				del args['password']
-	# define permissions; terms read and write apply to the client, not the remote host
+	#
 	try:
 		write_only = config.getboolean(repository, 'write only')
 		if write_only:
@@ -133,9 +131,9 @@ def main(**args):
 				print('file not found: {}'.format(cfg_file))
 			cfg_file = None
 	else:
-		candidates = [os.path.expanduser('~/.config/across.conf'), \
-			os.path.expanduser('~/.across'), \
-			'/etc/across.conf', \
+		candidates = [os.path.expanduser('~/.config/syncacre.conf'), \
+			os.path.expanduser('~/.syncacre'), \
+			'/etc/syncacre.conf', \
 			None]
 		for cfg_file in candidates:
 			if cfg_file and os.path.isfile(cfg_file):
@@ -187,9 +185,9 @@ def main(**args):
 
 
 if __name__ == '__main__':
-	parser = argparse.ArgumentParser(prog='across', \
+	parser = argparse.ArgumentParser(prog='syncacre', \
 		description='ACRosS - All-Clients Relay Synchronizer', \
-		epilog='See also https://github.com/francoislaurent/across')
+		epilog='See also https://github.com/francoislaurent/syncacre')
 	parser.add_argument('-c', '--config', type=str, help='path to config file')
 	parser.add_argument('-d', '--daemon', action='store_true', help='runs in background as a daemon (recommended)')
 	parser.add_argument('-q', '--quiet', action='store_true', help='runs silently')
