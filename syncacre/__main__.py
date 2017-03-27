@@ -10,13 +10,15 @@ import sys
 import os
 
 import syncacre.relay as relay
+from syncacre.manager import Manager
+import syncacre.encryption as encryption
 
 import six
 from functools import partial
 from multiprocessing import Pool
 
 
-default_section = 'default'
+default_section = 'DEFAULT' # Python2 cannot modify it
 
 fields = dict(path=['local path', 'path'], \
 	address=['relay address', 'remote address', 'address'], \
@@ -24,24 +26,36 @@ fields = dict(path=['local path', 'path'], \
 	port=['relay port', 'remote port', 'port'], \
 	username=['relay user', 'remote user', 'auth user', 'user'], \
 	password=['password', 'secret', 'secret file', 'secrets file', 'credential', 'credentials'], \
-	refresh=['refresh'], \
+	refresh=('float', ['refresh']), \
 	encryption=['encryption'], \
 	passphrase=['passphrase', 'key'])
 
+
+def getters(config, _type=None):
+	if _type:
+		return dict(bool=config.getboolean, int=config.getint, float=config.getfloat)[_type]
+	else:
+		return config.get
 
 
 def syncacre(config, repository):
 	args = {}
 	for field, attrs in fields.items():
+		if isinstance(attrs, tuple):
+			t, attrs = attrs
+			get = getters(config, t)
+		else:
+			get = getters(config)
 		for attr in attrs:
 			try:
-				args[field] = config.get(repository, attr)
+				args[field] = get(repository, attr)
 				break
 			except NoOptionError:
 				pass
 	if 'password' in args and os.path.isfile(args['password']):
 		with open(args['password'], 'r') as f:
 			content = f.readlines()
+		content = [ line[:-1] if line[-1] == "\n" else line for line in content ]
 		if 'username' in args:
 			if not content[1:]:
 				args['password'] = content[0]
@@ -85,13 +99,26 @@ def syncacre(config, repository):
 	if 'passphrase' in args and os.path.isfile(args['passphrase']):
 		with open(args['passphrase'], 'r') as f:
 			args['passphrase'] = f.read()
+	if 'encryption' in args:
+		try:
+			cipher = encryption.by_cipher(args['encryption'].lower())
+		except KeyError:
+			raise ValueError('unsupported encryption algorithm: {}'.format(args['encryption']))
+		args['encryption'] = cipher(args.pop('passphrase', None))
 	try:
 		protocol = config.get(repository, 'protocol')
 	except NoOptionError:
 		protocol = args['address'].split(':')[0] # crashes if no colon found
-	args['config'] = config[repository]
-	manager = relay.Manager(relay.by_protocol(protocol), **args)
+	if six.PY3:
+		args['config'] = config[repository]
+	elif six.PY2:
+		args['config'] = (config, repository)
+	manager = Manager(relay.by_protocol(protocol), protocol=protocol, **args)
 	manager.run()
+
+
+def uncurried_syncacre(args):
+	syncacre(*args)
 
 
 def main(**args):
@@ -123,19 +150,29 @@ def main(**args):
 			if not line.startswith('[{}]'.format(default_section)):
 				line = "[{}]\n{}".format(default_section, line)
 			raw_cfg = "{}{}".format(line, f.read())
-		config = ConfigParser(default_section=default_section)
-		config.read_string(raw_cfg, source=cfg_file)
+		if six.PY3:
+			config = ConfigParser(default_section=default_section)
+			config.read_string(raw_cfg, source=cfg_file)
+		elif six.PY2:
+			assert default_section == 'DEFAULT'
+			config = ConfigParser()
+			import io
+			config.readfp(io.BytesIO(raw_cfg))
 		if not args['quiet']:
 			config.set(default_section, 'verbose', '0')
 		if args['daemon']:
 			config.set(default_section, 'daemon', '1')
-		pool = Pool(len(config.sections()))
-		if six.PY3:
-			pool.map(partial(syncacre, config), config.sections())
-		elif six.PY2:
-			import itertools
-			pool.map(uncurried_syncacre, \
-				itertools.izip(itertools.repeat(config), section))
+		nsections = len(config.sections())
+		if nsections == 1:
+			syncacre(config, config.sections()[0])
+		else:
+			pool = Pool(nsections)
+			if six.PY3:
+				pool.map(partial(syncacre, config), config.sections())
+			elif six.PY2:
+				import itertools
+				pool.map(uncurried_syncacre, \
+					itertools.izip(itertools.repeat(config), config.sections()))
 		out = 0
 	else:
 		if verbose:

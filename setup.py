@@ -5,8 +5,12 @@
 from setuptools import setup, find_packages
 from codecs import open
 from os import path
+import sys
 
-install_requires = ['six', 'easywebdav', 'blowfish']
+install_requires = ['six', 'easywebdav', 'pycrypt']
+
+if sys.version_info[0] == 3: # Python 3
+	install_requires.append('blowfish')
 
 
 pwd = path.abspath(path.dirname(__file__))

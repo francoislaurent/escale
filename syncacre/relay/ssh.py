@@ -9,4 +9,8 @@ class SSH(Relay):
 
 	__protocol__ = 'ssh'
 
+	def __init__(self, address, **ignored):
+		Relay.__init__(self, address)
+		raise NotImplementedError
+
 

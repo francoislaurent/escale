@@ -1,0 +1,13 @@
+
+[my-cloud]
+# refresh every 5 minutes
+refresh = 300 # in seconds
+# absolute path to the local repository
+local path = /home/me/my-cloud
+# name of the cloud server
+address = cloud.example.com
+protocol = https
+# relative path to a credential text file containing "username:password"
+secret file = my-credential-file
+remote directory = remote.php/webdav
+

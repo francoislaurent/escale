@@ -1,0 +1,39 @@
+### Python ###
+*.py[co]
+
+# Package
+*.egg
+*.egg-info
+dist
+build
+eggs
+parts
+bin
+develop-eggs
+.installed.cfg
+
+# Installer logs
+pip-log.txt
+
+# Unit tests / coverage reports
+.coverage
+.tox
+
+
+#### Vim / Emacs ###
+\#*\#
+.#*
+*.swp
+*.swq
+
+
+### Eclipse ###
+*.pydevproject
+.project
+.metadata
+
+
+### macOS ###
+.DS_Store
+._.DS_Store
+

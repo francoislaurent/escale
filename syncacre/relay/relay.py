@@ -1,34 +1,51 @@
 
 import os
+import six
+import time
 import tempfile
 
 
 def _special_push(self, remote_file, prefix, suffix, content=None):
+	#print(('relay._special_push: remote_file', remote_file))
 	remote_dir, filename = os.path.split(remote_file)
-	local_file = tempfile.mkstemp()
+	if six.PY3:
+		local_file = tempfile.mkstemp()
+	elif six.PY2:
+		_, local_file = tempfile.mkstemp()
 	f = open(local_file, 'w')
 	if content:
 		f.write(content)
 	f.close()
 	self.push(local_file, os.path.join(remote_dir, '{}{}{}'.format(prefix, filename, suffix)))
-	try:
-		os.unlink(local_file)
-	except:
-		pass
+	os.unlink(local_file)
 
 
 def _special_unlink(self, remote_file, prefix, suffix):
+	#print(('relay._special_unlink: remote_file', remote_file))
 	remote_dir, filename = os.path.split(remote_file)
-	trash = tempfile.mkstemp()
-	try:
-		self.pop(os.path.join(remote_dir, '{}{}{}'.format(prefix, filename, suffix)), trash)
-	except:
-		pass
+	if six.PY3:
+		trash = tempfile.mkstemp()
+	elif six.PY2:
+		_, trash = tempfile.mkstemp()
+	self.pop(os.path.join(remote_dir, '{}{}{}'.format(prefix, filename, suffix)), trash, True)
 	os.unlink(trash)
+
+
+def _special_filter(ls, prefix, suffix):
+	if suffix:
+		end = -len(suffix)
+	else:
+		end = None
+	return [ os.path.join(filedir, filename[len(prefix):end]) \
+		for filedir, filename in [ os.path.split(f) for f in ls ] \
+		if filename.startswith(prefix) and filename.endswith(suffix) ]
+
 
 
 
 class Relay(object):
+	__slots__ = [ 'address', '_placeholder_prefix', '_placeholder_suffix', '_lock_prefix', '_lock_suffix' ]
+
 	def __init__(self, address):
 		self.address = address
 		self._placeholder_prefix = '.'
@@ -42,65 +59,61 @@ class Relay(object):
 	def diskFree(self):
 		raise NotImplementedError('abstract method')
 
-	def listReady(self, remote_dir):
-		ls = self._list(remote_dir)
-		return [ filename for filename in ls \
+	def listReady(self, remote_dir, recursive=True):
+		ls = self._list(remote_dir, recursive=recursive)
+		ready = []
+		for file in ls:
+			filedir, filename = os.path.split(file)
 			if not (filename.startswith(self._lock_prefix) \
 					and filename.endswith(self._lock_suffix)) \
 				and not (filename.startswith(self._placeholder_prefix) \
 					and filename.endswith(self._placeholder_suffix)) \
 				and '{}{}{}'.format(self._lock_prefix, filename, self._lock_suffix) \
-					not in ls ]
+					not in ls:
+				ready.append(file)
+		return ready
 
-	def listTransfered(self, remote_dir, end2end=True):
-		ls = self._list(remote_dir)
+	def listTransfered(self, remote_dir, end2end=True, recursive=True):
+		ls = self._list(remote_dir, recursive=recursive)
+		#print(('Relay.listTransfered: ls', ls))
+		placeholders = _special_filter(ls, self._placeholder_prefix, self._placeholder_suffix)
 		if end2end:
-			if self._placeholder_suffix:
-				end = -len(self._placeholder_suffix)
-			else:
-				end = None
-			return [ filename[len(self._placeholder_prefix):end] \
-				for filename in ls \
-				if filename.startswith(self._placeholder_prefix) \
-					and filename.endswith(self._placeholder_suffix) ]
+			return placeholders
 		else:
-			raise NotImplementedError
+			locks = _special_filter(ls, self._lock_prefix, self._lock_suffix)
+			#print(('Relay.listTransfered: placeholders, locks', placeholders, locks))
+			return placeholders + locks
 
-	def listLocked(self, remote_dir):
-		ls = self._list(remote_dir)
-		if self._lock_suffix:
-			end = -len(self._lock_suffix)
-		else:
-			end = None
-		return [ filename[len(self._lock_prefix):end] \
-			for filename in ls \
-			if filename.startswith(self._lock_prefix) \
-				and filename.endswith(self._lock_suffix) ]
+	def listLocked(self, remote_dir, recursive=True):
+		ls = self._list(remote_dir, recursive=recursive)
+		return _special_filter(ls, self._lock_prefix, self._lock_suffix)
 
-	def checkLocked(self, remote_file):
+	def hasLock(self, remote_file):
 		remote_dir, filename = os.path.split(remote_file)
-		return filename in self.listLocked(remote_dir)
+		return filename in self.listLocked(remote_dir, recursive=False)
 
-	def _list(self, remote_dir):
+	def _list(self, remote_dir, recursive=True):
 		raise NotImplementedError('abstract method')
 
 	def acquireLock(self, remote_file, blocking=True):
 		if blocking:
 			if blocking is True:
 				blocking = 60 # translate it to time, in seconds
-			while checkLock(self, remote_file):
+			while self.hasLock(remote_file):
+				print('sleeping {} seconds'.format(blocking))
 				time.sleep(blocking)
-		elif checkLock(self, remote_file):
+		elif hasLock(self, remote_file):
 			return
 		_special_push(self, remote_file, self._lock_prefix, self._lock_suffix)
 
 	def push(self, local_file, remote_dest):
 		raise NotImplementedError('abstract method')
 
-	def safePush(self, local_file, remote_dest, placeholder=True):
-		_, filename = os.path.split(local_file)
+	def safePush(self, local_file, remote_dest, relative_path=None, placeholder=True):
+		if not relative_path:
+			_, relative_path = os.path.split(local_file)
 		remote_dir = remote_dest # TODO: check this and adjust
-		remote_file = os.path.join(remote_dir, filename)
+		remote_file = os.path.join(remote_dir, relative_path)
 		self.acquireLock(remote_file)
 		if placeholder:
 			# TODO: check whether placeholder is present
@@ -109,10 +122,11 @@ class Relay(object):
 		self.push(local_file, remote_file)
 		self.releaseLock(remote_file)
 
-	def pop(self, remote_file, local_dest, unlink=True):
+	def pop(self, remote_file, local_dest, unlink=True, makedirs=True):
 		raise NotImplementedError
 
 	def safePop(self, remote_file, local_dest, unlink=True, placeholder=True):
+		# TODO: ensure that local_dest is a path to a file and not a directory
 		self.acquireLock(remote_file)
 		self.pop(remote_file, local_dest, unlink)
 		if placeholder:

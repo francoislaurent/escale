@@ -1,6 +1,5 @@
 
 from .relay import Relay
-from .manager import Manager
 
 __all__ = []
 
@@ -31,5 +30,5 @@ def by_protocol(protocol):
 	raise KeyError('cannot find protocol {}'.format(protocol))
 
 
-__all__ += ['__protocols__', 'by_protocol', 'Manager']
+__all__ += ['__protocols__', 'by_protocol']
 
