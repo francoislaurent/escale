@@ -13,10 +13,11 @@ import syncacre.relay as relay
 from syncacre.manager import Manager
 import syncacre.encryption as encryption
 
-import six
 from functools import partial
 from multiprocessing import Pool
 
+
+PYTHON_VERSION = sys.version_info[0]
 
 default_section = 'DEFAULT' # Python2 cannot modify it
 
@@ -27,6 +28,8 @@ fields = dict(path=['local path', 'path'], \
 	username=['relay user', 'remote user', 'auth user', 'user'], \
 	password=['password', 'secret', 'secret file', 'secrets file', 'credential', 'credentials'], \
 	refresh=('float', ['refresh']), \
+	timestamp=('bool', ['modification time', 'timestamp', 'mtime']), \
+	clientname=['client', 'client name'], \
 	encryption=['encryption'], \
 	passphrase=['passphrase', 'key'])
 
@@ -109,9 +112,9 @@ def syncacre(config, repository):
 		protocol = config.get(repository, 'protocol')
 	except NoOptionError:
 		protocol = args['address'].split(':')[0] # crashes if no colon found
-	if six.PY3:
+	if PYTHON_VERSION == 3:
 		args['config'] = config[repository]
-	elif six.PY2:
+	elif PYTHON_VERSION == 2:
 		args['config'] = (config, repository)
 	manager = Manager(relay.by_protocol(protocol), protocol=protocol, **args)
 	manager.run()
@@ -150,10 +153,10 @@ def main(**args):
 			if not line.startswith('[{}]'.format(default_section)):
 				line = "[{}]\n{}".format(default_section, line)
 			raw_cfg = "{}{}".format(line, f.read())
-		if six.PY3:
+		if PYTHON_VERSION == 3:
 			config = ConfigParser(default_section=default_section)
 			config.read_string(raw_cfg, source=cfg_file)
-		elif six.PY2:
+		elif PYTHON_VERSION == 2:
 			assert default_section == 'DEFAULT'
 			config = ConfigParser()
 			import io
@@ -167,9 +170,9 @@ def main(**args):
 			syncacre(config, config.sections()[0])
 		else:
 			pool = Pool(nsections)
-			if six.PY3:
+			if PYTHON_VERSION == 3:
 				pool.map(partial(syncacre, config), config.sections())
-			elif six.PY2:
+			elif PYTHON_VERSION == 2:
 				import itertools
 				pool.map(uncurried_syncacre, \
 					itertools.izip(itertools.repeat(config), config.sections()))

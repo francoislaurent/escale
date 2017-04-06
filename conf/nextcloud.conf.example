@@ -1,7 +1,7 @@
 
 [my-cloud]
-# refresh every 5 minutes
-refresh = 300 # in seconds
+# refresh every 5 minutes (interval is in seconds)
+refresh = 300
 # absolute path to the local repository
 local path = /home/me/my-cloud
 # name of the cloud server

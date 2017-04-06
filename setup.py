@@ -7,22 +7,29 @@ from codecs import open
 from os import path
 import sys
 
-install_requires = ['six', 'easywebdav', 'pycrypt']
+install_requires = ['easywebdav']
+extra_requires = {}
 
 if sys.version_info[0] == 3: # Python 3
-	install_requires.append('blowfish')
+	#extra_requires['Blowfish'] = ['blowfish']
+	#extra_requires['AES'] = ['pycrypt']
+	pass
+else:
+	#extra_requires['Blowfish'] = ['pycrypto']
+	#extra_requires['AES'] = ['pycrypto']
+	pass
 
 
-pwd = path.abspath(path.dirname(__file__))
+#pwd = path.abspath(path.dirname(__file__))
 
 setup(
 	name = 'syncacre',
-	version = '0.1',
-	description = 'Syncacre - Client-to-client synchronization based on external relay storage',
+	version = '0.2',
+	description = 'SynCÀCRe - Client-to-client synchronization based on external relay storage',
 	url = 'https://github.com/francoislaurent/syncacre',
 	author = 'François Laurent',
 	author_email = 'francois.laurent1@protonmail.com',
-	license = 'MIT',
+	license = 'ISC',
 	classifiers = [
 		'Programming Language :: Python :: 2',
 		'Programming Language :: Python :: 2.7',
@@ -31,4 +38,6 @@ setup(
 	],
 	packages = find_packages(exclude=['doc']),
 	install_requires = install_requires,
+	extra_requires = extra_requires,
 )
+
