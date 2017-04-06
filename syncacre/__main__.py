@@ -84,7 +84,7 @@ def syncacre(config, repository):
 	try:
 		write_only = config.getboolean(repository, 'write only')
 		if write_only:
-			args['mode'] = 'upload'
+			args['mode'] = 'download'
 	except NoOptionError:
 		pass
 	try:
@@ -95,7 +95,7 @@ def syncacre(config, repository):
 					print('both read only and write only; cannot determine mode')
 				return
 			else:
-				args['mode'] = 'download'
+				args['mode'] = 'upload'
 	except NoOptionError:
 		pass
 	# parse encryption passphrase
@@ -134,9 +134,9 @@ def main(**args):
 				print('file not found: {}'.format(cfg_file))
 			cfg_file = None
 	else:
-		candidates = [os.path.expanduser('~/.config/across.conf'), \
-			os.path.expanduser('~/.across'), \
-			'/etc/across.conf', \
+		candidates = [os.path.expanduser('~/.config/syncacre.conf'), \
+			os.path.expanduser('~/.syncacre'), \
+			'/etc/syncacre.conf', \
 			None]
 		for cfg_file in candidates:
 			if cfg_file and os.path.isfile(cfg_file):
@@ -188,9 +188,9 @@ def main(**args):
 
 
 if __name__ == '__main__':
-	parser = argparse.ArgumentParser(prog='across', \
+	parser = argparse.ArgumentParser(prog='syncacre', \
 		description='ACRosS - All-Clients Relay Synchronizer', \
-		epilog='See also https://github.com/francoislaurent/across')
+		epilog='See also https://github.com/francoislaurent/syncacre')
 	parser.add_argument('-c', '--config', type=str, help='path to config file')
 	parser.add_argument('-d', '--daemon', action='store_true', help='runs in background as a daemon (recommended)')
 	parser.add_argument('-q', '--quiet', action='store_true', help='runs silently')
