@@ -4,6 +4,7 @@ import easywebdav
 import requests
 import os
 import sys
+import time
 import itertools
 
 
@@ -28,8 +29,8 @@ class WebDAVClient(easywebdav.Client):
 						count += 1
 						if count <= self.max_retry:
 							if self.verbose:
-								print('warning: connection error')
-								print('         {}'.format(e.args))
+								print("\nwarning: connection error")
+								print('         {}'.format(e.args[0]))
 							time.sleep(self.retry_after)
 				if self.verbose:
 					print('warning: too many connection attempts.')
