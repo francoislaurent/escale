@@ -84,6 +84,25 @@ class WebDAVClient(easywebdav.Client):
 
 
 class WebDAV(Relay):
+	"""
+	Adds support for WebDAV remote hosts on top of ``easywebdav``.
+
+	Attributes:
+
+		username (str): https username.
+
+		password (str): https password.
+
+		protocol (str): either 'http' or 'https'.
+
+		certificate (str): path to a .pem certificate file.
+
+		max_retry (bool or int): defines the maximum number of retries.
+			Applies to connection failures.
+
+		retry_after (int): defines interval time between retries in seconds.
+			Applies to connection failures.
+	"""
 
 	__protocol__ = ['webdav', 'https']
 
