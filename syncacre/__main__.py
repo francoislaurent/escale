@@ -21,6 +21,8 @@ PYTHON_VERSION = sys.version_info[0]
 
 default_section = 'DEFAULT' # Python2 cannot modify it
 
+
+# fields expected in configuration files
 fields = dict(path=['local path', 'path'], \
 	address=['relay address', 'remote address', 'address'], \
 	directory=['relay dir', 'remote dir', 'dir', 'relay directory', 'remote directory', 'directory'], \
@@ -42,6 +44,10 @@ def getters(config, _type=None):
 
 
 def syncacre(config, repository):
+	"""
+	Reads the section related to a repository in a loaded configuration object and spawns a 
+	:class:`~syncacre.manager.Manager` for that repository.
+	"""
 	args = {}
 	for field, attrs in fields.items():
 		if isinstance(attrs, tuple):
@@ -121,10 +127,16 @@ def syncacre(config, repository):
 
 
 def uncurried_syncacre(args):
+	"""
+	Python2 adapter for :meth:`multiprocessing.pool.Pool.map`.
+	"""
 	syncacre(*args)
 
 
 def main(**args):
+	"""
+	Parses a configuration file and calls `syncacre` on each declared repository.
+	"""
 	verbose = not args['quiet']
 
 	cfg_file = args['config']

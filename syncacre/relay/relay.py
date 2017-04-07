@@ -11,27 +11,211 @@ def _get_temp_file():
 	return name
 
 
-def _special_filter(ls, prefix, suffix):
-	if suffix:
-		end = -len(suffix)
-	else:
-		end = None
-	return [ os.path.join(filedir, filename[len(prefix):end]) \
-		for filedir, filename in [ os.path.split(f) for f in ls ] \
-		if filename.startswith(prefix) and filename.endswith(suffix) ]
-
-
 def with_path(path, fun, *args, **kwargs):
+	"""
+	Helper function that applies a string manipulation function to the filename part of a path.
+	"""
 	_dir, _file = os.path.split(path)
 	return os.path.join(_dir, fun(_file, *args, **kwargs))
 
 
 
-class Relay(object):
-	__slots__ = [ 'address', '_placeholder_prefix', '_placeholder_suffix', '_lock_prefix', '_lock_suffix' ]
+class AbstractRelay(object):
+	"""
+	Sends files to/from a remote host.
+
+	This class is an interface that groups together the methods called by 
+	:class:`syncacre.manager.Manager`.
+
+	Attributes:
+
+		address (str): address of the remote host.
+
+	"""
+	__slots__ = ['address']
 
 	def __init__(self, address):
 		self.address = address
+
+	def open(self):
+		"""
+		Establishes the connection with the remote host.
+
+		Returns:
+
+			bool: True if successful, False if failed.
+		"""
+		raise NotImplementedError('abstract method')
+
+	def diskFree(self):
+		"""
+		Queries for how much space is available on the remote host.
+
+		Returns:
+
+			int or float: available space in kilobytes.
+		"""
+		raise NotImplementedError('abstract method')
+
+	def listReady(self, remote_dir, recursive=True):
+		"""
+		Gets the files on the remote host that are ready for download.
+
+		Arguments:
+
+			remote_dir (str): remote directory to "ls".
+
+			recursive (bool): whether to list subdirectories or not.
+
+		Returns:
+
+			list of str: list of relative paths.
+		"""
+		raise NotImplementedError('abstract method')
+
+	def listTransfered(self, remote_dir, end2end=True, recursive=True):
+		"""
+		Gets the files on the remote host that were transfered.
+
+		Arguments:
+
+			remote_dir (str): relative path to remote directory to "ls".
+
+			end2end (bool): if True, list only files that are no longer
+				available on the remote host.
+
+			recursive (bool): whether to list subdirectories or not.
+
+		Returns:
+
+			list of str: list of relative paths.
+		"""
+		raise NotImplementedError('abstract method')
+
+	def getPlaceholder(self, remote_file):
+		"""
+		Downloads the placeholder file.
+
+		It makes a temporary file to be manually unlinked once done with it.
+
+		Example:
+
+		.. code-block:: python
+
+			import os
+
+			placeholder = relay.getPlaceholder(path_to_remote_file)
+
+			with open(placeholder, 'r') as f:
+				# do something with `f`
+
+			os.unlink(placeholder)
+
+		
+		Arguments:
+
+			remote_file (str): relative path to regular file (not placeholder or lock).
+
+		Returns:
+
+			str: path to local copy of the placeholder file.
+		"""
+		raise NotImplementedError('abstract method')
+
+	def push(self, local_file, remote_dest, relative_path=None, last_modified=None, blocking=True):
+		"""
+		Uploads a file to the remote host.
+
+		Arguments:
+
+			local_file (str): path to the local file to be sent.
+
+			remote_dest (str): path to the target directory on the remote host.
+
+			relative_path (str): target relative path or filename, if to be different
+				from filename in `local_file`.
+
+			last_modified (str): meta information to be recorded for the remote copy.
+
+			blocking (bool): if target exists and is locked, whether should we block 
+				until the lock is released or skip the file.
+
+		Returns:
+
+			bool: True if successful, False if failed.
+		"""
+		raise NotImplementedError('abstract method')
+
+	def pop(self, remote_file, local_dest, blocking=True, placeholder=1, **kwargs):
+		"""
+		Downloads a file from the remote host and unlinks remote copy if relevant.
+
+		Arguments:
+
+			remote_file (str): relative path to the remote file.
+
+			local_dest (str): path to the target local file.
+
+			blocking (bool): if target exists and is locked, whether should we block 
+				until the lock is released or skip the file.
+
+			placeholder (bool or int): whether to generate a placeholder file.
+				If an int is given, it gives the number of downloading clients
+				(usually the total number of clients minus one).
+
+		Returns:
+
+			bool: True if successful, False if failed.
+		"""
+		raise NotImplementedError('abstract method')
+
+	def close(self):
+		"""
+		Closes the connection with the remote host.
+
+		Returns:
+
+			bool: True if successful, False if failed.
+		"""
+		raise NotImplementedError('abstract method')
+
+
+class Relay(AbstractRelay):
+	"""
+	Sends files to/from a remote relay.
+
+	This class is a partial implementation of :class:`AbstractRelay`.
+	Especially, it implements independent placeholders and locks.
+
+	Placeholders and locks are named after the corresponding regular files.
+	Extra strings are prepended and appended to the regular filename.
+
+	Any derivative class should implement:
+
+	* :meth:`_list`
+	* :meth:`hasPlaceholder` and :meth:`hasLock`
+	* :meth:`_push` and either:
+
+		* :meth:`_get`
+		* :meth:`_pop` with `_unlink` optional argument
+		* both :meth:`_get` and :meth:`_pop`
+
+	Attributes:
+
+		_placeholder_prefix (str): prefix for placeholder files.
+
+		_placeholder_suffix (str): suffix for placeholder files.
+
+		_lock_prefix (str): prefix for lock files.
+
+		_lock_suffix (str): suffix for lock files.
+
+	"""
+	__slots__ = AbstractRelay.__slots__ + \
+		[ '_placeholder_prefix', '_placeholder_suffix', '_lock_prefix', '_lock_suffix' ]
+
+	def __init__(self, address):
+		AbstractRelay.__init__(self, address)
 		self._placeholder_prefix = '.'
 		self._placeholder_suffix = '.placeholder'
 		self._lock_prefix = '.'
@@ -89,8 +273,8 @@ class Relay(object):
 	def open(self):
 		pass
 
-	def diskFree(self):
-		raise NotImplementedError('abstract method')
+	def close(self):
+		pass
 
 	def _list(self, remote_dir, recursive=True):
 		raise NotImplementedError('abstract method')
@@ -203,7 +387,6 @@ class Relay(object):
 		self.unlink(remote_file)
 
 	def _get(self, remote_file, local_dest, makedirs=True):
-		#raise NotImplementedError
 		self._pop(remote_file, local_dest, makedirs=makedirs, _unlink=False)
 
 	def pop(self, remote_file, local_dest, blocking=True, placeholder=1, **kwargs):
@@ -253,14 +436,16 @@ class Relay(object):
 		self._push(local_placeholder, remote_placeholder)
 		os.unlink(local_placeholder)
 
-	def close(self):
-		pass
-
 
 
 
 class IRelay(Relay):
+	"""
+	Extends :class:`Relay` with default implementation for :meth:`hasPlaceholder` and 
+	:meth:`hasLock`.
 
+	This class is not used at the moment.
+	"""
 	def listPlaceholders(self, remote_dir):
 		ls = self._list(remote_dir, recursive=False)
 		return [ file for file in ls if self.isPlaceholder(file) ]
@@ -280,7 +465,12 @@ class IRelay(Relay):
 
 
 class PDRelay(Relay):
+	"""
+	Extends :class:`Relay` with default implementation for :meth:`hasPlaceholder` and 
+	:meth:`hasLock`.
 
+	This class is not used at the moment.
+	"""
 	def listPlaceheld(self, remote_dir):
 		ls = self._list(remote_dir, recursive=False)
 		return [ file for file in ls if self.isPlaceholder(file) ]

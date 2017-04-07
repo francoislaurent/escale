@@ -11,8 +11,38 @@ from math import *
 
 
 class Manager(object):
+	"""
+	Makes the glue between the local file system and the :mod:`~syncacre.relay` layer and 
+	:mod:`~syncacre.encryption` layers.
 
-	def __init__(self, relay, path=None, address=None, directory=None, mode=None, \
+	This class manages the meta information, file modifications and sleep times.
+
+	Attributes:
+
+		path (str): path to the local repository.
+
+		dir (str): relative path to the repository on the remote host.
+
+		mode (None or str): either 'download' or 'upload' or None (both download and upload).
+
+		encryption (syncacre.encryption.Cipher): encryption layer.
+
+		relay (syncacre.relay.AbstractRelay): communication layer.
+
+		timestamp (bool or str): if True (recommended), manages file modification times. 
+			If str, in addition determines the timestamp format as supported by 
+			`time.strftime`.
+
+		refresh (int): refresh interval in seconds.
+
+		verbose (bool): if False, commandline is silent.
+
+		pop_args (dict): extra keyword arguments for :meth:`syncacre.AbstractRelay.pop`.
+			Supported keyword arguments are:
+			``client_name`` (`str`): name identifying the running client.
+
+	"""
+	def __init__(self, relay, address=None, path=None, directory=None, mode=None, \
 		encryption=Plain(None), timestamp=True, refresh=None, verbose=True, clientname=None, \
 		**relay_args):
 		if path[-1] != '/':
@@ -32,6 +62,22 @@ class Manager(object):
 		self.relay = relay(address, **relay_args)
 
 	def run(self):
+		"""
+		Runs the manager.
+
+		Example:
+		::
+
+			from syncacre.manager import Manager
+			from syncacre.relay   import WebDAV
+
+			Manager(WebDAV,
+				remote_host,
+				path_to_local_repository,
+				path_to_remote_repository
+				).run()
+
+		"""
 		self.logBegin('connecting with {}', self.relay.address)
 		ok = self.relay.open()
 		self.logEnd(ok)
@@ -52,6 +98,9 @@ class Manager(object):
 		self.relay.close()
 
 	def download(self):
+		"""
+		Finds out which files are to be downloaded and download them.
+		"""
 		remote = self.relay.listReady(self.dir)
 		#print(('Manager.download: remote', remote))
 		for filename in remote:
@@ -82,6 +131,9 @@ class Manager(object):
 				os.utime(local_file, (time.time(), last_modified))
 
 	def upload(self):
+		"""
+		Finds out which files are to be uploaded and upload them.
+		"""
 		local = self.localFiles()
 		remote = self.relay.listTransfered(self.dir, end2end=False)
 		#print(('Manager.upload: local, remote', local, remote))
@@ -130,6 +182,11 @@ class Manager(object):
 				print('[failed]')
 
 	def localFiles(self, path=None):
+		"""
+		Lists all files in the local repository.
+
+		Files which name begins with "." are ignored.
+		"""
 		if path is None:
 			path = self.path
 		ls = [ os.path.join(path, file) for file in os.listdir(path) if file[0] != '.' ]

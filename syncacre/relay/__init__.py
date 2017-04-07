@@ -1,7 +1,7 @@
 
-from .relay import Relay
+from .relay import AbstractRelay, Relay
 
-__all__ = []
+__all__ = ['AbstractRelay', 'Relay']
 
 __protocols__ = []
 
@@ -9,14 +9,16 @@ try:
 	from .ssh import SSH
 	__all__.append('SSH')
 	__protocols__.append(SSH)
-except ImportError:
+except ImportError as e:
+	print(e)
 	pass
 
 try:
 	from .webdav import WebDAV
 	__all__.append('WebDAV')
 	__protocols__.append(WebDAV)
-except ImportError:
+except ImportError as e:
+	print(e)
 	pass
 
 

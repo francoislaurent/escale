@@ -8,7 +8,40 @@ import time
 import itertools
 
 
+# the following fix has been suggested in
+# http://www.rfk.id.au/blog/entry/preparing-pyenchant-for-python-3/
+if sys.version_info[0] == 3:
+	basestring = (str, bytes)
+else:
+	basestring = basestring
+
+
+def _easywebdav_adapter(fun, local_path_or_fileobj, *args):
+	"""
+	This code is partly borrowed from:
+	https://github.com/amnong/easywebdav/blob/master/easywebdav/client.py
+
+	Below follows the copyright notice of the easywebdav project:
+	::
+
+		Copyright (c) 2012 year, Amnon Grossman
+
+		Permission to use, copy, modify, and/or distribute this software for any purpose with or without fee is hereby granted, provided that the above copyright notice and this permission notice appear in all copies.
+
+		THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+
+	"""
+	if isinstance(local_path_or_fileobj, basestring):
+		with open(local_path_or_fileobj, 'wb') as f:
+			fun(f, *args)
+	else:
+		fun(local_path_or_fileobj, *args)
+
+
 class WebDAVClient(easywebdav.Client):
+	"""
+	This class inheritates from and overloads some methods of :class:`easywebdav.client.Client`.
+	"""
 	def __init__(self, host, max_retry=1, retry_after=60, verbose=False, url='', **kwargs):
 		easywebdav.Client.__init__(self, host, **kwargs)
 		self.max_retry = max_retry
@@ -40,6 +73,14 @@ class WebDAVClient(easywebdav.Client):
 				path = args[1]
 				print("access to '{}{}' forbidden".format(self.url, path))
 			raise e
+
+	def upload(self, local_path_or_fileobj, remote_path):
+		_easywebdav_adapter(self._upload, local_path_or_fileobj, remote_path)
+
+	def download(self, remote_path, local_path_or_fileobj):
+		response = self._send('GET', remote_path, 200, stream=True)
+		_easywebdav_adapter(self._download, local_path_or_fileobj, response)
+
 
 
 class WebDAV(Relay):

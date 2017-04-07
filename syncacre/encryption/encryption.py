@@ -4,20 +4,51 @@ import os
 
 
 class Cipher(object):
+	"""
+	Partially abstract class that encrypts and decrypts file.
 
+	A concrete `Cipher` class should implement :meth:`_encrypt` and :meth:`_decrypt`.
+
+	Attributes:
+
+		passphrase (str): arbitrarily long passphrase.
+
+	"""
 	def __init__(self, passphrase):
 		self.passphrase = passphrase
 
 	def _encrypt(self, data):
+		"""
+		Encrypts binary data.
+
+		Arguments:
+
+			data (bytes): plain data.
+
+		Returns:
+
+			bytes: encrypted data.
+		"""
 		raise NotImplementedError('abstract method')
 
 	def _decrypt(self, data):
+		"""
+		Decrypts binary data.
+
+		Arguments:
+
+			data (bytes): encrypted data.
+
+		Returns:
+
+			bytes: plain data.
+		"""
 		raise NotImplementedError('abstract method')
 
 	def encrypt(self, plain, cipher=None):
 		auto = not cipher
 		if auto:
-			cipher = tempfile.mkstemp()
+			cipher = tempfile.mkstemp()[1]
 		fo = open(cipher, 'wb')
 		try:
 			with open(plain, 'rb') as fi:
@@ -33,7 +64,7 @@ class Cipher(object):
 	def decrypt(self, cipher, plain=None, consume=True):
 		auto = not plain
 		if auto:
-			plain = tempfile.mkstemp()
+			plain = tempfile.mkstemp()[1]
 		fo = open(plain, 'wb')
 		try:
 			with open(cipher, 'rb') as fi:
@@ -48,16 +79,38 @@ class Cipher(object):
 			plain = None
 		return plain
 
-	def prepare(self, cipher):
-		return tempfile.mkstemp()
+	def prepare(self, plain):
+		"""
+		Example:
+		::
+
+			# plain_file may refer to a non-existing file
+			temp_file = cipher.prepare(plain_file)
+			# get encrypted file as `temp_file`,
+			# and then decrypt it into `target_file`:
+			cipher.decrypt(temp_file, plain_file)
+			# `temp_file` is no longer available
+		"""
+		return tempfile.mkstemp()[1]
 
 	def finalize(self, cipher):
+		"""
+		Example:
+		::
+
+			temp_file = cipher.encrypt(plain_file)
+			# manipulate encrypted file `temp_file`
+			cipher.finalize(temp_file)
+			# `temp_file` is no longer available
+		"""
 		os.delete(cipher)
 
 
 
 class Plain(Cipher):
-
+	"""
+	Concrete implementation of `Cipher` that actually does not cipher.
+	"""
 	def __init__(self, *ignored):
 		pass
 
