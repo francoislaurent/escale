@@ -4,6 +4,7 @@ import sys
 import time
 import tempfile
 
+from syncacre.log import log_root
 
 
 def _get_temp_file():
@@ -31,11 +32,14 @@ class AbstractRelay(object):
 
 		address (str): address of the remote host.
 
-	"""
-	__slots__ = ['address']
+		logger (Logger or LoggerAdapter): repository-related logger.
 
-	def __init__(self, address):
+	"""
+	__slots__ = ['address', 'logger']
+
+	def __init__(self, address, logger=None):
 		self.address = address
+		self.logger = logger
 
 	def open(self):
 		"""
@@ -214,8 +218,10 @@ class Relay(AbstractRelay):
 	__slots__ = AbstractRelay.__slots__ + \
 		[ '_placeholder_prefix', '_placeholder_suffix', '_lock_prefix', '_lock_suffix' ]
 
-	def __init__(self, address):
-		AbstractRelay.__init__(self, address)
+	def __init__(self, address, logger=None):
+		if logger is None:
+			logger = logging.getLogger(log_root).getChild(address)
+		AbstractRelay.__init__(self, address, logger=logger)
 		self._placeholder_prefix = '.'
 		self._placeholder_suffix = '.placeholder'
 		self._lock_prefix = '.'
@@ -356,7 +362,7 @@ class Relay(AbstractRelay):
 			if blocking is True: # if not numerical
 				blocking = 60 # translate it to time, in seconds
 			while self.hasLock(remote_file):
-				print('sleeping {} seconds'.format(blocking))
+				self.logger.debug('lock not available; waiting %s seconds', blocking)
 				time.sleep(blocking)
 		elif self.hasLock(remote_file):
 			return False

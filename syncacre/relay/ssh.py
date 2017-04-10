@@ -1,4 +1,5 @@
 
+#from syncacre.base import *
 from .relay import Relay
 
 
@@ -9,8 +10,8 @@ class SSH(Relay):
 
 	__protocol__ = 'ssh'
 
-	def __init__(self, address, **ignored):
-		Relay.__init__(self, address)
+	def __init__(self, address, logger=None, **ignored):
+		Relay.__init__(self, address, logger=logger)
 		raise NotImplementedError
 
 

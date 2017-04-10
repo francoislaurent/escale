@@ -12,6 +12,14 @@ if sys.version_info[0] == 3:
 	__all__.append('Blowfish')
 	__ciphers__['blowfish'] = Blowfish
 
+try:
+	from .fernet import Fernet
+	__all__.append('Fernet')
+	__ciphers__['fernet'] = Fernet
+except ImportError:
+	pass
+
+
 def by_cipher(cipher):
 	return __ciphers__[cipher]
 

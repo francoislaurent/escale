@@ -9,58 +9,140 @@ import argparse
 import sys
 import os
 
+import logging, logging.config, logging.handlers
+from multiprocessing import Process, Queue
+import threading
+
+from syncacre.base import *
+from syncacre.log import *
 import syncacre.relay as relay
 from syncacre.manager import Manager
 import syncacre.encryption as encryption
 
-from functools import partial
-from multiprocessing import Pool
 
-
-PYTHON_VERSION = sys.version_info[0]
-
-default_section = 'DEFAULT' # Python2 cannot modify it
 
 
 # fields expected in configuration files
-fields = dict(path=['local path', 'path'], \
+fields = dict(path=('path', ['local path', 'path']), \
 	address=['relay address', 'remote address', 'address'], \
 	directory=['relay dir', 'remote dir', 'dir', 'relay directory', 'remote directory', 'directory'], \
 	port=['relay port', 'remote port', 'port'], \
 	username=['relay user', 'remote user', 'auth user', 'user'], \
-	password=['password', 'secret', 'secret file', 'secrets file', 'credential', 'credentials'], \
+	password=(('path', 'str'), ['password', 'secret', 'secret file', 'secrets file', 'credential', 'credentials']), \
 	refresh=('float', ['refresh']), \
-	timestamp=('bool', ['modification time', 'timestamp', 'mtime']), \
+	timestamp=(('bool', 'str'), ['modification time', 'timestamp', 'mtime']), \
 	clientname=['client', 'client name'], \
-	encryption=['encryption'], \
-	passphrase=['passphrase', 'key'])
+	encryption=(('bool', 'str'), ['encryption']), \
+	passphrase=(('path', 'str'), ['passphrase', 'key']))
 
 
-def getters(config, _type=None):
-	if _type:
-		return dict(bool=config.getboolean, int=config.getint, float=config.getfloat)[_type]
+def getpath(config, section, attr):
+	path = config.get(section, attr)
+	if path[0] == '~':
+		path = os.path.expanduser(path)
+	if os.path.isdir(path) or os.path.isfile(path):
+		return path
 	else:
-		return config.get
+		raise ValueError
 
 
-def syncacre(config, repository):
+def getter(_type='str'):
+	"""
+	Config getter.
+
+	Arguments:
+
+		_type (type): either ``bool``, ``int``, ``float`` or ``str``.
+
+	Returns:
+
+		function: getter(config (ConfigParser), section (str), field (str))
+
+	"""
+	return dict(
+			bool =	ConfigParser.getboolean,
+			int =	ConfigParser.getint,
+			float =	ConfigParser.getfloat,
+			str =	ConfigParser.get,
+			path =	getpath
+		)[_type]
+
+
+def parse_field(attrs, getters, config, config_section, logger):
+	for attr in attrs:
+		option = True
+		for get in getters:
+			try:
+				return get(config, config_section, attr)
+			except NoOptionError:
+				option = False
+				break
+			except ValueError:
+				pass
+		if option:
+			logger.warning("wrong format for attribute '%s'", attr)
+	return None
+
+
+def parse_cfg(args, msgs):
+	cfg_file = args['config']
+	if cfg_file:
+		if not os.path.isfile(cfg_file):
+			raise IOError('file not found: {}'.format(cfg_file))
+	else:
+		candidates = [os.path.expanduser('~/.config/syncacre.conf'), \
+			os.path.expanduser('~/.syncacre'), \
+			'/etc/syncacre.conf', \
+			None]
+		for cfg_file in candidates:
+			if cfg_file and os.path.isfile(cfg_file):
+				break
+		if not cfg_file:
+			raise IOError('cannot find a valid configuration file')
+	with open(cfg_file, 'r') as f:
+		while True:
+			line = f.readline()
+			stripped = line.strip()
+			if stripped and any([ stripped[0] == s for s in '#;' ]):
+				stripped = ''
+			if stripped:
+				break
+		if not line.startswith('[{}]'.format(default_section)):
+			line = "[{}]\n{}".format(default_section, line)
+		raw_cfg = "{}{}".format(line, f.read())
+	if PYTHON_VERSION == 3:
+		config = ConfigParser(default_section=default_section)
+		config.read_string(raw_cfg, source=cfg_file)
+	elif PYTHON_VERSION == 2:
+		assert default_section == 'DEFAULT'
+		config = ConfigParser()
+		import io
+		config.readfp(io.BytesIO(raw_cfg))
+	return (cfg_file, config, msgs)
+
+
+
+def syncacre(handler, config, repository):
 	"""
 	Reads the section related to a repository in a loaded configuration object and spawns a 
 	:class:`~syncacre.manager.Manager` for that repository.
 	"""
+	logger = logging.getLogger(log_root).getChild(repository)
+	logger.propagate = False
+	logger.setLevel(logging.DEBUG)
+	logger.addHandler(handler)
 	args = {}
 	for field, attrs in fields.items():
 		if isinstance(attrs, tuple):
-			t, attrs = attrs
-			get = getters(config, t)
+			types, attrs = attrs
+			if isinstance(types, str):
+				types = (types,)
+			getters = [ getter(t) for t in types ]
 		else:
-			get = getters(config)
-		for attr in attrs:
-			try:
-				args[field] = get(repository, attr)
-				break
-			except NoOptionError:
-				pass
+			getters = [ getter() ]
+		value = parse_field(attrs, getters, config, repository, logger)
+		if value is not None:
+			args[field] = value
 	if 'password' in args and os.path.isfile(args['password']):
 		with open(args['password'], 'r') as f:
 			content = f.readlines()
@@ -76,15 +158,13 @@ def syncacre(config, repository):
 						ok = True
 						break
 				if not ok:
-					if verbose:
-						print('cannot read password for user {} from file {}'.format(args['username'], args[ 'password']))
+					logger.error("cannot read password for user '%s' from file '%s'", args['username'], args[ 'password'])
 					del args['password']
 		else:
 			try:
 				args['username'], args['password'] = content[0].split(':', 1)
 			except ValueError:
-				if verbose:
-					print('cannot read login information from credential file {}'.format(args['password']))
+				logger.error("cannot read login information from credential file '%s'", args['password'])
 				del args['password']
 	#
 	try:
@@ -97,8 +177,7 @@ def syncacre(config, repository):
 		read_only = config.getboolean(repository, 'read only')
 		if read_only:
 			if 'mode' in args: # write_only is also True
-				if verbose:
-					print('both read only and write only; cannot determine mode')
+				logger.warning('both read only and write only; cannot determine mode')
 				return
 			else:
 				args['mode'] = 'upload'
@@ -109,102 +188,113 @@ def syncacre(config, repository):
 		with open(args['passphrase'], 'r') as f:
 			args['passphrase'] = f.read()
 	if 'encryption' in args:
-		try:
-			cipher = encryption.by_cipher(args['encryption'].lower())
-		except KeyError:
-			raise ValueError('unsupported encryption algorithm: {}'.format(args['encryption']))
-		args['encryption'] = cipher(args.pop('passphrase', None))
+		if isinstance(args['encryption'], bool):
+			if args['encryption']:
+				cipher = encryption.Fernet
+			else:
+				cipher = None
+		else:
+			try:
+				cipher = encryption.by_cipher(args['encryption'].lower())
+			except KeyError:
+				cipher = None
+				msg = ("unsupported encryption algorithm '%s'", args['encryption'])
+				logger.warning(*msg)
+				# do not let the user send plain data if she requested encryption:
+				raise ValueError(*msg)
+		if cipher is None:
+			del args['encryption']
+		else:
+			args['encryption'] = cipher(args.pop('passphrase', None))
+	# relay type
 	try:
 		protocol = config.get(repository, 'protocol')
 	except NoOptionError:
 		protocol = args['address'].split(':')[0] # crashes if no colon found
-	if PYTHON_VERSION == 3:
-		args['config'] = config[repository]
-	elif PYTHON_VERSION == 2:
-		args['config'] = (config, repository)
-	manager = Manager(relay.by_protocol(protocol), protocol=protocol, **args)
+	#if PYTHON_VERSION == 3:
+	#	args['config'] = config[repository]
+	#elif PYTHON_VERSION == 2:
+	#	args['config'] = (config, repository)
+	manager = Manager(relay.by_protocol(protocol), protocol=protocol, logger=logger, **args)
 	manager.run()
 
 
-def uncurried_syncacre(args):
-	"""
-	Python2 adapter for :meth:`multiprocessing.pool.Pool.map`.
-	"""
-	syncacre(*args)
 
 
 def main(**args):
 	"""
 	Parses a configuration file and calls `syncacre` on each declared repository.
 	"""
-	verbose = not args['quiet']
-
-	cfg_file = args['config']
-	if cfg_file:
-		if not os.path.isfile(cfg_file):
-			if verbose:
-				print('file not found: {}'.format(cfg_file))
-			cfg_file = None
+	# initialize the first series of logs; they will be flushed once the logger will be set
+	msgs = []
+	# parse the config file(s)
+	cfg_file, config, msgs = parse_cfg(args, msgs)
+	# configure logger
+	logger, msgs = set_logger(cfg_file, config, args, msgs)
+	# flush messages
+	for msg in msgs:
+		logger.warning(msg)
+	# handle -d option
+	if args['daemon']:
+		try:
+			import daemon
+		except ImportError:
+			logger.warning("the 'python-daemon' library is not installed; cannot daemonize")
+			logger.info('you can get it with:')
+			logger.info('     pip install python-daemon')
+			logger.info('alternatively, you can run syncacre with nohup and &:')
+			logger.info('     nohup python -m syncacre -c my-conf-file &')
+			args['daemon'] = False
+	# spawn syncacre subprocess(es)
+	if args['daemon']:
+		#config.set(default_section, 'daemon', '1')
+		pwd = os.getcwd()
+		for section in config.sections():
+			with daemon.DaemonContext(working_directory=pwd):
+				syncacre(config, section)
 	else:
-		candidates = [os.path.expanduser('~/.config/syncacre.conf'), \
-			os.path.expanduser('~/.syncacre'), \
-			'/etc/syncacre.conf', \
-			None]
-		for cfg_file in candidates:
-			if cfg_file and os.path.isfile(cfg_file):
-				break
-	if cfg_file:
-		with open(cfg_file, 'r') as f:
-			while True:
-				line = f.readline()
-				stripped = line.strip()
-				if stripped and any([ stripped[0] == s for s in '#;' ]):
-					stripped = ''
-				if stripped:
-					break
-			if not line.startswith('[{}]'.format(default_section)):
-				line = "[{}]\n{}".format(default_section, line)
-			raw_cfg = "{}{}".format(line, f.read())
+		# borrowed from https://docs.python.org/3/howto/logging-cookbook.html
 		if PYTHON_VERSION == 3:
-			config = ConfigParser(default_section=default_section)
-			config.read_string(raw_cfg, source=cfg_file)
+			queue = Queue()
+			listener = QueueListener(queue)
+			handler = logging.handlers.QueueHandler(queue)
 		elif PYTHON_VERSION == 2:
-			assert default_section == 'DEFAULT'
-			config = ConfigParser()
-			import io
-			config.readfp(io.BytesIO(raw_cfg))
-		if not args['quiet']:
-			config.set(default_section, 'verbose', '0')
-		if args['daemon']:
-			config.set(default_section, 'daemon', '1')
-		nsections = len(config.sections())
-		if nsections == 1:
-			syncacre(config, config.sections()[0])
-		else:
-			pool = Pool(nsections)
-			if PYTHON_VERSION == 3:
-				pool.map(partial(syncacre, config), config.sections())
-			elif PYTHON_VERSION == 2:
-				import itertools
-				pool.map(uncurried_syncacre, \
-					itertools.izip(itertools.repeat(config), config.sections()))
-		out = 0
-	else:
-		if verbose:
-			out = 'cannot find a valid configuration file'
-		else:
-			out = 0
-	return out
+			import syncacre.log.socket as socket
+			conn = ('localhost', logging.handlers.DEFAULT_TCP_LOGGING_PORT)
+			listener = socket.SocketListener(*conn)
+			handler = logging.handlers.SocketHandler(*conn)
+		# logger
+		logger_thread = threading.Thread(target=listener.listen)
+		logger_thread.start()
+		# syncacre subprocesses
+		workers = []
+		for section in config.sections():
+			worker = Process(target=syncacre,
+				name='{}.{}'.format(log_root, section),
+				args=(handler, config, section))
+			worker.daemon = args['daemon']
+			workers.append(worker)
+			worker.start()
+		# wait for everyone to terminate
+		try:
+			for worker in workers:
+				worker.join()
+		except KeyboardInterrupt:
+			for worker in workers:
+				worker.terminate()
+		listener.abort()
+		logger_thread.join()
+	return 0
 
 
 
 
 if __name__ == '__main__':
 	parser = argparse.ArgumentParser(prog='syncacre', \
-		description='ACRosS - All-Clients Relay Synchronizer', \
+		description='SynCÀCRe - Client-to-client synchronization based on external relay storage', \
 		epilog='See also https://github.com/francoislaurent/syncacre')
 	parser.add_argument('-c', '--config', type=str, help='path to config file')
-	parser.add_argument('-d', '--daemon', action='store_true', help='runs in background as a daemon (recommended)')
+	parser.add_argument('-d', '--daemon', action='store_true', help='runs in background as a daemon')
 	parser.add_argument('-q', '--quiet', action='store_true', help='runs silently')
 
 	args = parser.parse_args()

@@ -1,4 +1,6 @@
 
+from syncacre.base import *
+from syncacre.log import log_root
 from .relay import Relay
 import easywebdav
 import requests
@@ -10,13 +12,13 @@ import itertools
 
 # the following fix has been suggested in
 # http://www.rfk.id.au/blog/entry/preparing-pyenchant-for-python-3/
-if sys.version_info[0] == 3:
+if PYTHON_VERSION == 3:
 	basestring = (str, bytes)
 else:
 	basestring = basestring
 
 
-def _easywebdav_adapter(fun, local_path_or_fileobj, *args):
+def _easywebdav_adapter(fun, mode, local_path_or_fileobj, *args):
 	"""
 	This code is partly borrowed from:
 	https://github.com/amnong/easywebdav/blob/master/easywebdav/client.py
@@ -32,21 +34,24 @@ def _easywebdav_adapter(fun, local_path_or_fileobj, *args):
 
 	"""
 	if isinstance(local_path_or_fileobj, basestring):
-		with open(local_path_or_fileobj, 'wb') as f:
+		with open(local_path_or_fileobj, mode) as f:
 			fun(f, *args)
 	else:
 		fun(local_path_or_fileobj, *args)
 
 
-class WebDAVClient(easywebdav.Client):
+class WebDAVClient(easywebdav.Client):#Object, 
 	"""
 	This class inheritates from and overloads some methods of :class:`easywebdav.client.Client`.
 	"""
-	def __init__(self, host, max_retry=1, retry_after=60, verbose=False, url='', **kwargs):
+	def __init__(self, host, max_retry=360, retry_after=10, url='', logger=None, \
+		**kwargs):
+		if logger is None:
+			logger = logging.getLogger(log_root).getChild('WebDAVClient')
+		self.logger = logger
 		easywebdav.Client.__init__(self, host, **kwargs)
 		self.max_retry = max_retry
 		self.retry_after = retry_after
-		self.verbose = verbose
 		self.url = url # for debug purposes
 
 	def _send(self, *args, **kwargs):
@@ -59,27 +64,28 @@ class WebDAVClient(easywebdav.Client):
 					try:
 						return easywebdav.Client._send(self, *args, **kwargs)
 					except requests.exceptions.ConnectionError as e:
+						info = e.args[0][1]
 						count += 1
 						if count <= self.max_retry:
-							if self.verbose:
-								print("\nwarning: connection error")
-								print('         {}'.format(e.args[0]))
+							self.logger.warn("%s", info)
+							debug_info = list(args)
+							debug_info.append(kwargs)
+							self.logger.debug(' %s %s %s %s', *debug_info)
 							time.sleep(self.retry_after)
-				if self.verbose:
-					print('warning: too many connection attempts.')
+				self.logger.error('too many connection attempts.')
 				raise e
 		except easywebdav.OperationFailed as e:
 			if e.actual_code == 403:
 				path = args[1]
-				print("access to '{}{}' forbidden".format(self.url, path))
+				self.logger.error("access to '%s%s' forbidden", self.url, path)
 			raise e
 
 	def upload(self, local_path_or_fileobj, remote_path):
-		_easywebdav_adapter(self._upload, local_path_or_fileobj, remote_path)
+		_easywebdav_adapter(self._upload, 'rb', local_path_or_fileobj, remote_path)
 
 	def download(self, remote_path, local_path_or_fileobj):
 		response = self._send('GET', remote_path, 200, stream=True)
-		_easywebdav_adapter(self._download, local_path_or_fileobj, response)
+		_easywebdav_adapter(self._download, 'wb', local_path_or_fileobj, response)
 
 
 
@@ -107,9 +113,9 @@ class WebDAV(Relay):
 	__protocol__ = ['webdav', 'https']
 
 	def __init__(self, address, username=None, password=None, protocol=None, certificate=None, \
-		max_retry=True, retry_after=None, **ignored):
-		Relay.__init__(self, address)
-		if sys.version_info[0] == 3: # deal with encoding issues with requests
+		max_retry=True, retry_after=None, logger=None, **ignored):
+		Relay.__init__(self, address, logger=logger)
+		if PYTHON_VERSION == 3: # deal with encoding issues with requests
 			username = username.encode('utf-8').decode('unicode-escape')
 			password = password.encode('utf-8').decode('unicode-escape')
 		self.username = username
@@ -144,7 +150,7 @@ class WebDAV(Relay):
 			except:
 				pass
 		# establish connection (session)
-		self.webdav = WebDAVClient(self.address, verbose=True, url=url, \
+		self.webdav = WebDAVClient(self.address, logger=self.logger, url=url, \
 				username=self.username, password=self.password, \
 				**kwargs)
 		#self.webdav.session.headers['Charset'] = 'utf-8' # for Python 3
@@ -168,7 +174,7 @@ class WebDAV(Relay):
 				return []
 			else:
 				if e.actual_code != 403:
-					print("easywebdav.Client.ls('{}') failed".format(remote_dir))
+					self.logger.error("easywebdav.Client.ls('%s') failed", remote_dir)
 				raise e
 		if begin is None:
 			if remote_dir[0] != '/':

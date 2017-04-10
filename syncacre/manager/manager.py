@@ -1,6 +1,4 @@
 
-from __future__ import print_function
-
 import time
 import calendar
 import os
@@ -35,7 +33,7 @@ class Manager(object):
 
 		refresh (int): refresh interval in seconds.
 
-		verbose (bool): if False, commandline is silent.
+		logger (Logger or LoggerAdapter): see the :mod:`logging` standard module.
 
 		pop_args (dict): extra keyword arguments for :meth:`syncacre.AbstractRelay.pop`.
 			Supported keyword arguments are:
@@ -43,8 +41,9 @@ class Manager(object):
 
 	"""
 	def __init__(self, relay, address=None, path=None, directory=None, mode=None, \
-		encryption=Plain(None), timestamp=True, refresh=None, verbose=True, clientname=None, \
+		encryption=Plain(None), timestamp=True, refresh=None, logger=None, clientname=None, \
 		**relay_args):
+		self.logger = logger
 		if path[-1] != '/':
 			path += '/'
 		self.path = path
@@ -55,11 +54,10 @@ class Manager(object):
 			timestamp = '%y%m%d_%H%M%S'
 		self.timestamp = timestamp
 		self.refresh = refresh
-		self.verbose = verbose
 		self.pop_args = {}
 		if clientname:
 			self.pop_args['client_name'] = clientname
-		self.relay = relay(address, **relay_args)
+		self.relay = relay(address, logger=self.logger, **relay_args)
 
 	def run(self):
 		"""
@@ -78,9 +76,12 @@ class Manager(object):
 				).run()
 
 		"""
-		self.logBegin('connecting with {}', self.relay.address)
+		self.logger.debug("connecting with '%s'", self.relay.address)
 		ok = self.relay.open()
-		self.logEnd(ok)
+		if ok:
+			self.logger.debug('connected')
+		elif ok is not None:
+			self.logger.critical("failed to connect with '%s'", self.relay.address)
 		try:
 			while True:
 				if self.mode is None or self.mode == 'download':
@@ -88,9 +89,8 @@ class Manager(object):
 				if self.mode is None or self.mode == 'upload':
 					self.upload()
 				if self.refresh:
-					self.logBegin('sleeping {} seconds', self.refresh)
+					self.logger.debug('sleeping %s seconds', self.refresh)
 					time.sleep(self.refresh)
-					self.logEnd()
 				else:
 					break
 		except KeyboardInterrupt:
@@ -119,13 +119,16 @@ class Manager(object):
 				if last_modified and last_modified <= floor(os.path.getmtime(local_file)):
 					# local_mtime = os.path.getmtime(local_file)
 					continue
-				msg = 'updating local file {}'
+				msg = "updating local file '%s'"
 			else:
-				msg = 'downloading file {}'
+				msg = "downloading file '%s'"
 			temp_file = self.encryption.prepare(local_file)
-			self.logBegin(msg, filename)
+			self.logger.info(msg, filename)
 			ok = self.relay.pop(remote_file, temp_file, blocking=False, **self.pop_args)
-			self.logEnd(ok)
+			if ok:
+				self.logger.debug("file '%s' successfully downloaded", filename)
+			elif ok is not None:
+				self.logger.error("failed to download '%s'", filename)
 			self.encryption.decrypt(temp_file, local_file)
 			if last_modified:
 				os.utime(local_file, (time.time(), last_modified))
@@ -160,26 +163,15 @@ class Manager(object):
 			if filename not in remote or modified:
 				# TODO: check disk usage on relay
 				temp_file = self.encryption.encrypt(local_file)
-				self.logBegin('uploading file {}', filename)
+				self.logger.info("uploading file '%s'", filename)
 				ok = self.relay.push(temp_file, self.dir, \
 					relative_path=filename, blocking=False, \
 					last_modified=last_modified)
-				self.logEnd(ok)
+				if ok:
+					self.logger.debug("file '%s' successfully uploaded", filename)
+				elif ok is not None:
+					self.logger.warning("failed to upload '%s'", filename)
 				self.encryption.finalize(temp_file) # delete encrypted copy
-
-	def logBegin(self, msg, *args):
-		if self.verbose:
-			print((msg + '... ').format(*args), end='')
-			sys.stdout.flush()
-
-	def logEnd(self, ok=True):
-		if self.verbose:
-			if ok is None:
-				print('')
-			elif ok:
-				print('[done]')
-			else:
-				print('[failed]')
 
 	def localFiles(self, path=None):
 		"""
