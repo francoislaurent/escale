@@ -10,20 +10,20 @@ The external passive storage can have limited storage space and files are delete
 
 The server itself may not be trusted and files can be encrypted before they are uploaded.
 
-# Documentation
+## Documentation
 
 Find the extended documentation at [syncacre.readthedocs.io](http://syncacre.readthedocs.io/en/latest/).
 
-# Roadmap
+## Roadmap
 
 Current version is `0.3`.
 
 Coming features are:
 
-	* improved temporary file management (no orphan files)
-	* improved lock management (no orphan files)
-	* file auto-destruction when several pullers have been defined and one is down
-	* SSH support
-	* more (symmetric) cryptographic algorithms and more cryptographic options
-	* documentation for configuration files
+* improved temporary file management (no orphan files)
+* improved lock management (no orphan files)
+* file auto-destruction when several pullers have been defined and one is down
+* SSH support
+* more (symmetric) cryptographic algorithms and more cryptographic options
+* documentation for configuration files
 
