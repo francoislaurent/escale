@@ -64,7 +64,17 @@ class WebDAVClient(easywebdav.Client):#Object,
 					try:
 						return easywebdav.Client._send(self, *args, **kwargs)
 					except requests.exceptions.ConnectionError as e:
-						info = e.args[0][1]
+						info = e.args
+						try:
+							info = info[0]
+						except IndexError: # macOS?
+							pass
+						else:
+							if isinstance(info, tuple):
+								try:
+									info = info[1]
+								except IndexError: #??
+									pass
 						count += 1
 						if count <= self.max_retry:
 							self.logger.warn("%s", info)
