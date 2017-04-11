@@ -1,0 +1,17 @@
+# /etc/syncacre.conf
+
+# global Syncacre configuration
+
+# the log file should be explicitly defined.
+# Syncacre will refuse to log into /etc
+log file = /var/log/syncacre.log
+
+# define below the client(s)
+
+[client-1]
+# "read only = yes" and "write only = yes" are incompatible
+# push only client
+#read only = yes
+# pull only client
+#write only = yes
+

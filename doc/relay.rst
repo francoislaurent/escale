@@ -2,6 +2,8 @@
 syncacre.relay package
 ======================
 
+This package defines an interface to a remote host as called by :class:`~syncacre.manager.Manager` and a few implementations.
+
 .. automodule:: syncacre.relay
     :members:
     :show-inheritance:

@@ -24,10 +24,10 @@ import syncacre.encryption as encryption
 
 # fields expected in configuration files
 fields = dict(path=('path', ['local path', 'path']), \
-	address=['relay address', 'remote address', 'address'], \
-	directory=['relay dir', 'remote dir', 'dir', 'relay directory', 'remote directory', 'directory'], \
-	port=['relay port', 'remote port', 'port'], \
-	username=['relay user', 'remote user', 'auth user', 'user'], \
+	address=['relay address', 'remote address', 'host address', 'address'], \
+	directory=['relay dir', 'remote dir', 'host dir', 'dir', 'relay directory', 'remote directory', 'host directory', 'directory'], \
+	port=['relay port', 'remote port', 'host port', 'port'], \
+	username=['relay user', 'remote user', 'host user', 'auth user', 'user'], \
 	password=(('path', 'str'), ['password', 'secret', 'secret file', 'secrets file', 'credential', 'credentials']), \
 	refresh=('float', ['refresh']), \
 	timestamp=(('bool', 'str'), ['modification time', 'timestamp', 'mtime']), \
@@ -90,8 +90,8 @@ def parse_cfg(args, msgs):
 		if not os.path.isfile(cfg_file):
 			raise IOError('file not found: {}'.format(cfg_file))
 	else:
-		candidates = [os.path.expanduser('~/.config/syncacre.conf'), \
-			os.path.expanduser('~/.syncacre'), \
+		candidates = [os.path.expanduser('~/.config/syncacre/syncacre.conf'), \
+			os.path.expanduser('~/.syncacre/syncacre.conf'), \
 			'/etc/syncacre.conf', \
 			None]
 		for cfg_file in candidates:
@@ -240,8 +240,19 @@ def main(**args):
 	logger, msgs = set_logger(cfg_file, config, args, msgs)
 	# flush messages
 	for msg in msgs:
-		logger.warning(msg)
+		if isinstance(msg, tuple):
+			if isinstance(msg[0], str):
+				logger.warning(*msg)
+			else: # msg[0] is log level
+				logger.log(*msg)
+		else:
+			logger.warning(msg)
 	# handle -d option
+	if not args['daemon']:
+		try:
+			args['daemon'] = config.getboolean(default_section, 'daemon')
+		except NoOptionError:
+			pass
 	if args['daemon']:
 		try:
 			import daemon
@@ -254,7 +265,6 @@ def main(**args):
 			args['daemon'] = False
 	# spawn syncacre subprocess(es)
 	if args['daemon']:
-		#config.set(default_section, 'daemon', '1')
 		pwd = os.getcwd()
 		with daemon.DaemonContext(working_directory=pwd):
 			syncacre_launcher(config)

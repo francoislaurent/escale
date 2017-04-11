@@ -21,6 +21,9 @@ def set_logger(cfg_file, config, args, msgs=[]):
 	except NoOptionError:
 		log_file, _ = os.path.splitext(cfg_file)
 		log_file = '{}.log'.format(log_file)
+	if log_file.startswith('/etc'):
+		log_file = './log'
+		msgs.append((logging.INFO, "logging in '{}' (fallback)", log_file))
 	try:
 		file_level = config.get(default_section, 'log level').upper()
 	except NoOptionError:

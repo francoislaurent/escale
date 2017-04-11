@@ -44,11 +44,44 @@ Commandline
 
 	> python -m syncacre -c <path-to-conf-file>
 
+You can run |syncacre| as a daemon (in background) with:
+::
+
+	> python -m syncacre -d -c <path-to-conf-file>
+
+If no configuration file is provided on the commandline, |syncacre| will look for one of the following files: ``/etc/syncacre.conf`` (system-wide), ``~/.syncacre/syncacre.conf``, ``~/.config/syncacre/syncacre.conf`` where ``~`` stands for the home directory.
+
 
 Configuration file
 ------------------
 
-.. todo:: This section is empty. Alternatively you can look at examples in the ``conf`` directory.
+A configuration file is a text file with ``key = value`` and ``[section]`` lines.
+
+The ``key = value`` lines that appear before the first ``[section]`` line define global parameters that will be common to all the clients.
+
+Each section refers to a client. It begins with a ``[section]`` where ``section`` can be replaced by the name that will appear in the logs. Each client should have a distinct name.
+
+Parameters that can only be global are:
+
+* ``log file``: path to log file
+* ``daemon``: boolean
+
+.. note:: booleans can be either ``yes``, ``no``, ``1``, ``0``, ``true``, ``false``, ``on`` or ``off``.
+
+Other parameters are:
+
+* ``local path`` (or ``path``): path to the local repository
+* ``remote address`` (or ``host address``, ``relay address``, ``address``): address of the remote host
+* ``remote directory`` (or ... + ``dir`` variants): directory of the repository on the remote host
+* ``username``: username on the remote host
+* ``password`` or ``secret file`` or ``credential``: password on the remote host or path to a file that contains the password or both the username and the password on a single line (``username:password``)
+* ``refresh``: synchronization interval in seconds
+* ``modification time`` or ``mtime`` or ``timestamp``: see :class:`~syncacre.manager.Manager`.
+* either ``write only`` or ``read only``: boolean that defines whether the client should only push (read only) or pull (write only). By default a client both pushes and pulls
+* ``encryption``: boolean that defines whether to encrypt/decrypt the files or not
+* ``passphrase`` or ``key``: passphrase or path to a file that contains the passphrase for the encryption algorithm
+
+.. note:: the ``conf`` and ``test`` directories contain examples of configuration files.
 
 
 API
@@ -57,6 +90,7 @@ API
 .. toctree::
    :maxdepth: 1
 
+   log
    relay
    manager
    encryption
