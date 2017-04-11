@@ -6,7 +6,7 @@ This package provides helpers and default configuration on top of the :mod:`logg
 
 Logs are concealed in a file which name can be defined in the configuration file. By default, the log file is named after the configuration file, with a ``.log`` extension.
 
-Logs with priority ``INFO`` or higher are also dumped on the standard output.
+Logs with priority ``INFO`` or higher are also dumped to the standard output.
 
 
 .. automodule:: syncacre.log

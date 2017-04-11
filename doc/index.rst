@@ -29,7 +29,9 @@ You will need Python >= 2.7 or >= 3.5.
 
 The ``-e`` option is necessary if you intend to update or modify the code and have the modifications reflected in your installed |syncacre|.
 
-To compile the documentation and get a local copy, after installing |syncacre| do:
+.. note:: never run |syncacre| as the super user. |syncacre| does not need any special privilege.
+
+If you wish to compile the documentation and get a local copy, once |syncacre| is installed, type:
 ::
 
 	cd doc
@@ -42,12 +44,12 @@ Commandline
 -----------
 ::
 
-	> python -m syncacre -c <path-to-conf-file>
+	python -m syncacre -c <path-to-conf-file>
 
 You can run |syncacre| as a daemon (in background) with:
 ::
 
-	> python -m syncacre -d -c <path-to-conf-file>
+	python -m syncacre -d -c <path-to-conf-file>
 
 If no configuration file is provided on the commandline, |syncacre| will look for one of the following files: ``/etc/syncacre.conf`` (system-wide), ``~/.syncacre/syncacre.conf``, ``~/.config/syncacre/syncacre.conf`` where ``~`` stands for the home directory.
 
@@ -76,7 +78,7 @@ Other parameters are:
 * ``username``: username on the remote host
 * ``password`` or ``secret file`` or ``credential``: password on the remote host or path to a file that contains the password or both the username and the password on a single line (``username:password``)
 * ``refresh``: synchronization interval in seconds
-* ``modification time`` or ``mtime`` or ``timestamp``: see :class:`~syncacre.manager.Manager`.
+* ``modification time`` or ``mtime`` or ``timestamp``: see :class:`~syncacre.manager.Manager`
 * either ``write only`` or ``read only``: boolean that defines whether the client should only push (read only) or pull (write only). By default a client both pushes and pulls
 * ``encryption``: boolean that defines whether to encrypt/decrypt the files or not
 * ``passphrase`` or ``key``: passphrase or path to a file that contains the passphrase for the encryption algorithm
