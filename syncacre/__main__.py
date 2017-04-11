@@ -40,7 +40,7 @@ def getpath(config, section, attr):
 	path = config.get(section, attr)
 	if path[0] == '~':
 		path = os.path.expanduser(path)
-	if os.path.isdir(path) or os.path.isfile(path):
+	if os.path.isdir(os.path.dirname(path)):
 		return path
 	else:
 		raise ValueError
@@ -122,15 +122,16 @@ def parse_cfg(args, msgs):
 
 
 
-def syncacre(handler, config, repository):
+def syncacre(config, repository, handler=None):
 	"""
 	Reads the section related to a repository in a loaded configuration object and spawns a 
 	:class:`~syncacre.manager.Manager` for that repository.
 	"""
 	logger = logging.getLogger(log_root).getChild(repository)
-	logger.propagate = False
-	logger.setLevel(logging.DEBUG)
-	logger.addHandler(handler)
+	if handler is not None:
+		logger.propagate = False
+		logger.setLevel(logging.DEBUG)
+		logger.addHandler(handler)
 	args = {}
 	for field, attrs in fields.items():
 		if isinstance(attrs, tuple):
@@ -249,11 +250,16 @@ def main(**args):
 	if args['daemon']:
 		#config.set(default_section, 'daemon', '1')
 		pwd = os.getcwd()
-		for section in config.sections():
-			with daemon.DaemonContext(working_directory=pwd):
-				syncacre(config, section)
+		with daemon.DaemonContext(working_directory=pwd):
+			syncacre_launcher(config)
 	else:
-		# borrowed from https://docs.python.org/3/howto/logging-cookbook.html
+		syncacre_launcher(config)
+	return 0
+
+
+def syncacre_launcher(config, daemon=None):
+	sections = config.sections()
+	if sections[1:]: # if multiple sections
 		if PYTHON_VERSION == 3:
 			queue = Queue()
 			listener = QueueListener(queue)
@@ -271,8 +277,9 @@ def main(**args):
 		for section in config.sections():
 			worker = Process(target=syncacre,
 				name='{}.{}'.format(log_root, section),
-				args=(handler, config, section))
-			worker.daemon = args['daemon']
+				args=(config, section, handler))
+			if daemon is not None:
+				worker.daemon = daemon
 			workers.append(worker)
 			worker.start()
 		# wait for everyone to terminate
@@ -284,7 +291,8 @@ def main(**args):
 				worker.terminate()
 		listener.abort()
 		logger_thread.join()
-	return 0
+	else:
+		syncacre(config, sections[0])
 
 
 
