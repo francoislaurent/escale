@@ -283,6 +283,20 @@ class Relay(AbstractRelay):
 		pass
 
 	def _list(self, remote_dir, recursive=True):
+		"""
+		List all files, including hidden files, relative to `remote_dir`.
+
+		Arguments:
+
+			remote_dir (str): directory on the remote host.
+
+			recursive (bool): if ``True``, list files in subdirectories as well.
+
+		Returns:
+
+			list of str: list of relative paths.
+
+		"""
 		raise NotImplementedError('abstract method')
 
 	def listReady(self, remote_dir, recursive=True):
@@ -335,9 +349,35 @@ class Relay(AbstractRelay):
 		os.unlink(trash)
 
 	def hasPlaceholder(self, remote_file):
+		"""
+		Checks for placeholder presence.
+
+		Arguments:
+
+			remote_file (str): relative path to a regular file on the remote host.
+
+		Returns:
+
+			bool: ``True`` if there exists a placeholder for `remote_file`, 
+				``False`` otherwise.
+
+		"""
 		raise NotImplementedError('abstract method')
 
 	def hasLock(self, remote_file):
+		"""
+		Checks for lock presence.
+
+		Arguments:
+
+			remote_file (str): relative path to a regular file on the remote host.
+
+		Returns:
+
+			bool: ``True`` if there exists a lock for `remote_file`, 
+				``False`` otherwise.
+
+		"""
 		raise NotImplementedError('abstract method')
 
 	def getPlaceholder(self, remote_file):
@@ -353,7 +393,7 @@ class Relay(AbstractRelay):
 		"""
 		Update a placeholder when the corresponding file is pushed.
 
-		To pop or get a file, use meth:`markAsRead` instead.
+		To pop or get a file, use :meth:`markAsRead` instead.
 		"""
 		self.touch(self.placeholder(remote_file), last_modified)
 
@@ -373,6 +413,20 @@ class Relay(AbstractRelay):
 		self.unlink(self.lock(remote_file))
 
 	def _push(self, local_file, remote_dest):
+		"""
+		Sends a local file to the remote host.
+
+		Arguments:
+
+			local_file (str): path to a local file.
+
+			remote_dest (str): path to a directory on the remote host.
+
+		Returns:
+
+			bool or nothing: ``True`` if transfer was successful, ``False`` otherwise.
+
+		"""
 		raise NotImplementedError('abstract method')
 
 	def push(self, local_file, remote_dest, relative_path=None, last_modified=None, blocking=True):
@@ -389,10 +443,49 @@ class Relay(AbstractRelay):
 		return True
 
 	def _pop(self, remote_file, local_dest, makedirs=True):
+		"""
+		Downloads a file and deletes it from the remote host.
+
+		.. note:: :meth:`_pop` can be implemented with an extra `_unlink` keyword argument
+			that is not supported by default and makes the default implementation for
+			:meth:`_get` valid.
+
+		Arguments:
+
+			remote_file (str): path to a file on the remote host.
+
+			local_dest (str): path to a local directory.
+
+			makedirs (bool): make directories if missing.
+
+			_unlink (bool, optional): if ``False``, do not delete the file from the 
+				remote host. This keyword argument may not be recognized at all!
+
+		Returns:
+
+			bool or nothing: ``True`` if transfer was successful, ``False`` otherwise.
+
+		"""
 		self._get(remote_file, local_dest, makedirs)
 		self.unlink(remote_file)
 
 	def _get(self, remote_file, local_dest, makedirs=True):
+		"""
+		Downloads a file and does NOT delete it from the remote host.
+
+		Arguments:
+
+			remote_file (str): path to a file on the remote host.
+
+			local_dest (str): path to a local directory.
+
+			makedirs (bool): make directories if missing.
+
+		Returns:
+
+			bool or nothing: ``True`` if transfer was successful, ``False`` otherwise.
+
+		"""
 		self._pop(remote_file, local_dest, makedirs=makedirs, _unlink=False)
 
 	def pop(self, remote_file, local_dest, blocking=True, placeholder=1, **kwargs):

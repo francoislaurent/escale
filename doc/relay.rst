@@ -6,6 +6,7 @@ This package defines an interface to a remote host as called by :class:`~syncacr
 
 .. automodule:: syncacre.relay
     :members:
+    :private-members:
     :show-inheritance:
 
 
@@ -14,6 +15,7 @@ syncacre.relay.relay module
 
 .. automodule:: syncacre.relay.relay
     :members:
+    :private-members:
     :undoc-members:
     :show-inheritance:
 

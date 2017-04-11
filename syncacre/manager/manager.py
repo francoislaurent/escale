@@ -10,7 +10,7 @@ from math import *
 
 class Manager(object):
 	"""
-	Makes the glue between the local file system and the :mod:`~syncacre.relay` layer and 
+	Makes the glue between the local file system and the :mod:`~syncacre.relay` and 
 	:mod:`~syncacre.encryption` layers.
 
 	This class manages the meta information, file modifications and sleep times.
@@ -21,23 +21,25 @@ class Manager(object):
 
 		dir (str): relative path to the repository on the remote host.
 
-		mode (None or str): either 'download' or 'upload' or None (both download and upload).
+		mode (None or str): either ``'download'`` or ``'upload'`` or ``None`` 
+			(both download and upload).
 
 		encryption (syncacre.encryption.Cipher): encryption layer.
 
 		relay (syncacre.relay.AbstractRelay): communication layer.
 
-		timestamp (bool or str): if True (recommended), manages file modification times. 
-			If str, in addition determines the timestamp format as supported by 
-			`time.strftime`.
+		timestamp (bool or str): if ``True`` (recommended), manages file modification times. 
+			If `str`, in addition determines the timestamp format as supported by 
+			:func:`time.strftime`.
 
 		refresh (int): refresh interval in seconds.
 
 		logger (Logger or LoggerAdapter): see the :mod:`logging` standard module.
 
-		pop_args (dict): extra keyword arguments for :meth:`syncacre.AbstractRelay.pop`.
+		pop_args (dict): extra keyword arguments for 
+			:meth:`~syncacre.relay.AbstractRelay.pop`.
 			Supported keyword arguments are:
-			``client_name`` (`str`): name identifying the running client.
+			**client_name** (`str`): name identifying the running client.
 
 	"""
 	def __init__(self, relay, address=None, path=None, directory=None, mode=None, \

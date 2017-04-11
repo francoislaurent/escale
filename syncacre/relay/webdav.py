@@ -101,7 +101,7 @@ class WebDAVClient(easywebdav.Client):#Object,
 
 class WebDAV(Relay):
 	"""
-	Adds support for WebDAV remote hosts on top of ``easywebdav``.
+	Adds support for WebDAV remote hosts on top of :mod:`easywebdav`.
 
 	Attributes:
 
