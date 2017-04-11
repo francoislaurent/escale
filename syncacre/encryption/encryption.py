@@ -57,7 +57,7 @@ class Cipher(object):
 		except:
 			fo.close()
 			if auto:
-				os.delete(cipher)
+				os.unlink(cipher)
 			cipher = None
 		return cipher
 
@@ -71,11 +71,11 @@ class Cipher(object):
 				fo.write(self._decrypt(fi.read()))
 			fo.close()
 			if consume:
-				os.delete(cipher)
+				os.unlink(cipher)
 		except:
 			fo.close()
 			if auto:
-				os.delete(plain)
+				os.unlink(plain)
 			plain = None
 		return plain
 
@@ -103,7 +103,7 @@ class Cipher(object):
 			cipher.finalize(temp_file)
 			# `temp_file` is no longer available
 		"""
-		os.delete(cipher)
+		os.unlink(cipher)
 
 
 

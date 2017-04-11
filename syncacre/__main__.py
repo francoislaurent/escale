@@ -186,7 +186,7 @@ def syncacre(config, repository, handler=None):
 		pass
 	# parse encryption passphrase
 	if 'passphrase' in args and os.path.isfile(args['passphrase']):
-		with open(args['passphrase'], 'r') as f:
+		with open(args['passphrase'], 'rb') as f:
 			args['passphrase'] = f.read()
 	if 'encryption' in args:
 		if isinstance(args['encryption'], bool):
@@ -203,10 +203,16 @@ def syncacre(config, repository, handler=None):
 				logger.warning(*msg)
 				# do not let the user send plain data if she requested encryption:
 				raise ValueError(*msg)
+		if cipher is not None and 'passphrase' not in args:
+			cipher = None
+			msg = ('missing passphrase; cannot encrypt',)
+			logger.warning(*msg)
+			# again, do not let the user send plain data if she requested encryption:
+			raise ValueError(*msg)
 		if cipher is None:
 			del args['encryption']
 		else:
-			args['encryption'] = cipher(args.pop('passphrase', None))
+			args['encryption'] = cipher(args['passphrase'])
 	# relay type
 	try:
 		protocol = config.get(repository, 'protocol')
