@@ -128,9 +128,9 @@ def syncacre(config, repository, handler=None):
 	:class:`~syncacre.manager.Manager` for that repository.
 	"""
 	logger = logging.getLogger(log_root).getChild(repository)
+	logger.setLevel(logging.DEBUG)
 	if handler is not None:
 		logger.propagate = False
-		logger.setLevel(logging.DEBUG)
 		logger.addHandler(handler)
 	args = {}
 	for field, attrs in fields.items():
