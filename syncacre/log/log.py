@@ -6,7 +6,7 @@ try:
 except ImportError:
 	from ConfigParser import NoOptionError
 
-from syncacre.base import default_section
+from syncacre.base.config import default_section
 
 
 
@@ -14,7 +14,7 @@ log_root = 'syncacre'
 
 
 
-def set_logger(cfg_file, config, args, msgs=[]):
+def set_logger(config, cfg_file, verbosity=logging.NOTSET, msgs=[]):
 	# log file
 	try:
 		log_file = config.get(default_section, 'log file')
@@ -27,16 +27,32 @@ def set_logger(cfg_file, config, args, msgs=[]):
 	try:
 		file_level = config.get(default_section, 'log level').upper()
 	except NoOptionError:
-		file_level = "DEBUG"
+		file_level = 'DEBUG'
 	else:
 		if file_level not in LOG_LEVELS:
 			msgs.append(("wrong log level '%s'", file_level))
-			file_level = "DEBUG"
+			file_level = 'DEBUG'
 	# console log
-	if args['quiet']:
-		console_level = "CRITICAL"
-	else:
-		console_level = "INFO"
+	console_default = 'INFO'
+	if verbosity == 0 or verbosity == 1:
+		# handles `bool`s (all possible values), some `int`s and `float`s
+		if verbosity:
+			console_level = console_default
+		else:
+			console_level = 'CRITICAL'
+	elif isinstance(verbosity, str):
+		console_level = verbosity
+	else: # verbosity is `int` or `float`
+		if not isinstance(verbosity, int):
+			verbosity = int(verbosity)
+		console_level = {
+				logging.NOTSET:	console_default,
+				logging.DEBUG:	'DEBUG',
+				logging.INFO:	'INFO',
+				logging.WARNING:	'WARNING',
+				logging.ERROR:	'ERROR',
+				logging.CRITICAL:	'CRITICAL'
+			}[verbosity]
 	#
 	log_config = {
 		'version': 1,

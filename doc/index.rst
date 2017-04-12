@@ -93,6 +93,7 @@ API
    :maxdepth: 1
 
    log
+   base
    relay
    manager
    encryption
