@@ -68,8 +68,9 @@ class WebDAVClient(easywebdav.Client):#Object,
 						info = e.args
 						try:
 							info = info[0]
-						except IndexError: # macOS?
-							pass
+						except IndexError:
+							self.logger.warn("%s", info)
+							return False
 						else:
 							if isinstance(info, tuple):
 								try:
