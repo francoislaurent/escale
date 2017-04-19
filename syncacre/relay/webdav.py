@@ -66,7 +66,7 @@ class WebDAVClient(easywebdav.Client):
 		self.logger = logger
 		easywebdav.Client.__init__(self, host, **kwargs)
 		if ssl_version:
-			self.session.adapters['https://'] = make_https_adapter(ssl_version)()
+			self.session.adapters['https://'] = make_https_adapter(parse_ssl_version(ssl_version))()
 		self.max_retry = max_retry
 		self.retry_after = retry_after
 		self.url = url # for debug purposes

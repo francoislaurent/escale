@@ -1,4 +1,6 @@
+from __future__ import absolute_import
 
+from .essential import *
 import ssl
 
 from requests.adapters import HTTPAdapter
@@ -22,14 +24,14 @@ def parse_ssl_version(ssl_version):
 		int: one of ``ssl.PROTOCOL_*`` codes.
 
 	"""
-	if isinstance(ssl_version, str):
+	if isinstance(ssl_version, str) or (PYTHON_VERSION==2 and isinstance(ssl_version, unicode)):
 		ssl_version = {
-				'sslv2': ssl.PROTOCOL_SSLv23,
-				'sslv3': ssl.PROTOCOL_SSLv23,
-				'sslv23': ssl.PROTOCOL_SSLv23,
-				'tlsv1': ssl.PROTOCOL_TLSv1,
-				'tlsv1.1': ssl.PROTOCOL_TLSv1_1,
-				'tlsv1.2': ssl.PROTOCOL_TLSv1_2
+				'sslv2':	ssl.PROTOCOL_SSLv23,
+				'sslv3':	ssl.PROTOCOL_SSLv23,
+				'sslv23':	ssl.PROTOCOL_SSLv23,
+				'tlsv1':	ssl.PROTOCOL_TLSv1,
+				'tlsv1.1':	ssl.PROTOCOL_TLSv1_1,
+				'tlsv1.2':	ssl.PROTOCOL_TLSv1_2
 			}[ssl_version.lower()]
 	return ssl_version
 
