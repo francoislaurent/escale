@@ -17,7 +17,7 @@ def main(**args):
 	msgs = []
 	# potential fix for issue #14
 	msgs.append((logging.DEBUG, 'special version for issue #14 (2)'))
-	if 'HTTPS_PROXY' in os.environ:
+	if args['disable_proxy'] and 'HTTPS_PROXY' in os.environ:
 		msgs.append((logging.DEBUG, "'HTTPS_PROXY' environment variable was set to '%s'; unsetting it", os.environ['HTTPS_PROXY']))
 		del os.environ['HTTPS_PROXY']
 	# handle -d option
@@ -51,6 +51,7 @@ if __name__ == '__main__':
 	parser.add_argument('-c', '--config', type=str, help='path to config file')
 	parser.add_argument('-d', '--daemon', action='store_true', help='runs in background as a daemon')
 	parser.add_argument('-q', '--quiet', action='store_true', help='runs silently')
+	parser.add_argument('-p', '--disable-proxy', action='store_true', help='disables proxies')
 
 	args = parser.parse_args()
 	exit_code = main(**args.__dict__)
