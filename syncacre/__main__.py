@@ -17,9 +17,9 @@ def main(**args):
 	msgs = []
 	# potential fix for issue #14
 	msgs.append((logging.DEBUG, 'special version for issue #14 (2)'))
-	if 'https_proxy' in os.environ:
-		msgs.append((logging.DEBUG, "'https_proxy' environment variable was set to '%s'; unsetting it", os.environ['https_proxy']))
-		del os.environ['https_proxy']
+	if 'HTTPS_PROXY' in os.environ:
+		msgs.append((logging.DEBUG, "'HTTPS_PROXY' environment variable was set to '%s'; unsetting it", os.environ['HTTPS_PROXY']))
+		del os.environ['HTTPS_PROXY']
 	# handle -d option
 	if args['daemon']:
 		try:
