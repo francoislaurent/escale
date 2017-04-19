@@ -2,7 +2,7 @@
 
 ## see https://packaging.python.org/distributing/#setup-py
 
-from setuptools import setup, find_packages
+from setuptools import setup
 #from codecs import open
 #from os import path
 import sys
@@ -10,7 +10,8 @@ import sys
 install_requires = []
 extra_requires = {
 	'WebDAV':	['easywebdav'],
-	'SSH':		['paramiko'],
+# the SSH feature may not be introduced ever
+#	'SSH':		['paramiko'],
 	'Blowfish':	['cryptography'],
 	'Fernet':	['cryptography']}
 
@@ -30,28 +31,27 @@ if sys.version_info[0] == 3: # Python 3
 
 setup(
 	name = 'syncacre',
-	version = '0.3',
+	version = '0.3.1',
 	description = 'SynCÀCRe - Client-to-client synchronization based on external relay storage',
 	url = 'https://github.com/francoislaurent/syncacre',
 	author = 'François Laurent',
 	author_email = 'francois.laurent1@protonmail.com',
-	license = 'CeCILL v2.1',
+	license = 'ISC',
 	classifiers = [
-		'Development Status :: 4 - Beta',
 		'Environment :: No Input/Output (Daemon)',
 		'Intended Audience :: End Users/Desktop',
 		'Intended Audience :: Science/Research',
-		'Operating System :: Unix',
+		'Intended Audience :: Developers',
+		'Operating System :: MacOS :: MacOS X',
 		'Operating System :: POSIX :: Linux',
-		'Topic :: System :: Archiving :: Backup',
-		'Topic :: System :: Archiving :: Mirroring',
+		'Operating System :: Unix',
 		'Topic :: Communications :: File Sharing',
 		'Programming Language :: Python :: 2',
 		'Programming Language :: Python :: 2.7',
 		'Programming Language :: Python :: 3',
 		'Programming Language :: Python :: 3.5',
 	],
-	packages = find_packages(exclude=['doc']),
+	packages = ['syncacre'],
 	install_requires = install_requires,
 	extra_requires = extra_requires,
 )

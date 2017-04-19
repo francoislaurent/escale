@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 
 import logging, logging.handlers, logging.config
 from multiprocessing import Process, Queue
@@ -70,22 +71,14 @@ def syncacre(config, repository, handler=None):
 				logger.error("cannot read login information from credential file '%s'", args['password'])
 				del args['password']
 	#
-	try:
-		write_only = config.getboolean(repository, 'write only')
-		if write_only:
-			args['mode'] = 'download'
-	except NoOptionError:
-		pass
-	try:
-		read_only = config.getboolean(repository, 'read only')
-		if read_only:
-			if 'mode' in args: # write_only is also True
-				logger.warning('both read only and write only; cannot determine mode')
-				return
-			else:
-				args['mode'] = 'upload'
-	except NoOptionError:
-		pass
+	if args.pop('push_only', False):
+		if args.pop('pull_only', False):
+			logger.warning('both read only and write only; cannot determine mode')
+			return
+		else:
+			args['mode'] = 'upload'
+	elif args.pop('pull_only', False):
+		args['mode'] = 'download'
 	# parse encryption passphrase
 	if 'passphrase' in args and os.path.isfile(args['passphrase']):
 		with open(args['passphrase'], 'rb') as f:
@@ -120,10 +113,10 @@ def syncacre(config, repository, handler=None):
 		protocol = config.get(repository, 'protocol')
 	except NoOptionError:
 		protocol = args['address'].split(':')[0] # crashes if no colon found
-	#if PYTHON_VERSION == 3:
-	#	args['config'] = config[repository]
-	#elif PYTHON_VERSION == 2:
-	#	args['config'] = (config, repository)
+	if PYTHON_VERSION == 3:
+		args['config'] = config[repository]
+	elif PYTHON_VERSION == 2:
+		args['config'] = (config, repository)
 	manager = Manager(relay.by_protocol(protocol), protocol=protocol, logger=logger, **args)
 	manager.run()
 

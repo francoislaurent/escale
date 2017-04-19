@@ -1,8 +1,3 @@
-.. SynCÀCRe documentation master file, adapted from a file created by
-   sphinx-quickstart on Tue Jan 24 11:46:04 2017.
-   You can adapt this file completely to your liking, but it should at least
-   contain the root `toctree` directive.
-
 SynCÀCRe documentation
 ======================
 
@@ -10,11 +5,13 @@ SynCÀCRe documentation
 
 Files can be transfered between nodes with no administration privileges. All nodes are clients. Consequently they can operate from behind restrictive firewalls.
 
-All what |syncacre| needs is an external storage space such as an SSH or WebDAV account on a server. The nodes running |syncacre| can upload their respective files and download from the remote account the files they don't have locally.
+All what |syncacre| needs is an external storage space such as an FTP or WebDAV account on a server. The nodes running |syncacre| can upload their respective files and download from the remote account the files they don't have locally.
 
 The external passive storage can have limited storage space and files are deleted from the server one every client got a copy.
 
 The server itself may not be trusted and files can be encrypted before they are uploaded.
+
+|syncacre|'s project page is on `github.com <https://github.com/francoislaurent/syncacre>`_.
 
 
 Installation
@@ -79,9 +76,11 @@ Other parameters are:
 * ``password`` or ``secret file`` or ``credential``: password on the remote host or path to a file that contains the password or both the username and the password on a single line (``username:password``)
 * ``refresh``: synchronization interval in seconds
 * ``modification time`` or ``mtime`` or ``timestamp``: see :class:`~syncacre.manager.Manager`
-* either ``write only`` or ``read only``: boolean that defines whether the client should only push (read only) or pull (write only). By default a client both pushes and pulls
+* either ``push only`` or ``pull only``: boolean that defines whether the client should only push or pull. By default a client both pushes and pulls. Supported aliases for ``push only`` and ``pull only`` are ``read only`` and ``write only`` respectively
 * ``encryption``: boolean that defines whether to encrypt/decrypt the files or not
 * ``passphrase`` or ``key``: passphrase or path to a file that contains the passphrase for the encryption algorithm
+* ``verify ssl``: boolean that defines whether to check the remote host's certificate
+* ``ssl version``: either ``SSLv23``, ``TLSv1``, ``TLSv1.1`` or ``TLSv1.2``
 
 .. note:: the ``conf`` and ``test`` directories contain examples of configuration files.
 

@@ -1,7 +1,7 @@
+# -*- coding: utf-8 -*-
 
 from syncacre.base.essential import *
 from syncacre.base.ssl import *
-import ssl
 from syncacre.log import log_root
 from .relay import Relay
 
@@ -26,7 +26,8 @@ def _easywebdav_adapter(fun, mode, local_path_or_fileobj, *args):
 	This code is partly borrowed from:
 	https://github.com/amnong/easywebdav/blob/master/easywebdav/client.py
 
-	Below follows the copyright notice of the easywebdav project:
+	Below follows the copyright notice of the easywebdav project which is supposed to be distibuted
+	under the ISC license:
 	::
 
 		Copyright (c) 2012 year, Amnon Grossman
@@ -43,18 +44,29 @@ def _easywebdav_adapter(fun, mode, local_path_or_fileobj, *args):
 		fun(local_path_or_fileobj, *args)
 
 
-class WebDAVClient(easywebdav.Client):#Object, 
+class WebDAVClient(easywebdav.Client):
 	"""
-	This class inheritates from and overloads some methods of :class:`easywebdav.client.Client`.
+	This class overwrites several of the methods of its parent class so that some errors are better
+	documented, connection errors are handled and a Python3 bug is fixed.
+
+	Attributes:
+
+		max_retry (int): number of retries after connection errors.
+
+		retry_after (int): interval time in seconds before trying again.
+
+		url (str): full url of the remote repository; may appear in logs.
+
+		ssl_version (int): any of the ``ssl.PROTOCOL_*`` constants.
 	"""
-	def __init__(self, host, max_retry=360, retry_after=10, url='', logger=None, \
+	def __init__(self, host, max_retry=360, retry_after=10, url='', ssl_version=None, logger=None, \
 		**kwargs):
 		if logger is None:
 			logger = logging.getLogger(log_root).getChild('WebDAVClient')
 		self.logger = logger
 		easywebdav.Client.__init__(self, host, **kwargs)
-		# temporary dirty fix for issue #14
-		self.session.adapters['https://'] = make_https_adapter(ssl.PROTOCOL_SSLv23)()
+		if ssl_version:
+			self.session.adapters['https://'] = make_https_adapter(ssl_version)()
 		self.max_retry = max_retry
 		self.retry_after = retry_after
 		self.url = url # for debug purposes
@@ -67,14 +79,13 @@ class WebDAVClient(easywebdav.Client):#Object,
 				count = 0
 				while count <= self.max_retry:
 					try:
-						easywebdav.Client._send(self, *args, **kwargs)
+						return easywebdav.Client._send(self, *args, **kwargs)
 					except requests.exceptions.ConnectionError as e:
 						info = e.args
 						try:
 							info = info[0]
-						except IndexError:
-							self.logger.warn("%s", info)
-							return False
+						except IndexError: # macOS?
+							pass
 						else:
 							if isinstance(info, tuple):
 								try:
@@ -88,8 +99,6 @@ class WebDAVClient(easywebdav.Client):#Object,
 							debug_info.append(kwargs)
 							self.logger.debug(' %s %s %s %s', *debug_info)
 							time.sleep(self.retry_after)
-						else:
-							return
 				self.logger.error('too many connection attempts.')
 				raise e
 		except easywebdav.OperationFailed as e:
@@ -102,6 +111,21 @@ class WebDAVClient(easywebdav.Client):#Object,
 		_easywebdav_adapter(self._upload, 'rb', local_path_or_fileobj, remote_path)
 
 	def download(self, remote_path, local_path_or_fileobj):
+		"""
+		This code is partly borrowed from:
+		https://github.com/amnong/easywebdav/blob/master/easywebdav/client.py
+
+		Below follows the copyright notice of the easywebdav project which is supposed to be
+		distributed under the ISC license:
+		::
+
+			Copyright (c) 2012 year, Amnon Grossman
+
+			Permission to use, copy, modify, and/or distribute this software for any purpose with or without fee is hereby granted, provided that the above copyright notice and this permission notice appear in all copies.
+
+			THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+
+		"""
 		response = self._send('GET', remote_path, 200, stream=True)
 		_easywebdav_adapter(self._download, 'wb', local_path_or_fileobj, response)
 
@@ -126,22 +150,30 @@ class WebDAV(Relay):
 
 		retry_after (int): defines interval time between retries in seconds.
 			Applies to connection failures.
+
+		ssl_version (int or str): any valid argument to :func:`~syncacre.base.ssl.parse_ssl_version`.
+
+		verify_ssl (bool): if ``True``, check server's certificate.
 	"""
 
 	__protocol__ = ['webdav', 'https']
 
 	def __init__(self, address, username=None, password=None, protocol=None, certificate=None, \
-		max_retry=True, retry_after=None, logger=None, **ignored):
+		max_retry=True, retry_after=None, logger=None, ssl_version=None, verify_ssl=True, **ignored):
 		Relay.__init__(self, address, logger=logger)
 		if PYTHON_VERSION == 3: # deal with encoding issues with requests
 			username = username.encode('utf-8').decode('unicode-escape')
 			password = password.encode('utf-8').decode('unicode-escape')
 		self.username = username
 		self.password = password
-		self.protocol = protocol
+		self.protocol = protocol.lower()
+		if self.protocol == 'webdav':
+			self.protocol = 'https'
 		self.certificate = certificate
 		self.max_retry = max_retry
 		self.retry_after = retry_after
+		self.ssl_version = ssl_version
+		self.verify_ssl = verify_ssl
 
 	def open(self):
 		kwargs = {}
@@ -150,6 +182,9 @@ class WebDAV(Relay):
 			kwargs['cert'] = self.certificate
 		if self.protocol:
 			kwargs['protocol'] = self.protocol
+		kwargs['verify_ssl'] = self.verify_ssl
+		if self.ssl_version:
+			kwargs['ssl_version'] = parse_ssl_version(self.ssl_version)
 		try:
 			self.address, self.path = self.address.split('/', 1)
 			kwargs['path'] = self.path
@@ -171,7 +206,6 @@ class WebDAV(Relay):
 		self.webdav = WebDAVClient(self.address, logger=self.logger, url=url, \
 				username=self.username, password=self.password, \
 				**kwargs)
-		#self.webdav.session.headers['Charset'] = 'utf-8' # for Python 3
 
 	def diskFree(self):
 		return None
@@ -220,9 +254,10 @@ class WebDAV(Relay):
 	def _get(self, remote_file, local_file, makedirs=True):
 		# local destination should be a file
 		#print(('WebDAV._get: *args', remote_file, local_file, unlink))
-		local_dir = os.path.dirname(local_file)
-		if makedirs and not os.path.isdir(local_dir):
-			os.makedirs(local_dir)
+		if makedirs:
+			local_dir = os.path.dirname(local_file)
+			if not os.path.isdir(local_dir):
+				os.makedirs(local_dir)
 		self.webdav.download(remote_file, local_file)
 
 	def unlink(self, remote_file):

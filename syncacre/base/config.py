@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 
 from .essential import *
 import os
@@ -31,7 +32,10 @@ fields = dict(path=('path', ['local path', 'path']),
 	timestamp=(('bool', 'str'), ['modification time', 'timestamp', 'mtime']),
 	clientname=['client', 'client name'],
 	encryption=(('bool', 'str'), ['encryption']),
-	passphrase=(('path', 'str'), ['passphrase', 'key']))
+	passphrase=(('path', 'str'), ['passphrase', 'key']),
+	push_only=('bool', ['read only', 'push only']),
+	pull_only=('bool', ['write only', 'pull only']),
+	ssl_version=['ssl version'])
 
 
 def getpath(config, section, attr):
