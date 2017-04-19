@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 
 import tempfile
 import os
@@ -61,10 +62,14 @@ class Cipher(object):
 			cipher = None
 		return cipher
 
-	def decrypt(self, cipher, plain=None, consume=True):
+	def decrypt(self, cipher, plain=None, consume=True, makedirs=True):
 		auto = not plain
 		if auto:
 			plain = tempfile.mkstemp()[1]
+		elif makedirs:
+			dirname = os.path.dirname(plain)
+			if not os.path.isdir(dirname):
+				os.makedirs(dirname)
 		fo = open(plain, 'wb')
 		try:
 			with open(cipher, 'rb') as fi:
