@@ -63,7 +63,7 @@ class WebDAVClient(easywebdav.Client):#Object,
 				count = 0
 				while count <= self.max_retry:
 					try:
-						return easywebdav.Client._send(self, *args, **kwargs)
+						easywebdav.Client._send(self, *args, **kwargs)
 					except requests.exceptions.ConnectionError as e:
 						info = e.args
 						try:
@@ -84,6 +84,8 @@ class WebDAVClient(easywebdav.Client):#Object,
 							debug_info.append(kwargs)
 							self.logger.debug(' %s %s %s %s', *debug_info)
 							time.sleep(self.retry_after)
+						else:
+							return
 				self.logger.error('too many connection attempts.')
 				raise e
 		except easywebdav.OperationFailed as e:

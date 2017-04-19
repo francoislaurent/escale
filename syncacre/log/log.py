@@ -80,7 +80,9 @@ def set_logger(config, cfg_file, verbosity=logging.NOTSET, msgs=[]):
 			log_root: {
 				'handlers': ['file', 'console']}}}
 	logging.config.dictConfig(log_config)
-	return (logging.getLogger(log_root), msgs)
+	root = logging.getLogger(log_root)
+	root.setLevel(logging.DEBUG)
+	return (root, msgs)
 
 
 
