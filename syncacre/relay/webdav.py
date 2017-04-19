@@ -1,5 +1,7 @@
 
 from syncacre.base.essential import *
+from syncacre.base.ssl import *
+import ssl
 from syncacre.log import log_root
 from .relay import Relay
 
@@ -51,6 +53,8 @@ class WebDAVClient(easywebdav.Client):#Object,
 			logger = logging.getLogger(log_root).getChild('WebDAVClient')
 		self.logger = logger
 		easywebdav.Client.__init__(self, host, **kwargs)
+		# temporary dirty fix for issue #14
+		self.session.adapters['https://'] = make_https_adapter(ssl.PROTOCOL_SSLv23)()
 		self.max_retry = max_retry
 		self.retry_after = retry_after
 		self.url = url # for debug purposes

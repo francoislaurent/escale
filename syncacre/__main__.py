@@ -16,8 +16,7 @@ def main(**args):
 	# they will be flushed by `syncacre_launcher` once the logger will be set
 	msgs = []
 	# potential fix for issue #14
-	print('special version for issue #14')
-	msgs.append((logging.DEBUG, 'special version for issue #14'))
+	msgs.append((logging.DEBUG, 'special version for issue #14 (2)'))
 	if 'https_proxy' in os.environ:
 		msgs.append((logging.DEBUG, "'https_proxy' environment variable was set to '%s'; unsetting it", os.environ['https_proxy']))
 		del os.environ['https_proxy']
