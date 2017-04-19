@@ -35,7 +35,8 @@ fields = dict(path=('path', ['local path', 'path']),
 	passphrase=(('path', 'str'), ['passphrase', 'key']),
 	push_only=('bool', ['read only', 'push only']),
 	pull_only=('bool', ['write only', 'pull only']),
-	ssl_version=['ssl version'])
+	ssl_version=['ssl version'],
+	verify_ssl=('bool', ['verify ssl']))
 
 
 def getpath(config, section, attr):
