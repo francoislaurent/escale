@@ -48,7 +48,7 @@ Previously advertised coming features that may be abandoned:
 
 If you can get a F\*EX account, you may find [the F\*EX service](http://fex.rus.uni-stuttgart.de/) more convenient.
 
-Extra tools include [Strean EXchange](http://fex.belwue.de/SEX.html).
+Extra tools include [Stream EXchange](http://fex.belwue.de/SEX.html).
 
 A [F\*EX use case](http://fex.rus.uni-stuttgart.de/usecases/fexpush.html) will actually be considered for integration into Syncacre.
 
