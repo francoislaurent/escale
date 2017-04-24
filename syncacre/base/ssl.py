@@ -13,8 +13,7 @@ _ssl_symbol = {
 	'sslv23':	'SSLv23',
 	'tlsv1':	'TLSv1',
 	'tlsv1.1':	'TLSv1_1',
-	'tlsv1.2':	'TLSv1_2',
-	'tlsv1.3':	'TLSv1_3'}
+	'tlsv1.2':	'TLSv1_2'}
 
 _ssl_version = {}
 try:
