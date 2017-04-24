@@ -36,6 +36,8 @@ class Manager(object):
 
 		logger (Logger or LoggerAdapter): see the :mod:`logging` standard module.
 
+		filetype (list of str): list of file extensions.
+
 		pop_args (dict): extra keyword arguments for 
 			:meth:`~syncacre.relay.AbstractRelay.pop`.
 			Supported keyword arguments are:
@@ -44,7 +46,7 @@ class Manager(object):
 	"""
 	def __init__(self, relay, address=None, path=None, directory=None, mode=None, \
 		encryption=Plain(None), timestamp=True, refresh=None, logger=None, clientname=None, \
-		**relay_args):
+		filetype=[], **relay_args):
 		self.logger = logger
 		if path[-1] != '/':
 			path += '/'
@@ -56,6 +58,11 @@ class Manager(object):
 			timestamp = '%y%m%d_%H%M%S'
 		self.timestamp = timestamp
 		self.refresh = refresh
+		if filetype:
+			self.filetype = [ f if f[0] == '.' else '.' + f
+					for f in filetype ]
+		else:
+			self.filetype = []
 		self.pop_args = {}
 		if clientname:
 			self.pop_args['client_name'] = clientname
@@ -99,11 +106,27 @@ class Manager(object):
 			pass
 		self.relay.close()
 
+	def filter(self, files):
+		"""
+		Applies filters on a list of file paths.
+
+		Arguments:
+
+			files (list): list of file paths.
+
+		Returns:
+
+			list: list of selected file paths from ``files``.
+		"""
+		if self.filetype:
+			files = [ f for f in files if os.path.splitext(f)[1] in self.filetype ]
+		return files
+
 	def download(self):
 		"""
 		Finds out which files are to be downloaded and download them.
 		"""
-		remote = self.relay.listReady(self.dir)
+		remote = self.filter(self.relay.listReady(self.dir))
 		#print(('Manager.download: remote', remote))
 		for filename in remote:
 			local_file = os.path.join(self.path, filename)
@@ -139,7 +162,7 @@ class Manager(object):
 		"""
 		Finds out which files are to be uploaded and upload them.
 		"""
-		local = self.localFiles()
+		local = self.filter(self.localFiles())
 		remote = self.relay.listTransfered(self.dir, end2end=False)
 		#print(('Manager.upload: local, remote', local, remote))
 		for local_file in local:
@@ -183,9 +206,9 @@ class Manager(object):
 		"""
 		if path is None:
 			path = self.path
-		ls = [ os.path.join(path, file) for file in os.listdir(path) if file[0] != '.' ]
-		local = itertools.chain([ file for file in ls if os.path.isfile(file) ], \
-			*[ self.localFiles(file) for file in ls if os.path.isdir(file) ])
+		ls = [ os.path.join(path, f) for f in os.listdir(path) if f[0] != '.' ]
+		local = itertools.chain([ f for f in ls if os.path.isfile(f) ], \
+			*[ self.localFiles(f) for f in ls if os.path.isdir(f) ])
 		return list(local)
 
 

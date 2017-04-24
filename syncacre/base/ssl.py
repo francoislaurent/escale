@@ -8,33 +8,63 @@ from requests.packages.urllib3.poolmanager import PoolManager
 
 
 _ssl_symbol = {
-	'sslv2':	'SSLv2',
-	'sslv3':	'SSLv3',
-	'sslv23':	'SSLv23',
-	'tlsv1':	'TLSv1',
-	'tlsv1.1':	'TLSv1_1',
-	'tlsv1.2':	'TLSv1_2'}
+		'sslv2':	'SSLv2',
+		'sslv3':	'SSLv3',
+		'sslv23':	'SSLv23',
+		'tls':	'TLS',
+		'tlsv1':	'TLSv1',
+		'tlsv1.1':	'TLSv1_1',
+		'tlsv1.2':	'TLSv1_2',
+	}
+
 
 _ssl_version = {}
 try:
 	_ssl_version['sslv2'] = ssl.PROTOCOL_SSLv2
 except AttributeError:
-	_ssl_version['sslv2'] = ssl.PROTOCOL_SSLv23
+	pass
 try:
 	_ssl_version['sslv3'] = ssl.PROTOCOL_SSLv3
 except AttributeError:
-	_ssl_version['sslv3'] = ssl.PROTOCOL_SSLv23
-_ssl_version['sslv23'] = ssl.PROTOCOL_SSLv23
+	pass
+try:
+	_ssl_version['sslv23'] = ssl.PROTOCOL_SSLv23 # SSLv23 is supposed to be an alias for TLS
+except AttributeError:
+	pass
+try:
+	_ssl_version['tls'] = ssl.PROTOCOL_TLS
+except AttributeError:
+	try:
+		_ssl_version['tls'] = ssl.PROTOCOL_SSLv23
+	except AttributeError:
+		pass
+
+default_ssl_context = None
+
+if 'tls' in _ssl_version:
+	default_ssl_context = ssl.SSLContext(_ssl_version['tls'])
+	_default_options = default_ssl_context.options
+	try:
+		default_ssl_context.options |= ssl.OP_NO_SSLv2
+	except AttributeError:
+		pass
+	try:
+		default_ssl_context.options |= ssl.OP_NO_SSLv3
+	except AttributeError:
+		pass
+	if default_ssl_context.options != _default_options:
+		_ssl_version['tls'] = default_ssl_context
+
 try:
 	_ssl_version['tlsv1'] = ssl.PROTOCOL_TLSv1
 except AttributeError:
 	pass
 try:
-	_ssl_version['tlsv1.1'] = ssl.PROTOCOL_TLSv1_1
+	_ssl_version['tlsv1.1'] = ssl.PROTOCOL_TLSv1_1 # deprecated in OpenSSL 1.0.1
 except AttributeError:
 	pass
 try:
-	_ssl_version['tlsv1.2'] = ssl.PROTOCOL_TLSv1_2
+	_ssl_version['tlsv1.2'] = ssl.PROTOCOL_TLSv1_2 # deprecated in OpenSSL 1.0.1
 except AttributeError:
 	pass
 
@@ -49,14 +79,16 @@ def parse_ssl_version(ssl_version):
 	Arguments:
 
 		ssl_version (int or str): either any of ``ssl.PROTOCOL_*`` or any of 'SSLv2', 'SSLv3', 
-			'SSLv23', 'TLSv1', 'TLSv1.1' or 'TLSv1.2'.
+			'SSLv23', 'TLS' (recommended), 'TLSv1', 'TLSv1.1' or 'TLSv1.2'.
 
 	Returns:
 
-		int: one of ``ssl.PROTOCOL_*`` codes.
+		int or ssl.SSLContext: one of ``ssl.PROTOCOL_*`` codes or an SSLContext with modified options.
 
 	"""
-	if isinstance(ssl_version, str) or (PYTHON_VERSION==2 and isinstance(ssl_version, unicode)):
+	if ssl_version is None:
+		ssl_version = default_ssl_context
+	elif isinstance(ssl_version, str) or (PYTHON_VERSION==2 and isinstance(ssl_version, unicode)):
 		try:
 			ssl_version = _ssl_version[ssl_version.lower()]
 		except KeyError:
@@ -64,23 +96,28 @@ def parse_ssl_version(ssl_version):
 	return ssl_version
 
 
-def make_https_adapter(ssl_version):
+def make_https_adapter(ssl_version_or_context):
 	"""
 	Make a `HTTPSAdapter` class that inheritates from :class:`~requests.adapters.HTTPAdapter`
 	and forces a specific SSL version.
 
 	Arguments:
 
-		ssl_version (int): any of ``ssl.PROTOCOL_*`` codes.
+		ssl_version_or_context (int or ssl.SSLContext): any of ``ssl.PROTOCOL_*`` codes 
+			or an :class:`~ssl.SSLContext`.
 
 	Returns:
 
 		HTTPSAdapter: class, child of :class:`~requests.adapters.HTTPAdapter`.
 	"""
+	if isinstance(ssl_version_or_context, ssl.SSLContext):
+		ssl_arg = dict(ssl_context=ssl_version_or_context)
+	else:
+		ssl_arg = dict(ssl_version=ssl_version_or_context)
 	class HTTPSAdapter(HTTPAdapter):
 		def init_poolmanager(self, connections, maxsize, block=False):
 			self.poolmanager = PoolManager(
-				num_pools=connections, maxsize=maxsize,
-				block=block, ssl_version=ssl_version)
+				num_pools=connections, maxsize=maxsize, block=block,
+				**ssl_arg)
 	return HTTPSAdapter
 

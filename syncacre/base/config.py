@@ -36,7 +36,8 @@ fields = dict(path=('path', ['local path', 'path']),
 	push_only=('bool', ['read only', 'push only']),
 	pull_only=('bool', ['write only', 'pull only']),
 	ssl_version=['ssl version'],
-	verify_ssl=('bool', ['verify ssl']))
+	verify_ssl=('bool', ['verify ssl']),
+	file_type=('list', ['file extension', 'file type']))
 
 
 def getpath(config, section, attr):
@@ -49,13 +50,21 @@ def getpath(config, section, attr):
 		raise ValueError
 
 
+_item_separator = ','
+
+def getlist(config, section, attr):
+	_list = [ i.strip() for i in config.get(section, attr).split(_item_separator) ]
+	return [ i for i in _list if i ]
+
+
+
 def getter(_type='str'):
 	"""
 	Config getter.
 
 	Arguments:
 
-		_type (type): either ``bool``, ``int``, ``float`` or ``str``.
+		_type (str): either ``bool``, ``int``, ``float``, ``str``, ``path`` or ``list``.
 
 	Returns:
 
@@ -67,7 +76,8 @@ def getter(_type='str'):
 			int =	ConfigParser.getint,
 			float =	ConfigParser.getfloat,
 			str =	ConfigParser.get,
-			path =	getpath
+			path =	getpath,
+			list =	getlist
 		)[_type]
 
 
