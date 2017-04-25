@@ -37,7 +37,7 @@ fields = dict(path=('path', ['local path', 'path']),
 	pull_only=('bool', ['write only', 'pull only']),
 	ssl_version=['ssl version'],
 	verify_ssl=('bool', ['verify ssl']),
-	file_type=('list', ['file extension', 'file type']))
+	filetype=('list', ['file extension', 'file type']))
 
 
 def getpath(config, section, attr):
