@@ -117,6 +117,10 @@ class WebDAVClient(easywebdav.Client):
 			if e.actual_code == 403:
 				path = args[1]
 				self.logger.error("access to '%s%s' forbidden", self.url, path)
+			elif e.actual_code == 423: # 423 Locked
+				self.logger.error('resource locked')
+				self.logger.debug('%s', e)
+				return
 			raise e
 
 	def _get_url(self, path):
