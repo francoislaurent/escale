@@ -6,6 +6,7 @@ from setuptools import setup
 #from codecs import open
 #from os import path
 import sys
+import syncacre
 
 install_requires = []
 extra_requires = {
@@ -31,7 +32,7 @@ if sys.version_info[0] == 3: # Python 3
 
 setup(
 	name = 'syncacre',
-	version = '0.3.1',
+	version = syncacre.__version__,
 	description = 'SynCÀCRe - Client-to-client synchronization based on external relay storage',
 	url = 'https://github.com/francoislaurent/syncacre',
 	author = 'François Laurent',
