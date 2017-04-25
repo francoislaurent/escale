@@ -106,8 +106,8 @@ class Manager(object):
 						self.logger.info('repository is up to date')
 					fresh_start = False
 				if self.refresh:
-					clock = Clock(self.refresh, self.logger)
-					clock.wait()
+					clock = Clock(self.refresh)
+					clock.wait(self.logger)
 				else:
 					break
 		except KeyboardInterrupt:
