@@ -18,6 +18,13 @@ Find the extended documentation at [syncacre.readthedocs.io](http://syncacre.rea
 
 ## Changelog:
 
+* `0.3.2`:
+
+  * ``file extension`` filter in configuration file
+  * multiple backends for blowfish encryption; backend can be enforced with ``encryption = algorithm.backend`` where ``algorithm`` is ``blowfish`` here and ``backend`` can be either ``blowfish`` or ``cryptography``
+  * file names are correctly escaped
+  * sleep times increase with successive sleeps
+
 * `0.3.1`:
 
   * ``push only`` and ``pull only`` configuration options introduced as replacements for 
