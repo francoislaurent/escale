@@ -16,6 +16,18 @@ syncacre.encryption.encryption module
     :show-inheritance:
 
 
+syncacre.encryption.fernet module
+---------------------------------
+
+The :mod:`~syncacre.encryption.fernet` module provides the recommended implementation for the :class:`Cipher` class. 
+It is based on the `cryptography <https://cryptography.io/en/latest/fernet/>`_ library.
+
+.. automodule:: syncacre.encryption.blowfish
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+
 syncacre.encryption.blowfish module
 -----------------------------------
 

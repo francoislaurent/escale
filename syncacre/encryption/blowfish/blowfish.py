@@ -8,10 +8,14 @@ import blowfish # Python 3 only!
 
 _iv_len = 8
 
-_mode = dict(
-		OFB=blowfish.Cipher.encrypt_ofb,
-		CFB=blowfish.Cipher.encrypt_cfb,
-	)
+try:
+	_mode = dict(
+			OFB=blowfish.Cipher.encrypt_ofb,
+			CFB=blowfish.Cipher.encrypt_cfb,
+		)
+except AttributeError: # Python 2
+	raise ImportError('the `blowfish` library is available for Python 3 only')
+
 
 class Blowfish(Cipher):
 	'''
