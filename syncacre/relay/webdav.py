@@ -157,6 +157,14 @@ class WebDAVClient(easywebdav.Client):
 		else:
 			_easywebdav_adapter(self._download, 'wb', local_path_or_fileobj, response)
 
+	def exists(self, remote_path):
+		try:
+			return easywebdav.Client.exists(self, remote_path)
+		except easywebdav.OperationFailed as e:
+			if e.actual_code == 423: # '423 Locked', therefore it exists!
+				return True
+			raise e
+
 
 
 class WebDAV(Relay):
