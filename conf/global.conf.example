@@ -1,17 +1,23 @@
 # /etc/syncacre.conf
 
-# global Syncacre configuration
+# Global Syncacre configuration
+# See https://docs.python.org/2/library/configparser.html to learn more about syntax
 
-# the log file should be explicitly defined.
+# The log file should be explicitly defined.
 # Syncacre will refuse to log into /etc
 log file = /var/log/syncacre.log
 
-# define below the client(s)
+# Define below the client(s)
 
 [client-1]
-# "read only = yes" and "write only = yes" are incompatible
-# push only client
-#read only = yes
-# pull only client
-#write only = yes
+# Define below the path to the local repository
+# Beware that some characters should be escaped. Especially '%' should be replaced
+# by '%%'.
+#local path = /var/run/syncacre/repository
+
+# "push only = yes" and "pull only = yes" are incompatible
+# Push only client
+#push only = yes
+# Pull only client
+#pull only = yes
 

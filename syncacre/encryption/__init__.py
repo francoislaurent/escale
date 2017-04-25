@@ -8,6 +8,8 @@ __ciphers__ = dict(plain=Plain)
 import sys
 
 if sys.version_info[0] == 3:
+	pass
+	# Blowfish is temporarily removed. See issue https://github.com/francoislaurent/syncacre/issues/15
 	from .blowfish import Blowfish
 	__all__.append('Blowfish')
 	__ciphers__['blowfish'] = Blowfish
