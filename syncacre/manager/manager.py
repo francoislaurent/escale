@@ -191,9 +191,14 @@ class Manager(object):
 						with open(placeholder, 'r') as f:
 							remote_mtime = f.readline().rstrip()
 						os.unlink(placeholder)
-						remote_mtime = time.strptime(remote_mtime, self.timestamp)
-						remote_mtime = calendar.timegm(remote_mtime)
-						modified = remote_mtime < local_mtime
+						if remote_mtime:
+							remote_mtime = time.strptime(remote_mtime, self.timestamp)
+							remote_mtime = calendar.timegm(remote_mtime)
+							modified = remote_mtime < local_mtime
+						else: # placeholder is empty
+							modified = True
+							# this may not be true, but this will replace 
+							# the current placeholder with a valid one.
 					#else: (TODO) directly read mtime on remote copy?
 			else:
 				last_modified = None

@@ -148,8 +148,14 @@ class WebDAVClient(easywebdav.Client):
 			THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
 		"""
-		response = self._send('GET', remote_path, 200, stream=True)
-		_easywebdav_adapter(self._download, 'wb', local_path_or_fileobj, response)
+		try:
+			response = self._send('GET', remote_path, 200, stream=True)
+		except easywebdav.OperationFailed as e:
+			if e.actual_code == 404:
+				self.logger.warning("the file is no longer available")
+				self.logger.debug('%s', e)
+		else:
+			_easywebdav_adapter(self._download, 'wb', local_path_or_fileobj, response)
 
 
 
