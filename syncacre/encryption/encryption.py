@@ -2,6 +2,7 @@
 
 import tempfile
 import os
+from syncacre.base.essential import *
 
 
 class Cipher(object):
@@ -12,10 +13,13 @@ class Cipher(object):
 
 	Attributes:
 
-		passphrase (str): arbitrarily long passphrase.
+		passphrase (str-like): arbitrarily long passphrase.
 
 	"""
 	def __init__(self, passphrase):
+		if (PYTHON_VERSION == 3 and isinstance(passphrase, str)) or \
+			(PYTHON_VERSION == 2 and isinstance(passphrase, unicode)):
+			passphrase = passphrase.encode('utf-8')
 		self.passphrase = passphrase
 
 	def _encrypt(self, data):
@@ -55,11 +59,12 @@ class Cipher(object):
 			with open(plain, 'rb') as fi:
 				fo.write(self._encrypt(fi.read()))
 			fo.close()
-		except:
+		except Exception as e:
 			fo.close()
 			if auto:
 				os.unlink(cipher)
 			cipher = None
+			print(e)
 		return cipher
 
 	def decrypt(self, cipher, plain=None, consume=True, makedirs=True):

@@ -91,7 +91,7 @@ def syncacre(config, repository, handler=None):
 				cipher = None
 		else:
 			try:
-				cipher = encryption.by_cipher(args['encryption'].lower())
+				cipher = encryption.by_cipher(args['encryption'])
 			except KeyError:
 				cipher = None
 				msg = ("unsupported encryption algorithm '%s'", args['encryption'])

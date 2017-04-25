@@ -77,10 +77,11 @@ Other parameters are:
 * ``refresh``: synchronization interval in seconds
 * ``modification time`` or ``mtime`` or ``timestamp``: see :class:`~syncacre.manager.Manager`
 * either ``push only`` or ``pull only``: boolean that defines whether the client should only push or pull. By default a client both pushes and pulls. Supported aliases for ``push only`` and ``pull only`` are ``read only`` and ``write only`` respectively
-* ``encryption``: boolean that defines whether to encrypt/decrypt the files or not
+* ``encryption``: boolean that defines whether to encrypt/decrypt the files or not, or algorithm identifier (e.g. ``fernet``, ``blowfish``, etc)
 * ``passphrase`` or ``key``: passphrase or path to a file that contains the passphrase for the encryption algorithm
 * ``verify ssl``: boolean that defines whether to check the remote host's certificate
 * ``ssl version``: either ``SSLv23``, ``TLSv1``, ``TLSv1.1`` or ``TLSv1.2``
+* ``file extension`` (or ``file type``): a comma-separated list of file extensions (with or without the initial dot)
 
 .. note:: the ``conf`` and ``test`` directories contain examples of configuration files.
 

@@ -19,6 +19,24 @@ syncacre.base.essential module
     :show-inheritance:
 
 
+syncacre.base.timer module
+--------------------------
+
+.. automodule:: syncacre.base.timer
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+
+syncacre.base.ssl module
+------------------------
+
+.. automodule:: syncacre.base.ssl
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+
 syncacre.base.config module
 ---------------------------
 
