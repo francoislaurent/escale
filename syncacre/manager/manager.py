@@ -1,9 +1,11 @@
+# -*- coding: utf-8 -*-
 
 import time
 import calendar
 import os
 import sys
 import itertools
+from syncacre.base import Clock
 from syncacre.encryption import Plain
 from math import *
 
@@ -91,15 +93,21 @@ class Manager(object):
 			self.logger.debug('connected')
 		elif ok is not None:
 			self.logger.critical("failed to connect with '%s'", self.relay.address)
+		fresh_start = True
+		new = False
 		try:
 			while True:
 				if self.mode is None or self.mode == 'download':
-					self.download()
+					new |= self.download()
 				if self.mode is None or self.mode == 'upload':
-					self.upload()
+					new |= self.upload()
+				if fresh_start:
+					if not new:
+						self.logger.info('repository is up to date')
+					fresh_start = False
 				if self.refresh:
-					self.logger.debug('sleeping %s seconds', self.refresh)
-					time.sleep(self.refresh)
+					clock = Clock(self.refresh)
+					clock.wait()
 				else:
 					break
 		except KeyboardInterrupt:
@@ -128,6 +136,7 @@ class Manager(object):
 		"""
 		remote = self.filter(self.relay.listReady(self.dir))
 		#print(('Manager.download: remote', remote))
+		new = False
 		for filename in remote:
 			local_file = os.path.join(self.path, filename)
 			remote_file = os.path.join(self.dir, filename)
@@ -147,6 +156,7 @@ class Manager(object):
 				msg = "updating local file '%s'"
 			else:
 				msg = "downloading file '%s'"
+			new = True
 			temp_file = self.encryption.prepare(local_file)
 			self.logger.info(msg, filename)
 			ok = self.relay.pop(remote_file, temp_file, blocking=False, **self.pop_args)
@@ -157,6 +167,7 @@ class Manager(object):
 			self.encryption.decrypt(temp_file, local_file)
 			if last_modified:
 				os.utime(local_file, (time.time(), last_modified))
+		return new
 
 	def upload(self):
 		"""
@@ -165,6 +176,7 @@ class Manager(object):
 		local = self.filter(self.localFiles())
 		remote = self.relay.listTransfered(self.dir, end2end=False)
 		#print(('Manager.upload: local, remote', local, remote))
+		new = False
 		for local_file in local:
 			filename = local_file[len(self.path):] # relative path
 			modified = False # if no remote copy, this is ignored
@@ -186,6 +198,7 @@ class Manager(object):
 			else:
 				last_modified = None
 			if filename not in remote or modified:
+				new = True
 				# TODO: check disk usage on relay
 				temp_file = self.encryption.encrypt(local_file)
 				self.logger.info("uploading file '%s'", filename)
@@ -197,6 +210,7 @@ class Manager(object):
 				elif ok is not None:
 					self.logger.warning("failed to upload '%s'", filename)
 				self.encryption.finalize(temp_file) # delete encrypted copy
+		return new
 
 	def localFiles(self, path=None):
 		"""

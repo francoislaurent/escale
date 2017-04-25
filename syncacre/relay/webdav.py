@@ -1,10 +1,15 @@
 # -*- coding: utf-8 -*-
 
 from syncacre.base.essential import *
+from syncacre.base.timer import *
 from syncacre.base.ssl import *
 from syncacre.log import log_root
 from .relay import Relay
 
+try:
+	from urllib import quote, unquote # Py2
+except ImportError:
+	from urllib.parse import quote, unquote # Py3
 import easywebdav
 import requests
 import os
@@ -51,24 +56,29 @@ class WebDAVClient(easywebdav.Client):
 
 	Attributes:
 
+		retry_after (int): interval time in seconds before trying again.
+
 		max_retry (int): number of retries after connection errors.
 
-		retry_after (int): interval time in seconds before trying again.
+		timeout (int): maximum cumulated waiting time in seconds.
 
 		url (str): full url of the remote repository; may appear in logs.
 
 		ssl_version (int): any of the ``ssl.PROTOCOL_*`` constants.
 	"""
-	def __init__(self, host, max_retry=360, retry_after=10, url='', ssl_version=None, logger=None, \
+	def __init__(self, host, retry_after=10, max_retry=None, timeout=None, url='', ssl_version=None, logger=None, \
 		**kwargs):
 		if logger is None:
 			logger = logging.getLogger(log_root).getChild('WebDAVClient')
 		self.logger = logger
+		if 'path' in kwargs:
+			kwargs['path'] = quote(kwargs['path'])
 		easywebdav.Client.__init__(self, host, **kwargs)
 		if ssl_version:
 			self.session.adapters['https://'] = make_https_adapter(parse_ssl_version(ssl_version))()
 		self.max_retry = max_retry
 		self.retry_after = retry_after
+		self.timeout = timeout
 		self.url = url # for debug purposes
 
 	def _send(self, *args, **kwargs):
@@ -76,36 +86,48 @@ class WebDAVClient(easywebdav.Client):
 			if self.max_retry is None:
 				return easywebdav.Client._send(self, *args, **kwargs)
 			else:
-				count = 0
-				while count <= self.max_retry:
+				clock = Clock(self.retry_after, timeout=self.timeout, max_count=self.max_count)
+				while True:
 					try:
 						return easywebdav.Client._send(self, *args, **kwargs)
 					except requests.exceptions.ConnectionError as e:
 						info = e.args
+						# extract information from (a certain type of) ConnectionErrors
 						try:
 							info = info[0]
-						except IndexError: # macOS?
+						except IndexError:
 							pass
 						else:
 							if isinstance(info, tuple):
 								try:
 									info = info[1]
-								except IndexError: #??
+								except IndexError:
 									pass
-						count += 1
-						if count <= self.max_retry:
-							self.logger.warn("%s", info)
-							debug_info = list(args)
-							debug_info.append(kwargs)
-							self.logger.debug(' %s %s %s %s', *debug_info)
-							time.sleep(self.retry_after)
-				self.logger.error('too many connection attempts.')
+						self.logger.warn("%s", info)
+						debug_info = list(args)
+						#debug_info.append(kwargs)
+						#self.logger.debug(' %s %s %s %s', *debug_info)
+						try:
+							clock.wait(self.logger)
+						except StopIteration:
+							self.logger.error('too many connection attempts')
+							break
 				raise e
 		except easywebdav.OperationFailed as e:
 			if e.actual_code == 403:
 				path = args[1]
 				self.logger.error("access to '%s%s' forbidden", self.url, path)
 			raise e
+
+	def _get_url(self, path):
+		return easywebdav.Client._get_url(self, quote(path))
+
+	def cd(self, path):
+		easywebdav.Client.cd(self, quote(path))
+
+	#def ls(self, remote_path):
+	# We would like `ls` to return unquoted file paths, but files are listed as read-only named tuples
+	# unfortunately. The :meth:`WebDAV._list` method should therefore unquote by itself.
 
 	def upload(self, local_path_or_fileobj, remote_path):
 		_easywebdav_adapter(self._upload, 'rb', local_path_or_fileobj, remote_path)
@@ -234,10 +256,11 @@ class WebDAV(Relay):
 			if remote_dir[-1] != '/':
 				remote_dir += '/'
 			begin = len(remote_dir)
-		files = [ file.name[begin:] for file in ls if file.contenttype ] # list names (not paths) of files (no directory)
+		# list names (not paths) of files (no directory)
+		files = [ unquote(file.name[begin:]) for file in ls if file.contenttype ]
 		if recursive:
 			files = list(itertools.chain(files, \
-				*[ self._list(file.name, True, begin) for file in ls \
+				*[ self._list(unquote(file.name), True, begin) for file in ls \
 					if not file.contenttype \
 						and len(remote_dir) < len(file.name) \
 						and os.path.split(file.name[:-1])[1][0] != '.' ]))
