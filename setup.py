@@ -42,7 +42,6 @@ setup(
 		'Environment :: No Input/Output (Daemon)',
 		'Intended Audience :: End Users/Desktop',
 		'Intended Audience :: Science/Research',
-		'Intended Audience :: Developers',
 		'Operating System :: MacOS :: MacOS X',
 		'Operating System :: POSIX :: Linux',
 		'Operating System :: Unix',

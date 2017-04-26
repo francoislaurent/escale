@@ -5,7 +5,7 @@ SynCÀCRe documentation
 
 Files can be transfered between nodes with no administration privileges. All nodes are clients. Consequently they can operate from behind restrictive firewalls.
 
-All what |syncacre| needs is an external storage space such as an FTP or WebDAV account on a server. The nodes running |syncacre| can upload their respective files and download from the remote account the files they don't have locally.
+All what |syncacre| needs is an external storage space such as an account on a FTP or WebDAV server. The nodes running |syncacre| can upload their respective files and download from the remote account the files they don't have locally.
 
 The external passive storage can have limited storage space and files are deleted from the server one every client got a copy.
 
