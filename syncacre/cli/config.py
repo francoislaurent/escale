@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
 
+# Copyright (c) 2017, François Laurent
+
 from syncacre.base.config import *
 import os
 import stat

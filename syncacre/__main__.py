@@ -1,5 +1,11 @@
 # -*- coding: utf-8 -*-
 
+# Copyright (c) 2017, François Laurent
+
+# Copyright (c) 2017, Institut Pasteur
+#   Contributor: François Laurent
+#   Contribution: -p option
+
 import argparse
 import sys
 import os

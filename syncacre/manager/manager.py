@@ -1,5 +1,13 @@
 # -*- coding: utf-8 -*-
 
+# Copyright (c) 2017, François Laurent
+
+# Copyright (c) 2017, Institut Pasteur
+#   Contributor: François Laurent
+#   Contributions:
+#     * `filetype` argument and attribute
+#     * `filter` method
+
 import time
 import calendar
 import os

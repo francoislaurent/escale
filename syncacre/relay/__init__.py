@@ -1,3 +1,10 @@
+# -*- coding: utf-8 -*-
+
+# Copyright (c) 2017, François Laurent
+
+# Copyright (c) 2017, Institut Pasteur
+#   Contributor: François Laurent
+#   Contribution: webdav try block
 
 from .relay import AbstractRelay, Relay
 

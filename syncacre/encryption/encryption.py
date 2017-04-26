@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
 
+# Copyright (c) 2017, François Laurent
+
 import tempfile
 import os
 from syncacre.base.essential import *

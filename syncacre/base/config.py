@@ -1,5 +1,14 @@
 # -*- coding: utf-8 -*-
 
+# Copyright (c) 2017, François Laurent
+
+# Copyright (c) 2017, Institut Pasteur
+#   Contributor: François Laurent
+#   Contributions:
+#     * `ssl version`, `version ssl`, `file extension` in `fields`
+#     * `_item_separator`, `getlist`
+#     * `list = getlist` line in `getter`
+
 from .essential import *
 import os
 try:
@@ -8,7 +17,6 @@ except ImportError:
 	import ConfigParser as cp
 	ConfigParser = cp.SafeConfigParser
 	NoOptionError = cp.NoOptionError
-
 
 
 # configparser

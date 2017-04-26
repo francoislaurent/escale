@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
 
+# Copyright (c) 2017, François Laurent
+
 from ..encryption import Cipher
 import os
 

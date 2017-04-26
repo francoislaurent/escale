@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
 
+# Copyright (c) 2017, François Laurent
+
 import logging, logging.handlers, logging.config
 from multiprocessing import Process, Queue
 import threading

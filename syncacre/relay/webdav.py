@@ -1,5 +1,8 @@
 # -*- coding: utf-8 -*-
 
+# Copyright (c) 2017, Institut Pasteur
+#   Contributor: François Laurent
+
 from syncacre.base.essential import *
 from syncacre.base.timer import *
 from syncacre.base.ssl import *
