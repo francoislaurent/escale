@@ -20,7 +20,7 @@ Find the extended documentation at [syncacre.readthedocs.io](http://syncacre.rea
 
 * `0.4a1`:
 
-  * ``-i`` command-line option that assists the user in making a configuring Syncacre
+  * ``-i`` command-line option that assists the user in configuring Syncacre
   * FTP support (very experimental)
   * ``-p`` command-line option deprecated
 
@@ -44,9 +44,9 @@ Coming features are:
 
 * resume interrupted upload/download
 * improved temporary file management (no orphan files)
-* lock auto-cleaning on restart
+* auto-clean locks on restart
 * file auto-destruction when several pullers have been defined and one takes too much time to get its copy of the file
-* actually support multiple pullers using the configuration file (for now only the library can)
+* actually support multiple pullers
 * split and recombine big files
 * more (symmetric) cryptographic algorithms and more cryptographic options
 
