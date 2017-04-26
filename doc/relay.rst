@@ -29,6 +29,15 @@ syncacre.relay.webdav module
     :show-inheritance:
 
 
+syncacre.relay.ftp module
+-------------------------
+
+.. automodule:: syncacre.relay.ftp
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+
 syncacre.relay.ssh module
 -------------------------
 

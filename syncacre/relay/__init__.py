@@ -6,6 +6,14 @@ __all__ = ['AbstractRelay', 'Relay']
 __protocols__ = []
 
 try:
+	from .ftp import FTP
+	__all__.append('FTP')
+	__protocols__.append(FTP)
+except ImportError as e:
+	print(e)
+	pass
+
+try:
 	from .ssh import SSH
 	__all__.append('SSH')
 	__protocols__.append(SSH)

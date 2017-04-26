@@ -39,14 +39,25 @@ The generated documentation will be available at ``_build/html/index.html`` from
 
 Commandline
 -----------
+The simplest way to call |syncacre| is:
+::
+
+	python -m syncacre
+
+This, however, will fail the first time you run |syncacre|, because you need to configure it first with the ``-i`` option:
+::
+
+	python -m syncacre -i
+
+You can alternatively select a specific conf file with the ``-c`` option:
 ::
 
 	python -m syncacre -c <path-to-conf-file>
 
-You can run |syncacre| as a daemon (in background) with:
+Last but not least, you can run |syncacre| as a daemon (in background) with the ``-d`` option:
 ::
 
-	python -m syncacre -d -c <path-to-conf-file>
+	python -m syncacre -d
 
 If no configuration file is provided on the commandline, |syncacre| will look for one of the following files: ``/etc/syncacre.conf`` (system-wide), ``~/.syncacre/syncacre.conf``, ``~/.config/syncacre/syncacre.conf`` where ``~`` stands for the home directory.
 
@@ -63,7 +74,6 @@ Each section refers to a client. It begins with a ``[section]`` where ``section`
 Parameters that can only be global are:
 
 * ``log file``: path to log file
-* ``daemon``: boolean
 
 .. note:: booleans can be either ``yes``, ``no``, ``1``, ``0``, ``true``, ``false``, ``on`` or ``off``.
 
@@ -92,6 +102,7 @@ API
 .. toctree::
    :maxdepth: 1
 
+   cli
    log
    base
    relay

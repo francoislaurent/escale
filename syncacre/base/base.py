@@ -35,18 +35,7 @@ def syncacre(config, repository, handler=None):
 	if handler is not None:
 		logger.propagate = False
 		logger.addHandler(handler)
-	args = {}
-	for field, attrs in fields.items():
-		if isinstance(attrs, tuple):
-			types, attrs = attrs
-			if isinstance(types, str):
-				types = (types,)
-			getters = [ getter(t) for t in types ]
-		else:
-			getters = [ getter() ]
-		value = parse_field(attrs, getters, config, repository, logger)
-		if value is not None:
-			args[field] = value
+	args = parse_fields(config, repository, fields, logger)
 	if 'password' in args and os.path.isfile(args['password']):
 		with open(args['password'], 'r') as f:
 			content = f.readlines()

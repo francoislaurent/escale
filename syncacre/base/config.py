@@ -14,27 +14,30 @@ except ImportError:
 # configparser
 default_section = 'DEFAULT' # Python2 cannot modify it
 
-default_conf_files = [os.path.expanduser('~/.config/syncacre/syncacre.conf'),
-	os.path.expanduser('~/.syncacre/syncacre.conf'),
-	'/etc/syncacre.conf']
+default_filename = SYNCACRE_NAME + '.conf'
+global_cfg_dir = '/etc'
+default_cfg_dirs = [os.path.join(os.path.expanduser('~/.config'), SYNCACRE_NAME),
+	os.path.expanduser('~/.' + SYNCACRE_NAME),
+	global_cfg_dir]
+default_conf_files = [ os.path.join(d, default_filename) for d in default_cfg_dirs ]
 
 
 # fields expected in configuration files
 fields = dict(path=('path', ['local path', 'path']),
-	address=['relay address', 'remote address', 'host address', 'address'],
-	directory=['relay dir', 'remote dir', 'host dir', 'dir', 'relay directory', 'remote directory',
-		'host directory', 'directory'],
-	port=['relay port', 'remote port', 'host port', 'port'],
-	username=['relay user', 'remote user', 'host user', 'auth user', 'user'],
+	address=['host address', 'relay address', 'remote address', 'address'],
+	directory=['host directory', 'relay directory', 'remote directory',
+		'directory', 'relay dir', 'remote dir', 'host dir', 'dir'],
+	port=['port', 'relay port', 'remote port', 'host port'],
+	username=['user', 'relay user', 'remote user', 'host user', 'auth user'],
 	password=(('path', 'str'),
 		['password', 'secret', 'secret file', 'secrets file', 'credential', 'credentials']),
 	refresh=('float', ['refresh']),
 	timestamp=(('bool', 'str'), ['modification time', 'timestamp', 'mtime']),
-	clientname=['client', 'client name'],
+	clientname=['client name', 'client'],
 	encryption=(('bool', 'str'), ['encryption']),
 	passphrase=(('path', 'str'), ['passphrase', 'key']),
-	push_only=('bool', ['read only', 'push only']),
-	pull_only=('bool', ['write only', 'pull only']),
+	push_only=('bool', ['push only', 'read only']),
+	pull_only=('bool', ['pull only', 'write only']),
 	ssl_version=['ssl version'],
 	verify_ssl=('bool', ['verify ssl']),
 	filetype=('list', ['file extension', 'file type']))
@@ -81,36 +84,73 @@ def getter(_type='str'):
 		)[_type]
 
 
-def parse_field(attrs, getters, config, config_section, logger):
+def parse_field(config, section, attrs, getters, logger=None):
 	for attr in attrs:
 		option = True
 		for get in getters:
 			try:
-				return get(config, config_section, attr)
+				return get(config, section, attr)
 			except NoOptionError:
 				option = False
 				break
 			except ValueError:
 				pass
 		if option:
-			logger.warning("wrong format for attribute '%s'", attr)
+			if logger is None:
+				print("warning: wrong format for attribute '{}'".format(attr))
+			else:
+				logger.warning("wrong format for attribute '%s'", attr)
 	return None
 
 
-def parse_cfg(cfg_file, msgs):
+def parse_fields(config, section, fields, logger=None):
+	args = {}
+	for field, attrs in fields.items():
+		if isinstance(attrs, tuple):
+			types, attrs = attrs
+			if isinstance(types, str):
+				types = (types,)
+			getters = [ getter(t) for t in types ]
+		else:
+			getters = [ getter() ]
+		value = parse_field(config, section, attrs, getters, logger)
+		if value is not None:
+			args[field] = value
+	return args
+
+
+def parse_cfg(cfg_file, msgs, new=False):
 	if cfg_file:
-		if not os.path.isfile(cfg_file):
-			raise IOError('file not found: {}'.format(cfg_file))
+		err_msg_if_missing = 'file not found: {}'.format(cfg_file)
 	else:
+		err_msg_if_missing = 'cannot find a valid configuration file'
 		candidates = default_conf_files + [None]
 		for cfg_file in candidates:
 			if cfg_file and os.path.isfile(cfg_file):
 				break
 		if not cfg_file:
-			raise IOError('cannot find a valid configuration file')
+			try: # check if superuser
+				cfg_file = default_conf_files[-1] # global conf file
+				with open(cfg_file, 'a'):
+					pass
+			except IOError: # [Errno13] Permission denied: 
+				cfg_file = default_conf_files[0]
+	if not os.path.isfile(cfg_file):
+		if new:
+			import logging
+			msgs.append((logging.INFO, "creating new configuration file '%s'", cfg_file))
+			cfg_dir = os.path.dirname(cfg_file)
+			if not os.path.isdir(cfg_dir):
+				os.makedirs(cfg_dir)
+			with open(cfg_file, 'w'):
+				pass # touch
+		else:
+			raise IOError(err_msg_if_missing)
 	with open(cfg_file, 'r') as f:
 		while True:
 			line = f.readline()
+			if f.tell() == 0: # file is empty
+				break
 			stripped = line.strip()
 			if stripped and any([ stripped[0] == s for s in '#;' ]):
 				stripped = ''
