@@ -278,11 +278,12 @@ class WebDAV(Relay):
 		# list names (not paths) of files (no directory)
 		files = [ unquote(file.name[begin:]) for file in ls if file.contenttype ]
 		if recursive:
+			dirs = [ unquote(file.name) for file in ls \
+				if file.contenttype ]
 			files = list(itertools.chain(files, \
-				*[ self._list(unquote(file.name), True, begin) for file in ls \
-					if not file.contenttype \
-						and len(remote_dir) < len(file.name) \
-						and os.path.split(file.name[:-1])[1][0] != '.' ]))
+				*[ self._list(d, True, begin) for d in dirs \
+					if len(remote_dir) < len(d.name) \
+					and os.path.split(d.name[:-1])[1][0] != '.' ]))
 		#print(('WebDAV._list: remote_dir, files', remote_dir, files))
 		return files
 
