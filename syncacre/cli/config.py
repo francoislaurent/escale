@@ -20,6 +20,35 @@ tab = "\t"
 
 
 def query_field(config, section, field, description=None, suggestion='', required=False, echo=True):
+	'''
+	Request user input for a single field.
+
+	If an existing value is found, it is presented as a default value and returned as answer if
+	the user does not input anything.
+
+	Arguments:
+
+		config (ConfigParser): existing configuration.
+
+		section (str): active configuration section.
+
+		field (str): any key from `~syncacre.base.config.fields` or any configuration option.
+
+		description (str): request text.
+
+		suggestion (str): an indication of default value or possible choices.
+
+		required (bool): if True, the request is drawn again as long as the user do not input 
+			a non-empty answer.
+
+		echo (bool): if False, the answer is not echoed (suitable for passwords).
+
+	Returns:
+
+		str: actual option name in `config`.
+
+		str: user's answer.
+	'''
 	option = None
 	if field in fields:
 		_fields = fields[field]
@@ -59,6 +88,19 @@ def query_field(config, section, field, description=None, suggestion='', require
 
 
 def add_section(cfg_file, msgs=[]):
+	'''
+	Add or edit a section of a configuration file.
+
+	Arguments:
+
+		cfg_file (str): path to a configuration file.
+
+		msgs (list): pending messages.
+
+	Returns:
+
+		list: pending messages.
+	'''
 	config, cfg_file, msgs = parse_cfg(cfg_file, msgs, True)
 	cfg_dir = os.path.dirname(cfg_file)
 	if cfg_dir == global_cfg_dir: # superuser mode

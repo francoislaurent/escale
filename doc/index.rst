@@ -28,7 +28,8 @@ The ``-e`` option is necessary if you intend to update or modify the code and ha
 
 .. note:: never run |syncacre| as the super user. |syncacre| does not need any special privilege.
 
-If you wish to compile the documentation and get a local copy, once |syncacre| is installed, type:
+If you wish to compile the documentation and get a local copy of it, you will need Sphinx for Python3.
+Once |syncacre| is installed, type:
 ::
 
 	cd doc
@@ -80,8 +81,8 @@ Parameters that can only be global are:
 Other parameters are:
 
 * ``local path`` (or ``path``): path to the local repository
-* ``remote address`` (or ``host address``, ``relay address``, ``address``): address of the remote host
-* ``remote directory`` (or ... + ``dir`` variants): directory of the repository on the remote host
+* ``host address`` (or ``relay address``, ``remote address``, ``address``): address of the remote host
+* ``host directory`` (or ... + ``dir`` variants): directory of the repository on the remote host
 * ``username``: username on the remote host
 * ``password`` or ``secret file`` or ``credential``: password on the remote host or path to a file that contains the password or both the username and the password on a single line (``username:password``)
 * ``refresh``: synchronization interval in seconds
@@ -90,7 +91,7 @@ Other parameters are:
 * ``encryption``: boolean that defines whether to encrypt/decrypt the files or not, or algorithm identifier (e.g. ``fernet``, ``blowfish``, etc)
 * ``passphrase`` or ``key``: passphrase or path to a file that contains the passphrase for the encryption algorithm
 * ``verify ssl``: boolean that defines whether to check the remote host's certificate
-* ``ssl version``: either ``SSLv23``, ``TLSv1``, ``TLSv1.1`` or ``TLSv1.2``
+* ``ssl version``: either ``SSLv2``, ``SSLv3``, ``SSLv23``, ``TLS``, ``TLSv1``, ``TLSv1.1`` or ``TLSv1.2``
 * ``file extension`` (or ``file type``): a comma-separated list of file extensions (with or without the initial dot)
 
 .. note:: the ``conf`` and ``test`` directories contain examples of configuration files.
