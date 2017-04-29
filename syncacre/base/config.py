@@ -12,11 +12,12 @@
 from .essential import *
 import os
 try:
-	from configparser import ConfigParser, NoOptionError
+	from configparser import ConfigParser, NoOptionError # Py3
 except ImportError:
 	import ConfigParser as cp
 	ConfigParser = cp.SafeConfigParser
 	NoOptionError = cp.NoOptionError
+import re # moved from syncacre.cli.config together with parse_address
 
 
 # configparser
@@ -31,15 +32,19 @@ default_conf_files = [ os.path.join(d, default_filename) for d in default_cfg_di
 
 
 # fields expected in configuration files
+# 'directory': 'host path', 'relay path', 'remote path' added in version 0.4a3
+# 'password': 'secrets file' and 'credentials' removed in version 0.4a3
+# 'refresh': can be bool in version 0.4a3
 fields = dict(path=('path', ['local path', 'path']),
 	address=['host address', 'relay address', 'remote address', 'address'],
 	directory=['host directory', 'relay directory', 'remote directory',
-		'directory', 'relay dir', 'remote dir', 'host dir', 'dir'],
-	port=['port', 'relay port', 'remote port', 'host port'],
-	username=['user', 'relay user', 'remote user', 'host user', 'auth user'],
+		'directory', 'relay dir', 'remote dir', 'host dir', 'dir',
+		'host path', 'relay path', 'remote path'],
+	port=['port', 'host port', 'relay port', 'remote port'],
+	username=['user', 'auth user', 'host user', 'relay user', 'remote user'],
 	password=(('path', 'str'),
-		['password', 'secret', 'secret file', 'secrets file', 'credential', 'credentials']),
-	refresh=('float', ['refresh']),
+		['password', 'secret', 'secret file', 'credential']),
+	refresh=(('bool', 'float'), ['refresh']),
 	timestamp=(('bool', 'str'), ['modification time', 'timestamp', 'mtime']),
 	clientname=['client name', 'client'],
 	encryption=(('bool', 'str'), ['encryption']),
@@ -172,8 +177,47 @@ def parse_cfg(cfg_file, msgs, new=False):
 		config.read_string(raw_cfg, source=cfg_file)
 	elif PYTHON_VERSION == 2:
 		assert default_section == 'DEFAULT'
+		assert isinstance(raw_cfg, str)
 		config = ConfigParser()
 		import io
-		config.readfp(io.BytesIO(raw_cfg))
+		try:
+			config.readfp(io.BytesIO(raw_cfg), filename=cfg_file)
+		except UnicodeDecodeError:
+			raw_cfg = "\n".join([ line.decode('utf-8').encode('unicode-escape')
+					for line in raw_cfg.splitlines() ])
+			config.readfp(io.BytesIO(raw_cfg), filename=cfg_file)
+			config = crawl_config(lambda a: a.decode('unicode-escape'), config)
 	return (config, cfg_file, msgs)
+
+
+def parse_address(addr):
+	# moved from syncacre.cli.config in version 0.4a3
+	try:
+		protocol, addr = re.split('://', addr)
+	except ValueError:
+		protocol = None
+	try:
+		addr, path = addr.split('/', 1)
+	except ValueError:
+		path = None
+	try:
+		addr, port = addr.split(':')
+	except ValueError:
+		port = None
+	return (protocol, addr, port, path)
+
+
+def crawl_config(fun, config=None):
+	def crawl(__config__):
+		__defaults__ = __config__.defaults()
+		for __option__, __value__ in __defaults__.items():
+			__config__.set(default_section, __option__, fun(__value__))
+		for __section__ in __config__.sections():
+			for __option__, __value__ in __config__.items(__section__):
+				__config__.set(__section__, __option__, fun(__value__))
+		return __config__
+	if config:
+		return crawl(config)
+	else:
+		return crawl
 

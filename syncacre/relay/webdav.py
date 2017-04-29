@@ -186,21 +186,24 @@ class WebDAV(Relay):
 
 		certificate (str): path to a .pem certificate file.
 
+		verify_ssl (bool): if ``True``, check server's certificate.
+
+		ssl_version (int or str): any valid argument to 
+			:func:`~syncacre.base.ssl.parse_ssl_version`.
+
 		max_retry (bool or int): defines the maximum number of retries.
 			Applies to connection failures.
 
 		retry_after (int): defines interval time between retries in seconds.
 			Applies to connection failures.
 
-		ssl_version (int or str): any valid argument to :func:`~syncacre.base.ssl.parse_ssl_version`.
-
-		verify_ssl (bool): if ``True``, check server's certificate.
 	"""
 
 	__protocol__ = ['webdav', 'https']
 
 	def __init__(self, address, username=None, password=None, protocol=None, certificate=None, \
-		max_retry=True, retry_after=None, logger=None, ssl_version=None, verify_ssl=True, **ignored):
+		verify_ssl=True, ssl_version=None, max_retry=True, retry_after=None, logger=None, \
+		**ignored):
 		Relay.__init__(self, address, logger=logger)
 		if PYTHON_VERSION == 3: # deal with encoding issues with requests
 			username = username.encode('utf-8').decode('unicode-escape')

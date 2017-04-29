@@ -32,12 +32,44 @@ def syncacre(config, repository, handler=None):
 
 		handler (None or log handler)
 	"""
+	# set logger
 	logger = logging.getLogger(log_root).getChild(repository)
 	logger.setLevel(logging.DEBUG)
 	if handler is not None:
 		logger.propagate = False
 		logger.addHandler(handler)
+	# parse config
 	args = parse_fields(config, repository, fields, logger)
+	if 'path' not in args:
+		msg = 'no local repository defined'
+		logging.error(msg)
+		raise KeyError(msg)
+	try:
+		_protocol, args['address'], _port, _directory = parse_address(args['address'])
+	except KeyError:
+		msg = 'no address defined'
+		logger.error(msg)
+		raise KeyError(msg)
+	try:
+		protocol = config.get(repository, 'protocol')
+	except NoOptionError:
+		protocol = _protocol
+	if not protocol:
+		msg = 'no protocol defined'
+		logger.error(msg)
+		raise KeyError(msg)
+	if _port:
+		if 'port' in args:
+			if args['port'] != port:
+					logger.debug('conflicting port values: {}, {}'.format(port, args['port']))
+		else:
+			args['port'] = _port
+	if _directory:
+		if 'directory' in args:
+			args['directory'] = os.path.join(args['directory'], _directory)
+		else:
+			args['directory'] = _directory
+	# get credential
 	if 'password' in args and os.path.isfile(args['password']):
 		with open(args['password'], 'r') as f:
 			content = f.readlines()
@@ -61,7 +93,7 @@ def syncacre(config, repository, handler=None):
 			except ValueError:
 				logger.error("cannot read login information from credential file '%s'", args['password'])
 				del args['password']
-	#
+	# set operating mode
 	if args.pop('push_only', False):
 		if args.pop('pull_only', False):
 			logger.warning('both read only and write only; cannot determine mode')
@@ -70,7 +102,7 @@ def syncacre(config, repository, handler=None):
 			args['mode'] = 'upload'
 	elif args.pop('pull_only', False):
 		args['mode'] = 'download'
-	# parse encryption passphrase
+	# parse encryption algorithm and passphrase
 	if 'passphrase' in args and os.path.isfile(args['passphrase']):
 		with open(args['passphrase'], 'rb') as f:
 			args['passphrase'] = f.read()
@@ -99,11 +131,7 @@ def syncacre(config, repository, handler=None):
 			del args['encryption']
 		else:
 			args['encryption'] = cipher(args['passphrase'])
-	# relay type
-	try:
-		protocol = config.get(repository, 'protocol')
-	except NoOptionError:
-		protocol = args['address'].split(':')[0] # crashes if no colon found
+	# ready
 	if PYTHON_VERSION == 3:
 		args['config'] = config[repository]
 	elif PYTHON_VERSION == 2:

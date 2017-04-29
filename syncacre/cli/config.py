@@ -39,8 +39,8 @@ def query_field(config, section, field, description=None, suggestion='', require
 	existing = config.has_option(section, option)
 	if existing:
 		existing = config.get(section, option) # existing value presented as default one
-		if not suggestion:
-			suggestion = existing
+		#if not suggestion:
+		suggestion = existing # existing value should be favored
 	if echo:
 		_input = input
 	else:
@@ -69,11 +69,11 @@ def add_section(cfg_file, msgs=[]):
 			os.mkdir(cfg_dir)
 		_log_file_ = 'log file'
 		try:
-			log_file = config.get(section, _log_file_)
+			log_file = config.get(default_section, _log_file_)
 		except:
 			log_file = None
 		else:
-			if log_file.startswith(global_cfg_dir):
+			if not os.path.isabs(log_file) or log_file.startswith(global_cfg_dir):
 				msg = "logging in '{}' is not permitted; fixing '{}'".format(global_cfg_dir, _log_file_)
 				msgs.append((logging.DEBUG, msg))
 				print(msg)
@@ -94,18 +94,45 @@ def add_section(cfg_file, msgs=[]):
 		new = section not in sections
 		if new:
 			config.add_section(section)
-		# client name
+		## local repository (unicode is alright)
+		_rep_, rep = query_field(config, section, 'path', required=True)
+		if not os.path.isabs(rep):
+			rep = os.path.join(os.getcwd(), rep)
+		if not os.path.isdir(rep):
+			msg = "making directory '{}'".format(rep)
+			msgs.append((logging.DEBUG, msg))
+			print(msg)
+			os.makedirs(rep)
+		config.set(section, _rep_, rep)
+		## host address
+		print("a host address should be in the form:")
+		print(" 'protocol://servername[:port][/path]'")
+		print("where protocol is any of:")
+		print(" 'webdav', 'http', 'https', 'ftp', 'ftps', 'ssh', etc")
+		print("if editing an existing section, the address is 'servername' only")
+		_addr_, addr = query_field(config, section, 'address', required=True)
+		protocol, servername, port, path = parse_address(addr)
+		config.set(section, _addr_, servername)
+		_proto_ = 'protocol'
+		if not protocol:
+			_proto_, protocol = query_field(config, section, _proto_, required=True)
+		config.set(section, _proto_, protocol)
+		if port:
+			config.set(section, 'port', port)
+		if path:
+			config.set(section, 'host path', path) # host path introduced in 0.4a3
+		## client name
+		print('some use cases require an identifier for the synchronization client')
+		print('the client name should uniquely identify the local repository')
 		_client_, client = query_field(config, section, 'clientname')
 		if client:
 			config.set(section, _client_, client)
-		# host address
-		_addr_, addr = query_field(config, section, 'address', required=True)
-		config.set(section, _addr_, addr)
-		# secret
+		## secret
 		# username
 		secret_file = None
 		print('if the credentials are available in a file, leave the following field empty')
-		_username_, username = query_field(config, section, 'username')
+		_username_, username = query_field(config, section, 'username',
+			description='authentification username')
 		if username:
 			# password
 			_, password = query_field(config, section, 'password', echo=False)
@@ -133,8 +160,14 @@ def add_section(cfg_file, msgs=[]):
 					msg = 'over' + msg
 				msgs.append((logging.DEBUG, msg))
 				print(msg)
+				if PYTHON_VERSION == 2: # handle unicode
+					if isinstance(username, unicode):
+						username = username.encode('utf-8')
+					if isinstance(password, unicode):
+						password = password.encode('utf-8')
+				credential = '{}:{}'.format(username, password)
 				with open(secret_file, 'w') as f:
-					f.write('{}:{}'.format(username, password))
+					f.write(credential)
 				try:
 					os.chmod(secret_file, stat.S_IRUSR | stat.S_IWUSR)
 				except OSError as e:
@@ -148,7 +181,7 @@ def add_section(cfg_file, msgs=[]):
 				config.set(section, _username_, username)
 		else:
 			# secret file
-			_, secret_file = query_field(config, section, 'password', description='secret file')
+			_secret_, secret_file = query_field(config, section, 'password', description='secret file')
 			if not os.path.isabs(secret_file):
 				if os.path.isfile(secret_file):
 					secret_file = os.path.join(os.getcwd(), secret_file)
@@ -158,7 +191,8 @@ def add_section(cfg_file, msgs=[]):
 				msg = "'{}' file does not exist yet; create it before running {}".format(secret_file, SYNCACRE_NAME)
 				msgs.append((logging.DEBUG, msg))
 				print(msg)
-		# encryption
+			config.set(section, _secret_, secret_file)
+		## encryption
 		_enc_, encryption = query_field(config, section, 'encryption', suggestion='on')
 		if encryption:
 			encryption = encryption.lower()
@@ -196,19 +230,62 @@ def add_section(cfg_file, msgs=[]):
 					msgs.append((logging.DEBUG, msg))
 					print(msg)
 			config.set(section, _pass_, passphrase)
-		# pull/push only
-		pull_push = input("should the client either pull or push? [pull/push/BOTH] ")
+		## pull/push only
+		# get existing value, if any
+		# and delete all the options found to handle all kind of conflicts
+		pull_push = ''
+		pull_only = False
+		for pull_option in fields['pull_only'][1][::-1]:
+			try:
+				pull_only = config.getboolean(section, pull_option)
+			except:
+				pass
+			else:
+				config.remove_option(section, pull_option)
+		if pull_only:
+			pull_push = 'pull'
+		#else:
+		# handle broken configuration files that set both `pull only` and `push only`
+		# or also `read only` and `write only`
+		push_only = False
+		for push_option in fields['push_only'][1][::-1]:
+			try:
+				push_only = config.getboolean(section, push_option)
+			except:
+				pass
+			else:
+				config.remove_option(section, push_option)
+		if push_only:
+			if pull_only: # broken configuration file
+				msg = "both `push only` and `pull only` defined; discarding both settings"
+				msgs.append((logging.DEBUG, msg))
+				print(msg)
+				pull_push = ''
+			else:
+				pull_push = 'push'
+		# ask for mode
 		if pull_push:
-			pull_push = pull_push.lower()
-			if pull_push == 'pull':
-				config.set(section, 'pull only', 'yes')
-			elif pull_push == 'push':
-				config.set(section, 'push only', 'yes')
-		# refresh rate
-		_refresh_, refresh = query_field(config, section, 'refresh')
-		if refresh:
-			config.set(section, _refresh_, refresh)
-		# stop
+			suggestion = pull_push
+		else:
+			suggestion = 'pull/push/no'
+		answer = input("should the client either pull or push? [{}] ".format(suggestion))
+		if answer:
+			answer = answer.lower()
+		else:
+			answer = pull_push
+		# write down changes, if any
+		if answer == 'pull':
+			config.set(section, pull_option, 'yes')
+		elif pull_push == 'push':
+			config.set(section, push_option, 'yes')
+		## refresh rate (let's make it explicit/visible in the configuration file)
+		default_refresh = '10'
+		_refresh_, refresh = query_field(config, section, 'refresh',
+			description='refresh interval (in seconds)', suggestion=default_refresh)
+		if not refresh:
+			refresh = default_refresh
+		config.set(section, _refresh_, refresh)
+		## stop
 		if not input('do you want to add/edit another section? [y/N] ').lower().startswith('y'):
 			break
 	# write configuration

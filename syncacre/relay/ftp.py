@@ -5,6 +5,7 @@
 from syncacre.base.essential import *
 from .relay import IRelay
 import ftplib
+import ssl
 import os
 import itertools
 
@@ -20,29 +21,76 @@ class FTP(IRelay):
 
 		password (str): FTP password.
 
-		protocol (str): either 'ftp' or 'ftps' or 'ftp tls'.
+		protocol (str): either 'ftp' or 'ftps' (case insensitive).
+
+		encoding (str): encoding for file names.
+
+		account (?): `acct` argument for :class:`ftplib.FTP` and :class:`ftplib.FTP_TLS`.
+
+		keyfile (str): `keyfile` argument for :class:`ftplib.FTP_TLS`.
+
+		certificate (str): path to a certificate file.
+
+		ssl_version (int or str): SSL version as supported by 
+			:func:`~syncacre.base.ssl.parse_ssl_version`.
 	
-	.. warning:: very experimental! Especially, SSL/TLS features ('ftps' and 'ftp tls') have not been tested.
+	.. warning:: SSL/TLS features are experimental! They have not been tested yet.
 
 	"""
 
-	__protocol__ = ['ftp', 'ftps', 'ftp_tls', 'ftp tls']
+	__protocol__ = ['ftp', 'ftps']
 
-	def __init__(self, address, username=None, password=None, protocol=None, logger=None, **ignored):
+	def __init__(self, address, username=None, password=None, protocol=None, logger=None,
+			encoding='utf-8', account=None, keyfile=None, context=None,
+			certificate=None, verify_ssl=True, ssl_version=None, **ignored):
 		IRelay.__init__(self, address, logger=logger)
 		self.username = username
 		self.password = password
 		self.protocol = protocol.lower()
+		self._encoding = encoding
+		self.account = account # `acct` argument for FTP and FTP_TLS
+		self.keyfile = keyfile # `keyfile` argument for FTP_TLS
+		self.context = context # `context` argument for FTP_TLS
+		self.certificate = certificate # `certfile` argument for FTP_TLS
+		if ssl_version: # compatibility argument ...
+			ssl_version = parse_ssl_version(ssl_version)
+			if isinstance(ssl_version, ssl.SSLContext):
+				self.context = ssl_version
+			else:
+				self.context = ssl.SSLContext(ssl_version)
+		if not verify_ssl:
+			# TODO: `context` may be the place where to turn verification off
+			logger.warning("'verify_ssl' is not supported yet")
+
+
+	@property
+	def encoding(self):
+		try:
+			return self.ftp.encoding
+		except AttributeError: # `ftp` not initialized or no `encoding` attribute
+			return self._encoding
+		
+
+	@encoding.setter
+	def encoding(self, e):
+		self._encoding = e
+		try:
+			self.ftp.encoding = e
+		except AttributeError:
+			pass
+
 
 	def open(self):
 		self.ftp = None
-		if self.protocol is None or any([ self.protocol == p for p in ['ftp', 'ftps', 'ftp_tls'] ]):
+		if self.protocol is None or any([ self.protocol == p for p in ['ftps'] ]):
 			try:
-				self.ftp = ftplib.FTP_TLS(self.address, self.username, self.password)
+				self.ftp = ftplib.FTP_TLS(self.address,
+						self.username, self.password, self.account,
+						self.keyfile, self.certificate, self.context)
 			except (ftplib.error_proto, ftplib.error_perm) as e:
 				# TLS connection not supported?
 				self.ftp = None
-				if not (self.protocol is None or self.protocol == 'ftp'): # TLS was explicit required
+				if self.protocol == 'ftps': # TLS was explicit required
 					self.logger.warning("cannot connect to '%s' with TLS support", address)
 					self.logger.debug(e)
 					raise e
@@ -50,15 +98,19 @@ class FTP(IRelay):
 				self.logger.debug(e)
 				raise e
 			else:
-				print('TLS is ok?')
+				# never reached this point
 				self.ftp.prot_p()
 		if self.ftp is None:
 			try:
-				self.ftp = ftplib.FTP(self.address, self.username, self.password)
+				self.ftp = ftplib.FTP(self.address, self.username, self.password, self.account)
 			except Exception as e:
 				self.logger.debug(e)
 				raise e
+		if 'UTF8' not in self.ftp.sendcmd('FEAT'):
+			logger.debug('FTP server does not support unicode')
+		self.ftp.encoding = self._encoding
 		self.root = self.ftp.pwd()
+
 
 
 	def _list(self, remote_dir, recursive=True, append=''):
@@ -66,11 +118,12 @@ class FTP(IRelay):
 			def join(f): return os.path.join(append, f)
 		else:
 			def join(f): return f
-		fullpath = os.path.join(self.root, remote_dir)
+		fullpath = os.path.join(self.root, self._encode(remote_dir))
 		files, dirs = [], []
 		if PYTHON_VERSION == 3:
 			ls = self.ftp.mlsd(fullpath)
 			for f, info in ls:
+				f = self._decode(f)
 				if info['type'] == 'dir':
 					dirs.append(f)
 				elif info['type'] == 'file':
@@ -80,6 +133,7 @@ class FTP(IRelay):
 			self.ftp.retrlines('MLSD ' + fullpath, ls.append)
 			for rep in ls:
 				info, f = rep.split(None, 1)
+				f = self._decode(f)
 				if 'ype=file' in info:
 					files.append(join(f))
 				elif 'ype=dir' in info:
@@ -93,8 +147,9 @@ class FTP(IRelay):
 					for d in dirs ]))
 		return files
 
+
 	def _push(self, local_file, remote_dest, makedirs=True):
-		dirname, basename = os.path.split(remote_dest)
+		dirname, basename = os.path.split(self._encode(remote_dest))
 		try:
 			self.ftp.cwd(os.path.join(self.root, dirname))
 		except ftplib.error_perm as e:
@@ -111,16 +166,19 @@ class FTP(IRelay):
 						self.ftp.cwd(part)
 		self.ftp.storbinary('STOR ' + basename, open(local_file, 'rb'))
 
+
 	def _get(self, remote_file, local_file, makedirs=True):
 		if makedirs:
 			local_dir = os.path.dirname(local_file)
 			if not os.path.isdir(local_dir):
 				os.makedirs(local_dir)
-		self.ftp.retrbinary('RETR ' + os.path.join(self.root, remote_file),
+		self.ftp.retrbinary('RETR ' + os.path.join(self.root, self._encode(remote_file)),
 			open(local_file, 'wb').write)
 
+
 	def unlink(self, remote_file):
-		self.ftp.delete(os.path.join(self.root, remote_file))
+		self.ftp.delete(os.path.join(self.root, self._encode(remote_file)))
+
 
 	def close(self):
 		try:
@@ -128,4 +186,13 @@ class FTP(IRelay):
 		except Exception as e:
 			self.logger.debug(e)
 			self.ftp.close()
+
+
+	def _encode(self, filename):
+		return filename
+
+
+	def _decode(self, filename):
+		return filename
+
 

@@ -4,5 +4,5 @@
 
 from .config import *
 
-__all__ = ['add_section']
+__all__ = ['add_section', 'query_field']
 
