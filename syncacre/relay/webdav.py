@@ -125,9 +125,14 @@ class WebDAVClient(easywebdav.Client):
 			raise e
 
 	def _get_url(self, path):
-		return easywebdav.Client._get_url(self, quote(path))
+		if PYTHON_VERSION == 2 and isinstance(path, unicode):
+			path = path.encode('utf-8')
+		url = easywebdav.Client._get_url(self, quote(path))
+		return url
 
 	def cd(self, path):
+		if PYTHON_VERSION == 2 and isinstance(path, unicode):
+			path = path.encode('utf-8')
 		easywebdav.Client.cd(self, quote(path))
 
 	#def ls(self, remote_path):
@@ -202,9 +207,9 @@ class WebDAV(Relay):
 	__protocol__ = ['webdav', 'https']
 
 	def __init__(self, address, username=None, password=None, protocol=None, certificate=None, \
-		verify_ssl=True, ssl_version=None, max_retry=True, retry_after=None, logger=None, \
-		**ignored):
-		Relay.__init__(self, address, logger=logger)
+		verify_ssl=True, ssl_version=None, max_retry=True, retry_after=None, \
+		client='', logger=None, **ignored):
+		Relay.__init__(self, address, client=client, logger=logger)
 		if PYTHON_VERSION == 3: # deal with encoding issues with requests
 			username = username.encode('utf-8').decode('unicode-escape')
 			password = password.encode('utf-8').decode('unicode-escape')
@@ -269,9 +274,12 @@ class WebDAV(Relay):
 			if e.actual_code == 404:
 				return []
 			else:
-				if e.actual_code != 403:
+				if e.actual_code == 403:
+					raise e
+				else:
 					self.logger.error("easywebdav.Client.ls('%s') failed", remote_dir)
-				raise e
+					self.logger.debug("%s", e)
+				return []
 		if begin is None:
 			if remote_dir[0] != '/':
 				remote_dir = '/' + remote_dir
@@ -282,11 +290,11 @@ class WebDAV(Relay):
 		files = [ unquote(file.name[begin:]) for file in ls if file.contenttype ]
 		if recursive:
 			dirs = [ unquote(file.name) for file in ls \
-				if file.contenttype ]
+				if not file.contenttype ]
 			files = list(itertools.chain(files, \
 				*[ self._list(d, True, begin) for d in dirs \
-					if len(remote_dir) < len(d.name) \
-					and os.path.split(d.name[:-1])[1][0] != '.' ]))
+					if len(remote_dir) < len(d) \
+					and os.path.split(d[:-1])[1][0] != '.' ]))
 		#print(('WebDAV._list: remote_dir, files', remote_dir, files))
 		return files
 

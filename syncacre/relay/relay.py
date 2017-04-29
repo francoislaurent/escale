@@ -5,6 +5,7 @@
 import os
 import sys
 import time
+import codecs
 import tempfile
 
 from syncacre.log import log_root
@@ -35,13 +36,16 @@ class AbstractRelay(object):
 
 		address (str): address of the remote host.
 
+		client (str): client identifier.
+
 		logger (Logger or LoggerAdapter): repository-related logger.
 
 	"""
-	__slots__ = ['address', 'logger']
+	__slots__ = ['address', 'client', 'logger']
 
-	def __init__(self, address, logger=None):
+	def __init__(self, address, client='', logger=None):
 		self.address = address
+		self.client = client
 		self.logger = logger
 
 	def open(self):
@@ -221,20 +225,20 @@ class Relay(AbstractRelay):
 	__slots__ = AbstractRelay.__slots__ + \
 		[ '_placeholder_prefix', '_placeholder_suffix', '_lock_prefix', '_lock_suffix' ]
 
-	def __init__(self, address, logger=None):
+	def __init__(self, address, client='', logger=None):
 		if logger is None:
 			logger = logging.getLogger(log_root).getChild(address)
-		AbstractRelay.__init__(self, address, logger=logger)
+		AbstractRelay.__init__(self, address, client=client, logger=logger)
 		self._placeholder_prefix = '.'
 		self._placeholder_suffix = '.placeholder'
 		self._lock_prefix = '.'
 		self._lock_suffix = '.lock'
 
 	def _placeholder(self, filename):
-		return '{}{}{}'.format(self._placeholder_prefix, filename, self._placeholder_suffix)
+		return u'{}{}{}'.format(self._placeholder_prefix, filename, self._placeholder_suffix)
 
 	def _lock(self, filename):
-		return '{}{}{}'.format(self._lock_prefix, filename, self._lock_suffix)
+		return u'{}{}{}'.format(self._lock_prefix, filename, self._lock_suffix)
 
 	def _isPlaceholder(self, filename):
 		return filename.startswith(self._placeholder_prefix) \
@@ -339,7 +343,7 @@ class Relay(AbstractRelay):
 	def touch(self, remote_file, content=None):
 		#print(('relay.touch: remote_file content', remote_file, content))
 		local_file = _get_temp_file()
-		f = open(local_file, 'w')
+		f = codecs.open(local_file, 'w', encoding='utf-8')
 		if content:
 			f.write(content)
 		f.close()
@@ -409,7 +413,7 @@ class Relay(AbstractRelay):
 				time.sleep(blocking)
 		elif self.hasLock(remote_file):
 			return False
-		self.touch(self.lock(remote_file))
+		self.touch(self.lock(remote_file), content=self.client)
 		return True
 
 	def releaseLock(self, remote_file):
@@ -528,13 +532,13 @@ class Relay(AbstractRelay):
 		self.releaseLock(remote_file)
 		return True
 
-	def markAsRead(self, remote_file, client_name='', local_placeholder=None):
+	def markAsRead(self, remote_file, local_placeholder=None):
 		remote_placeholder = self.placeholder(remote_file)
 		if not local_placeholder:
 			local_placeholder = _get_temp_file()
 			self._get(remote_placeholder, local_placeholder)
 		with open(local_placeholder, 'a') as f:
-			f.write('\n{}'.format(client_name))
+			f.write('\n{}'.format(self.client))
 		self._push(local_placeholder, remote_placeholder)
 		os.unlink(local_placeholder)
 

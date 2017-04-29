@@ -18,10 +18,11 @@ Find the extended documentation at [syncacre.readthedocs.io](http://syncacre.rea
 
 ## Changelog:
 
-* `0.4a1`:
+* `0.4`:
 
+  * FTP support
+  * unicode support
   * ``-i`` command-line option that assists the user in configuring Syncacre
-  * FTP support (very experimental)
   * ``-p`` command-line option deprecated
 
 * `0.3.2`:

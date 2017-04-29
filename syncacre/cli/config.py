@@ -5,6 +5,7 @@
 from syncacre.base.config import *
 import os
 import stat
+import codecs
 import logging
 from getpass import *
 import base64
@@ -289,7 +290,7 @@ def add_section(cfg_file, msgs=[]):
 		if not input('do you want to add/edit another section? [y/N] ').lower().startswith('y'):
 			break
 	# write configuration
-	with open(cfg_file, 'w') as f:
+	with codecs.open(cfg_file, 'w', encoding='utf-8') as f:
 		config.write(f)
 	# remove the default section header
 	with open(cfg_file, 'r') as f:

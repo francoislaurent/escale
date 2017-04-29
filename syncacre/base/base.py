@@ -28,7 +28,7 @@ def syncacre(config, repository, handler=None):
 
 		config (ConfigParser): configuration object.
 
-		repository (str): configuration section name or, equivalently, client name.
+		repository (str): configuration section name or, alternatively, client name.
 
 		handler (None or log handler)
 	"""

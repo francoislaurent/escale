@@ -11,10 +11,3 @@ _build/
 
 # anything hidden should be manually added
 .*
-
-# conf and log files
-*.conf
-*.log
-
-# credential
-credential*

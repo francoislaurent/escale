@@ -13,7 +13,7 @@ import calendar
 import os
 import sys
 import itertools
-from syncacre.base import Clock
+from syncacre.base import PYTHON_VERSION, Clock
 from syncacre.encryption import Plain
 from math import *
 
@@ -50,12 +50,10 @@ class Manager(object):
 
 		pop_args (dict): extra keyword arguments for 
 			:meth:`~syncacre.relay.AbstractRelay.pop`.
-			Supported keyword arguments are:
-			**client_name** (`str`): name identifying the running client.
 
 	"""
 	def __init__(self, relay, address=None, path=None, directory=None, mode=None, \
-		encryption=Plain(None), timestamp=True, refresh=None, logger=None, clientname=None, \
+		encryption=Plain(None), timestamp=True, refresh=True, logger=None, clientname=None, \
 		filetype=[], **relay_args):
 		self.logger = logger
 		if path[-1] != '/':
@@ -67,6 +65,8 @@ class Manager(object):
 		if timestamp is True:
 			timestamp = '%y%m%d_%H%M%S'
 		self.timestamp = timestamp
+		if isinstance(refresh, bool) and refresh:
+			refresh = 30 # seconds
 		self.refresh = refresh
 		if filetype:
 			self.filetype = [ f if f[0] == '.' else '.' + f
@@ -75,7 +75,7 @@ class Manager(object):
 			self.filetype = []
 		self.pop_args = {}
 		if clientname:
-			self.pop_args['client_name'] = clientname
+			relay_args['client'] = clientname
 		self.relay = relay(address, logger=self.logger, **relay_args)
 
 	def run(self):
@@ -187,13 +187,20 @@ class Manager(object):
 		new = False
 		for local_file in local:
 			filename = local_file[len(self.path):] # relative path
+			if PYTHON_VERSION == 2 and isinstance(filename, unicode) and \
+				remote and isinstance(remote[0], str):
+				filename = filename.encode('utf-8')
 			modified = False # if no remote copy, this is ignored
 			if self.timestamp: # check file last modification time
 				local_mtime = floor(os.path.getmtime(local_file))
 				last_modified = time.gmtime(local_mtime) # UTC
 				last_modified = time.strftime(self.timestamp, last_modified)
 				if filename in remote:
-					remote_file = os.path.join(self.dir, filename)
+					if (PYTHON_VERSION == 2 and isinstance(filename, str)) or \
+						(PYTHON_VERSION == 3 and isinstance(filename, bytes)):
+						remote_file = os.path.join(self.dir, filename.decode('utf-8'))
+					else:
+						remote_file = os.path.join(self.dir, filename)
 					placeholder = self.relay.getPlaceholder(remote_file)
 					if placeholder:
 						with open(placeholder, 'r') as f:

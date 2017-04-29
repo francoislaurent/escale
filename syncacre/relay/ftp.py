@@ -40,10 +40,11 @@ class FTP(IRelay):
 
 	__protocol__ = ['ftp', 'ftps']
 
-	def __init__(self, address, username=None, password=None, protocol=None, logger=None,
+	def __init__(self, address, username=None, password=None, protocol=None,
 			encoding='utf-8', account=None, keyfile=None, context=None,
-			certificate=None, verify_ssl=True, ssl_version=None, **ignored):
-		IRelay.__init__(self, address, logger=logger)
+			certificate=None, verify_ssl=True, ssl_version=None,
+			client='', logger=None, **ignored):
+		IRelay.__init__(self, address, client=client, logger=logger)
 		self.username = username
 		self.password = password
 		self.protocol = protocol.lower()
