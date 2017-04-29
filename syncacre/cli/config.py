@@ -46,7 +46,7 @@ def query_field(config, section, field, description=None, suggestion='', require
 	Returns:
 
 		(str, str): first argument is the actual option name in `config`. 
-			Second argument is the user's answer.
+		Second argument is the user's answer.
 	'''
 	option = None
 	if field in fields:
