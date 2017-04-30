@@ -12,8 +12,9 @@ import time
 import calendar
 import os
 import sys
+import traceback
 import itertools
-from syncacre.base import PYTHON_VERSION, Clock
+from syncacre.base import PYTHON_VERSION, join, Clock
 from syncacre.encryption import Plain
 from math import *
 
@@ -101,10 +102,12 @@ class Manager(object):
 			self.logger.debug('connected')
 		elif ok is not None:
 			self.logger.critical("failed to connect with '%s'", self.relay.address)
+			return
+		self._last_error = None
 		fresh_start = True
 		new = False
-		try:
-			while True:
+		while True:
+			try:
 				if self.mode is None or self.mode == 'download':
 					new |= self.download()
 				if self.mode is None or self.mode == 'upload':
@@ -118,9 +121,25 @@ class Manager(object):
 					clock.wait(self.logger)
 				else:
 					break
-		except KeyboardInterrupt:
-			pass
-		self.relay.close()
+			except KeyboardInterrupt:
+				break
+			except Exception as e:
+				t = time.time()
+				if self._last_error is None:
+					self._last_error = e
+				elif type(e) == type(self._last_error):
+					if t - self._last_error_time < 1: # the error is self-repeating too fast; abort
+						break
+				self._last_error = e
+				self._last_error_time = t
+				self.logger.critical(traceback.format_exc())
+		try:
+			self.relay.close()
+		except:
+			self.logger.error('cannot close the connection')
+			self.logger.debug(traceback.format_exc())
+		del self.relay # delete temporary files
+		del self.encryption # delete temporary files
 
 	def filter(self, files):
 		"""
@@ -146,8 +165,8 @@ class Manager(object):
 		#print(('Manager.download: remote', remote))
 		new = False
 		for filename in remote:
-			local_file = os.path.join(self.path, filename)
-			remote_file = os.path.join(self.dir, filename)
+			local_file = join(self.path, filename)
+			remote_file = join(self.dir, filename)
 			last_modified = None
 			if self.timestamp:
 				placeholder = self.relay.getPlaceholder(remote_file)
@@ -196,11 +215,7 @@ class Manager(object):
 				last_modified = time.gmtime(local_mtime) # UTC
 				last_modified = time.strftime(self.timestamp, last_modified)
 				if filename in remote:
-					if (PYTHON_VERSION == 2 and isinstance(filename, str)) or \
-						(PYTHON_VERSION == 3 and isinstance(filename, bytes)):
-						remote_file = os.path.join(self.dir, filename.decode('utf-8'))
-					else:
-						remote_file = os.path.join(self.dir, filename)
+					remote_file = join(self.dir, filename)
 					placeholder = self.relay.getPlaceholder(remote_file)
 					if placeholder:
 						with open(placeholder, 'r') as f:

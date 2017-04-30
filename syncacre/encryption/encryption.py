@@ -17,12 +17,15 @@ class Cipher(object):
 
 		passphrase (str-like): arbitrarily long passphrase.
 
+		_temporary_files (list): list of paths to existing temporary files.
+
 	"""
 	def __init__(self, passphrase):
 		if (PYTHON_VERSION == 3 and isinstance(passphrase, str)) or \
 			(PYTHON_VERSION == 2 and isinstance(passphrase, unicode)):
 			passphrase = passphrase.encode('utf-8')
 		self.passphrase = passphrase
+		self._temporary_files = []
 
 	def _encrypt(self, data):
 		"""
@@ -56,6 +59,7 @@ class Cipher(object):
 		auto = not cipher
 		if auto:
 			cipher = tempfile.mkstemp()[1]
+			self._temporary_files.append(cipher)
 		fo = open(cipher, 'wb')
 		try:
 			with open(plain, 'rb') as fi:
@@ -65,6 +69,7 @@ class Cipher(object):
 			fo.close()
 			if auto:
 				os.unlink(cipher)
+				self._temporary_files.remove(cipher)
 			cipher = None
 			print(e)
 		return cipher
@@ -73,6 +78,7 @@ class Cipher(object):
 		auto = not plain
 		if auto:
 			plain = tempfile.mkstemp()[1]
+			self._temporary_files.append(plain)
 		elif makedirs:
 			dirname = os.path.dirname(plain)
 			if not os.path.isdir(dirname):
@@ -88,6 +94,7 @@ class Cipher(object):
 			fo.close()
 			if auto:
 				os.unlink(plain)
+				self._temporary_files.remove(plain)
 			plain = None
 		return plain
 
@@ -103,7 +110,9 @@ class Cipher(object):
 			cipher.decrypt(temp_file, plain_file)
 			# `temp_file` is no longer available
 		"""
-		return tempfile.mkstemp()[1]
+		f = tempfile.mkstemp()[1]
+		self._temporary_files.append(f)
+		return f
 
 	def finalize(self, cipher):
 		"""
@@ -116,6 +125,17 @@ class Cipher(object):
 			# `temp_file` is no longer available
 		"""
 		os.unlink(cipher)
+		try:
+			self._temporary_files.remove(cipher)
+		except ValueError:
+			pass
+
+	def __del__(self):
+		for f in self._temporary_files:
+			try:
+				os.unlink(f)
+			except OSError:
+				pass
 
 
 
@@ -148,5 +168,8 @@ class Plain(Cipher):
 		return plain
 
 	def finalize(self, cipher):
+		pass
+
+	def __del__(self):
 		pass
 

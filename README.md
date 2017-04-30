@@ -24,6 +24,8 @@ Find the extended documentation at [syncacre.readthedocs.io](http://syncacre.rea
   * unicode support
   * ``-i`` command-line option that assists the user in configuring Syncacre
   * ``-p`` command-line option deprecated
+  * backend exceptions no longer make syncacre abort
+  * temporary files are properly cleaned
 
 * `0.3.2`:
 
@@ -44,7 +46,6 @@ Find the extended documentation at [syncacre.readthedocs.io](http://syncacre.rea
 Coming features are:
 
 * resume interrupted upload/download
-* improved temporary file management (no orphan files)
 * auto-clean locks on restart
 * file auto-destruction when several pullers have been defined and one takes too much time to get its copy of the file
 * actually support multiple pullers

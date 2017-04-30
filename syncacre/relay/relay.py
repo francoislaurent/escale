@@ -8,12 +8,8 @@ import time
 import codecs
 import tempfile
 
+from syncacre.base.essential import *
 from syncacre.log import log_root
-
-
-def _get_temp_file():
-	_, name = tempfile.mkstemp()
-	return name
 
 
 def with_path(path, fun, *args, **kwargs):
@@ -213,6 +209,8 @@ class Relay(AbstractRelay):
 
 	Attributes:
 
+		_temporary_file (list): list of paths to existing temporary files.
+
 		_placeholder_prefix (str): prefix for placeholder files.
 
 		_placeholder_suffix (str): suffix for placeholder files.
@@ -222,29 +220,76 @@ class Relay(AbstractRelay):
 		_lock_suffix (str): suffix for lock files.
 
 	"""
-	__slots__ = AbstractRelay.__slots__ + \
-		[ '_placeholder_prefix', '_placeholder_suffix', '_lock_prefix', '_lock_suffix' ]
+	__slots__ = AbstractRelay.__slots__ + [ '_temporary_files', \
+		'_placeholder_prefix', '_placeholder_suffix', '_lock_prefix', '_lock_suffix' ]
 
 	def __init__(self, address, client='', logger=None):
 		if logger is None:
 			logger = logging.getLogger(log_root).getChild(address)
 		AbstractRelay.__init__(self, address, client=client, logger=logger)
-		self._placeholder_prefix = '.'
-		self._placeholder_suffix = '.placeholder'
-		self._lock_prefix = '.'
-		self._lock_suffix = '.lock'
+		self._temporary_files = []
+		self._placeholder_prefix = u'.'
+		self._placeholder_suffix = u'.placeholder'
+		self._lock_prefix = u'.'
+		self._lock_suffix = u'.lock'
+
+
+	def newTemporaryFile(self):
+		'''
+		Make a new temporary file.
+
+		Returns:
+
+			str: path to temporary file.
+		'''
+		_, name = tempfile.mkstemp()
+		self._temporary_files.append(name)
+		return name
+
+	def delTemporaryFile(self, f):
+		'''
+		Delete an existing temporary file.
+
+		Arguments:
+
+			file (str): path to temporary file.
+		'''
+		try:
+			os.unlink(f)
+		except OSError:
+			pass
+		try:
+			self._temporary_files.remove(f)
+		except ValueError:
+			pass
+
+	def __del__(self):
+		for f in self._temporary_files:
+			try:
+				os.unlink(f)
+			except OSError:
+				pass
+
 
 	def _placeholder(self, filename):
+		if isinstance(filename, binary_type):
+			filename = filename.decode('utf-8')
 		return u'{}{}{}'.format(self._placeholder_prefix, filename, self._placeholder_suffix)
 
 	def _lock(self, filename):
+		if isinstance(filename, binary_type):
+			filename = filename.decode('utf-8')
 		return u'{}{}{}'.format(self._lock_prefix, filename, self._lock_suffix)
 
 	def _isPlaceholder(self, filename):
+		if isinstance(filename, binary_type):
+			filename = filename.decode('utf-8')
 		return filename.startswith(self._placeholder_prefix) \
 			and filename.endswith(self._placeholder_suffix)
 
 	def _isLock(self, filename):
+		if isinstance(filename, binary_type):
+			filename = filename.decode('utf-8')
 		return filename.startswith(self._lock_prefix) \
 			and filename.endswith(self._lock_suffix)
 
@@ -311,8 +356,12 @@ class Relay(AbstractRelay):
 		ready = []
 		for file in ls:
 			filedir, filename = os.path.split(file)
+			lock = join(filedir, self._lock(filename))
+			if PYTHON_VERSION == 2 and \
+				isinstance(lock, unicode) and isinstance(file, str):
+				lock = lock.encode('utf-8')
 			if not self._isLock(filename) and not self._isPlaceholder(filename) \
-				and os.path.join(filedir, self._lock(filename)) not in ls:
+				and lock not in ls:
 				ready.append(file)
 		return ready
 
@@ -342,18 +391,18 @@ class Relay(AbstractRelay):
 
 	def touch(self, remote_file, content=None):
 		#print(('relay.touch: remote_file content', remote_file, content))
-		local_file = _get_temp_file()
+		local_file = self.newTemporaryFile()
 		f = codecs.open(local_file, 'w', encoding='utf-8')
 		if content:
 			f.write(content)
 		f.close()
 		self._push(local_file, remote_file)
-		os.unlink(local_file)
+		self.delTemporaryFile(local_file)
 
 	def unlink(self, remote_file):
-		trash = _get_temp_file()
+		trash = self.newTemporaryFile()
 		self._pop(remote_file, trash)
-		os.unlink(trash)
+		self.delTemporaryFile(trash)
 
 	def hasPlaceholder(self, remote_file):
 		"""
@@ -390,7 +439,7 @@ class Relay(AbstractRelay):
 	def getPlaceholder(self, remote_file):
 		if self.hasPlaceholder(remote_file):
 			remote_placeholder = self.placeholder(remote_file)
-			local_placeholder = _get_temp_file()
+			local_placeholder = self.newTemporaryFile()
 			self._get(remote_placeholder, local_placeholder)
 			return local_placeholder
 		else:
@@ -440,7 +489,7 @@ class Relay(AbstractRelay):
 		if not relative_path:
 			_, relative_path = os.path.split(local_file)
 		remote_dir = remote_dest # TODO: check this and adjust
-		remote_file = os.path.join(remote_dir, relative_path)
+		remote_file = join(remote_dir, relative_path)
 		if not self.acquireLock(remote_file, blocking=blocking):
 			return False
 		if last_modified:
@@ -504,7 +553,7 @@ class Relay(AbstractRelay):
 			has_placeholder = self.hasPlaceholder(remote_file)
 			if has_placeholder and 1 < placeholder:
 				remote_placeholder = self.placeholder(remote_file)
-				local_placeholder = _get_temp_file()
+				local_placeholder = self.newTemporaryFile()
 				kwargs['local_placeholder'] = local_placeholder
 				self._get(remote_placeholder, local_placeholder)
 				with open(local_placeholder, 'r') as f:
@@ -535,12 +584,12 @@ class Relay(AbstractRelay):
 	def markAsRead(self, remote_file, local_placeholder=None):
 		remote_placeholder = self.placeholder(remote_file)
 		if not local_placeholder:
-			local_placeholder = _get_temp_file()
+			local_placeholder = self.newTemporaryFile()
 			self._get(remote_placeholder, local_placeholder)
 		with open(local_placeholder, 'a') as f:
 			f.write('\n{}'.format(self.client))
 		self._push(local_placeholder, remote_placeholder)
-		os.unlink(local_placeholder)
+		self.delTemporaryFile(local_placeholder)
 
 
 
