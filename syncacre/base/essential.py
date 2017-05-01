@@ -15,7 +15,7 @@ if PYTHON_VERSION == 2:
 	text_type = unicode
 elif PYTHON_VERSION == 3:
 	binary_type = bytes
-	binary_type = str
+	text_type = str
 
 
 def join(dirname, basename):

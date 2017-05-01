@@ -138,15 +138,15 @@ def parse_cfg(cfg_file='', msgs=[], new=False):
 
 	Arguments:
 
-		* cfg_file (str): path to a configuration file.
+		cfg_file (str): path to a configuration file.
 
-		* msgs (list): list of pending messages.
+		msgs (list): list of pending messages.
 
-		* new (bool): if ``True`` and `cfg_file` does not exist, create the file.
+		new (bool): if ``True`` and `cfg_file` does not exist, create the file.
 
 	Returns:
 
-		* (ConfigParser, str, list):
+		(ConfigParser, str, list):
 		first argument is the parsed configuration,
 		second argument is the corresponding file path,
 		third argument is the list of pending messages.
