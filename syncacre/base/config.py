@@ -132,7 +132,26 @@ def parse_fields(config, section, fields, logger=None):
 	return args
 
 
-def parse_cfg(cfg_file, msgs, new=False):
+def parse_cfg(cfg_file='', msgs=[], new=False):
+	'''
+	Parse a configuration file.
+
+	Arguments:
+
+		* cfg_file (str): path to a configuration file.
+
+		* msgs (list): list of pending messages.
+
+		* new (bool): if ``True`` and `cfg_file` does not exist, create the file.
+
+	Returns:
+
+		* (ConfigParser, str, list):
+		first argument is the parsed configuration,
+		second argument is the corresponding file path,
+		third argument is the list of pending messages.
+
+	'''
 	if cfg_file:
 		err_msg_if_missing = 'file not found: {}'.format(cfg_file)
 	else:

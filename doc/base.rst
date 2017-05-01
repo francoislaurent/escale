@@ -24,7 +24,6 @@ syncacre.base.timer module
 
 .. automodule:: syncacre.base.timer
     :members:
-    :undoc-members:
     :show-inheritance:
 
 

@@ -16,7 +16,7 @@ class Clock(object):
 
 	where ``dt0`` is `initial_delay`, ``a`` is `factor`, ``b`` is `bias` and ``n`` is `count`.
 	
-	`Clock` implements the iterator interface.
+	:class:`Clock` implements the iterator interface.
 
 	Attributes:
 
@@ -90,7 +90,7 @@ class Clock(object):
 
 	def wait(self, logger=None):
 		'''
-		Call :met:`next` and sleep during the returned duration.
+		Call :meth:`next` and sleep during the returned duration.
 		'''
 		delay = self.next()
 		if logger is not None:
