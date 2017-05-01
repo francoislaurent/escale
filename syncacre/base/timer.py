@@ -6,6 +6,42 @@ from math import *
 import time
 
 class Clock(object):
+	'''
+	Generate increasing time intervals.
+
+	Successive time intervals monotonically increase following a softsign function:
+	::
+
+		dt = dt0 * (1 +  a * n / (b + n))
+
+	where ``dt0`` is `initial_delay`, ``a`` is `factor`, ``b`` is `bias` and ``n`` is `count`.
+	
+	`Clock` implements the iterator interface.
+
+	Attributes:
+
+		count (float): number of time interval requests.
+
+		cumulated_time (float): cumulated time in seconds.
+
+		initial_delay (float): first time interval in seconds.
+
+		timeout (int or float): maximum cumulated time.
+
+		max_count (int or float): maximum number of time interval requests.
+
+		precision (float): order at which time intervals are rounded.
+
+		bias (float): softsign bias.
+
+		factor (float): factor on the softsign term.
+
+		max_delay (float, __init__ argument, not stored):
+			maximum delay.
+
+		initial_factor (float, __init__ argument, not stored):
+			ratio of the second time interval over the first (or initial) one.
+	'''
 	__slots__ = ['count', 'cumulated_time',
 			'initial_delay', 'timeout', 'max_count',
 			'precision', 'bias', 'factor']
@@ -33,6 +69,13 @@ class Clock(object):
 		return self
 
 	def next(self):
+		'''
+		Generate a new time interval.
+
+		Returns:
+
+			float: time interval in seconds.
+		'''
 		if not(self.max_count is None or self.count < self.max_count):
 			raise StopIteration
 		b = 1.0
@@ -46,6 +89,9 @@ class Clock(object):
 		return t
 
 	def wait(self, logger=None):
+		'''
+		Call :met:`next` and sleep during the returned duration.
+		'''
 		delay = self.next()
 		if logger is not None:
 			logger.debug('sleeping %s seconds', delay)
