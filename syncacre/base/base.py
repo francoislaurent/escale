@@ -30,7 +30,7 @@ def syncacre(config, repository, handler=None):
 
 		repository (str): configuration section name or, alternatively, client name.
 
-		handler (None or log handler)
+		handler (log handler): input argument to :meth:`~logging.Logger.addHandler`.
 	"""
 	# set logger
 	logger = logging.getLogger(log_root).getChild(repository)

@@ -78,8 +78,8 @@ def parse_ssl_version(ssl_version):
 	"""
 	Parse SSL version.
 
-	.. note:: support for 'SSLv2' and 'SSLv3' has been dropped and these values will be translated 
-		to 'SSLv23'.
+	.. note:: support for 'SSLv2' and 'SSLv3' has been dropped by the standard `ssl` module and 
+		these values will be translated to 'SSLv23'.
 
 	Arguments:
 
