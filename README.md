@@ -24,7 +24,8 @@ Find the extended documentation at [syncacre.readthedocs.io](http://syncacre.rea
   * unicode support
   * ``-i`` command-line option that assists the user in configuring Syncacre
   * ``-p`` command-line option deprecated
-  * backend exceptions no longer make syncacre abort
+  * if ``refresh`` configuration option is missing, defaults to ``True``
+  * most exceptions no longer make syncacre abort
   * temporary files are properly cleaned
 
 * `0.3.2`:
@@ -50,11 +51,11 @@ Coming features are:
 * file auto-destruction when several pullers have been defined and one takes too much time to get its copy of the file
 * actually support multiple pullers
 * split and recombine big files
+* send an email to the maintainer when a client is aborting
 * more (symmetric) cryptographic algorithms and more cryptographic options
-
-Previously advertised coming features that may be abandoned:
-
-* SSH support; see [issue #3](https://github.com/francoislaurent/syncacre/issues/3)
+* ask for username and password at runtime
+* OAuth support
+* SSH support
 
 
 ## Alternative solutions
