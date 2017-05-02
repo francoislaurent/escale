@@ -113,7 +113,7 @@ class Listener(object):
 
 class QueueListener(Listener):
 
-	__slots__ = Listener.__slots__ + [ 'queue' ]
+	__slots__ = [ 'queue' ]
 
 	def __init__(self, queue):
 		self.queue = queue

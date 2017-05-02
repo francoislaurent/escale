@@ -14,12 +14,12 @@ import os
 import sys
 import traceback
 import itertools
-from syncacre.base import PYTHON_VERSION, join, Clock
+from syncacre.base import PYTHON_VERSION, join, Clock, Reporter
 from syncacre.encryption import Plain
 from math import *
 
 
-class Manager(object):
+class Manager(Reporter):
 	"""
 	Makes the glue between the local file system and the :mod:`~syncacre.relay` and 
 	:mod:`~syncacre.encryption` layers.
@@ -45,8 +45,6 @@ class Manager(object):
 
 		refresh (int): refresh interval in seconds.
 
-		logger (Logger or LoggerAdapter): see the :mod:`logging` standard module.
-
 		filetype (list of str): list of file extensions.
 
 		pop_args (dict): extra keyword arguments for 
@@ -54,9 +52,9 @@ class Manager(object):
 
 	"""
 	def __init__(self, relay, address=None, path=None, directory=None, mode=None, \
-		encryption=Plain(None), timestamp=True, refresh=True, logger=None, clientname=None, \
+		encryption=Plain(None), timestamp=True, refresh=True, clientname=None, \
 		filetype=[], **relay_args):
-		self.logger = logger
+		Reporter.__init__(self, **relay_args)
 		if path[-1] != '/':
 			path += '/'
 		self.path = path
@@ -77,7 +75,8 @@ class Manager(object):
 		self.pop_args = {}
 		if clientname:
 			relay_args['client'] = clientname
-		self.relay = relay(address, logger=self.logger, **relay_args)
+		self.relay = relay(address, **relay_args)
+
 
 	def run(self):
 		"""
@@ -96,14 +95,16 @@ class Manager(object):
 				).run()
 
 		"""
-		self.logger.debug("connecting with '%s'", self.relay.address)
-		ok = self.relay.open()
-		if ok:
+		self.logger.debug("connecting to '%s'", self.relay.address)
+		try:
+			self.relay.open()
+		except:
+			self.logger.critical("failed to connect to '%s'", self.relay.address)
+			self.logger.debug(traceback.format_exc())
+			raise
+		else:
 			self.logger.debug('connected')
-		elif ok is not None:
-			self.logger.critical("failed to connect with '%s'", self.relay.address)
-			return
-		self._last_error = None
+		_last_error = None
 		fresh_start = True
 		new = False
 		while True:
@@ -121,25 +122,32 @@ class Manager(object):
 					clock.wait(self.logger)
 				else:
 					break
-			except KeyboardInterrupt:
+			except KeyboardInterrupt as e:
+				_last_error = e
 				break
 			except Exception as e:
 				t = time.time()
-				if self._last_error is None:
-					self._last_error = e
-				elif type(e) == type(self._last_error):
-					if t - self._last_error_time < 1: # the error is self-repeating too fast; abort
+				if _last_error is None:
+					_last_error = e
+				elif type(e) == type(_last_error):
+					if t - _last_error_time < 1: # the error is self-repeating too fast; abort
 						break
-				self._last_error = e
-				self._last_error_time = t
-				self.logger.critical(traceback.format_exc())
+				_last_error = e
+				_last_error_time = t
+				_last_trace = traceback.format_exc()
+				self.logger.critical(_last_trace)
 		try:
 			self.relay.close()
 		except:
-			self.logger.error('cannot close the connection')
+			self.logger.error("cannot close the connection to '%s'", self.relay.address)
 			self.logger.debug(traceback.format_exc())
 		del self.relay # delete temporary files
 		del self.encryption # delete temporary files
+		if not isinstance(_last_error, KeyboardInterrupt):
+			# if last exception is not a keyboard interrupt
+			if self.ui_controller is not None:
+				self.ui_controller.notifyShutdown(_last_trace)
+
 
 	def filter(self, files):
 		"""

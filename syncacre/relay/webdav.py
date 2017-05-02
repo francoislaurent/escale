@@ -19,6 +19,7 @@ import os
 import sys
 import time
 import itertools
+import traceback
 
 
 # the following fix has been suggested in
@@ -107,33 +108,28 @@ class WebDAVClient(easywebdav.Client):
 								except IndexError:
 									pass
 						self.logger.warn("%s", info)
-						debug_info = list(args)
+						#debug_info = list(args)
 						#debug_info.append(kwargs)
 						#self.logger.debug(' %s %s %s %s', *debug_info)
+						# wait
 						try:
 							clock.wait(self.logger)
 						except StopIteration:
 							self.logger.error('too many connection attempts')
-							break
-				raise e
+							raise
 		except easywebdav.OperationFailed as e:
 			path = args[1]
 			if e.actual_code == 403:
 				self.logger.error("access to '%s%s' forbidden", self.url, path)
 			elif e.actual_code == 423: # 423 Locked
 				self.logger.error("resource '%s%s' locked", self.url, path)
-			raise e
+			raise
 
 	def _get_url(self, path):
-		if PYTHON_VERSION == 2 and isinstance(path, unicode):
-			path = path.encode('utf-8')
-		url = easywebdav.Client._get_url(self, quote(path))
-		return url
+		return easywebdav.Client._get_url(self, quote(asstr(path)))
 
 	def cd(self, path):
-		if PYTHON_VERSION == 2 and isinstance(path, unicode):
-			path = path.encode('utf-8')
-		easywebdav.Client.cd(self, quote(path))
+		easywebdav.Client.cd(self, quote(asstr(path)))
 
 	#def ls(self, remote_path):
 	# We would like `ls` to return unquoted file paths, but files are listed as read-only named tuples
@@ -163,7 +159,7 @@ class WebDAVClient(easywebdav.Client):
 		except easywebdav.OperationFailed as e:
 			if e.actual_code == 404:
 				self.logger.warning("the file is no longer available")
-				self.logger.debug('%s', e)
+				self.logger.debug(traceback.format_exc())
 		else:
 			_easywebdav_adapter(self._download, 'wb', local_path_or_fileobj, response)
 
@@ -173,7 +169,8 @@ class WebDAVClient(easywebdav.Client):
 		except easywebdav.OperationFailed as e:
 			if e.actual_code == 423: # '423 Locked', therefore it exists!
 				return True
-			raise e
+			else:
+				raise
 
 
 
@@ -208,8 +205,8 @@ class WebDAV(Relay):
 
 	def __init__(self, address, username=None, password=None, protocol=None, certificate=None, \
 		verify_ssl=True, ssl_version=None, max_retry=True, retry_after=None, \
-		client='', logger=None, **ignored):
-		Relay.__init__(self, address, client=client, logger=logger)
+		client='', logger=None, ui_controller=None, **ignored):
+		Relay.__init__(self, address, client=client, logger=logger, ui_controller=ui_controller)
 		if PYTHON_VERSION == 3: # deal with encoding issues with requests
 			username = username.encode('utf-8').decode('unicode-escape')
 			password = password.encode('utf-8').decode('unicode-escape')
@@ -251,6 +248,14 @@ class WebDAV(Relay):
 				url = '{}://{}/'.format(self.protocol, self.address)
 			except:
 				pass
+		# request credential
+		if not self.password:
+			if self.username:
+				self.password = self.ui_controller.requestCredential( \
+						hostname=self.address, username=self.username)
+			else:
+				self.username, self.password = \
+						self.ui_controller.requestCredential(hostname=self.address)
 		# establish connection (session)
 		self.webdav = WebDAVClient(self.address, logger=self.logger, url=url, \
 				username=self.username, password=self.password, \
@@ -271,15 +276,13 @@ class WebDAV(Relay):
 		try:
 			ls = self.webdav.ls(remote_dir)
 		except easywebdav.OperationFailed as e:
-			if e.actual_code == 404:
-				return []
-			else:
+			if e.actual_code != 404:
 				if e.actual_code == 403:
-					raise e
+					raise
 				else:
 					self.logger.error("easywebdav.Client.ls('%s') failed", remote_dir)
-					self.logger.debug("%s", e)
-				return []
+					self.logger.debug(traceback.format_exc())
+			return []
 		if begin is None:
 			if remote_dir[0] != '/':
 				remote_dir = '/' + remote_dir

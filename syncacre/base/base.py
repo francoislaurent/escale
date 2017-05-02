@@ -16,10 +16,11 @@ from syncacre.log import *
 import syncacre.relay as relay
 from syncacre.manager import Manager
 import syncacre.encryption as encryption
+from syncacre.cli.controller import DirectController, UIController
 
 
 
-def syncacre(config, repository, handler=None):
+def syncacre(config, repository, log_handler=None, ui_connector=None):
 	"""
 	Reads the section related to a repository in a loaded configuration object and runs a 
 	:class:`~syncacre.manager.Manager` for that repository.
@@ -30,14 +31,22 @@ def syncacre(config, repository, handler=None):
 
 		repository (str): configuration section name or, alternatively, client name.
 
-		handler (log handler): input argument to :meth:`~logging.Logger.addHandler`.
+		log_handler (log handler): input argument to :meth:`~logging.Logger.addHandler`.
+
+		ui_connector (?): connector to user-interface controller.
 	"""
 	# set logger
 	logger = logging.getLogger(log_root).getChild(repository)
 	logger.setLevel(logging.DEBUG)
-	if handler is not None:
+	if log_handler is not None:
 		logger.propagate = False
-		logger.addHandler(handler)
+		logger.addHandler(log_handler)
+	# ui
+	if ui_connector is None:
+		ui_controller = DirectController(logger=logger)
+	else:
+		ui_controller = UIController(*ui_connector)
+		ui_controller.logger = logger
 	# parse config
 	args = parse_fields(config, repository, fields, logger)
 	if 'path' not in args:
@@ -131,12 +140,15 @@ def syncacre(config, repository, handler=None):
 			del args['encryption']
 		else:
 			args['encryption'] = cipher(args['passphrase'])
+	# extra UI options
+	ui_controller.maintainer = args.pop('maintainer', None)
 	# ready
 	if PYTHON_VERSION == 3:
 		args['config'] = config[repository]
 	elif PYTHON_VERSION == 2:
 		args['config'] = (config, repository)
-	manager = Manager(relay.by_protocol(protocol), protocol=protocol, logger=logger, **args)
+	manager = Manager(relay.by_protocol(protocol), protocol=protocol,
+			ui_controller=ui_controller, **args)
 	manager.run()
 
 
@@ -173,23 +185,27 @@ def syncacre_launcher(cfg_file, msgs=[], verbosity=logging.NOTSET, daemon=None):
 	sections = config.sections()
 	if sections[1:]: # if multiple sections
 		if PYTHON_VERSION == 3:
-			queue = Queue()
-			listener = QueueListener(queue)
-			handler = logging.handlers.QueueHandler(queue)
+			log_queue = Queue()
+			log_listener = QueueListener(log_queue)
+			log_handler = logging.handlers.QueueHandler(log_queue)
 		elif PYTHON_VERSION == 2:
 			import syncacre.log.socket as socket
-			conn = ('localhost', logging.handlers.DEFAULT_TCP_LOGGING_PORT)
-			listener = socket.SocketListener(*conn)
-			handler = logging.handlers.SocketHandler(*conn)
+			log_conn = ('localhost', logging.handlers.DEFAULT_TCP_LOGGING_PORT)
+			log_listener = socket.SocketListener(*log_conn)
+			log_handler = logging.handlers.SocketHandler(*log_conn)
 		# logger
-		logger_thread = threading.Thread(target=listener.listen)
+		logger_thread = threading.Thread(target=log_listener.listen)
 		logger_thread.start()
+		# user interface
+		ui_controller = UIController(logger=logger)
+		ui_thread = threading.Thread(target=ui_controller.listen)
+		ui_thread.start()
 		# syncacre subprocesses
 		workers = []
 		for section in config.sections():
 			worker = Process(target=syncacre,
 				name='{}.{}'.format(log_root, section),
-				args=(config, section, handler))
+				args=(config, section, log_handler, ui_controller.conn))
 			if daemon is not None:
 				worker.daemon = daemon
 			workers.append(worker)
@@ -201,7 +217,9 @@ def syncacre_launcher(cfg_file, msgs=[], verbosity=logging.NOTSET, daemon=None):
 		except KeyboardInterrupt:
 			for worker in workers:
 				worker.terminate()
-		listener.abort()
+		ui_controller.abort()
+		log_listener.abort()
+		ui_thread.join()
 		logger_thread.join()
 	else:
 		syncacre(config, sections[0])

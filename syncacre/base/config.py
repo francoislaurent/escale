@@ -35,6 +35,7 @@ default_conf_files = [ os.path.join(d, default_filename) for d in default_cfg_di
 # 'directory': 'host path', 'relay path', 'remote path' added in version 0.4a3
 # 'password': 'secrets file' and 'credentials' removed in version 0.4a3
 # 'refresh': can be bool in version 0.4a3
+# 'maintainer' added in version 0.4.1a1
 fields = dict(path=('path', ['local path', 'path']),
 	address=['host address', 'relay address', 'remote address', 'address'],
 	directory=['host directory', 'relay directory', 'remote directory',
@@ -53,7 +54,8 @@ fields = dict(path=('path', ['local path', 'path']),
 	pull_only=('bool', ['pull only', 'write only']),
 	ssl_version=['ssl version'],
 	verify_ssl=('bool', ['verify ssl']),
-	filetype=('list', ['file extension', 'file type']))
+	filetype=('list', ['file extension', 'file type']),
+	maintainer=['maintainer', 'email'])
 
 
 def getpath(config, section, attr):
