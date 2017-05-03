@@ -18,15 +18,22 @@ Find the extended documentation at [syncacre.readthedocs.io](http://syncacre.rea
 
 ## Changelog:
 
+* `0.4.1`:
+
+  * ask for username and password at runtime
+  * FTP backend now supports vsftpd, MLSD-deficient FTP servers and FTP TLS connections
+  * ``maintainer`` configuration option
+  * email the maintainer when a client is aborting, if the local machine hosts an SMTP server
+
 * `0.4`:
 
-  * FTP support
+  * FTP support (tested with pure-ftpd)
   * unicode support
   * ``-i`` command-line option that assists the user in configuring Syncacre
   * ``-p`` command-line option deprecated
   * if ``refresh`` configuration option is missing, defaults to ``True``
   * most exceptions no longer make syncacre abort
-  * temporary files are properly cleaned
+  * temporary files are properly cleared
 
 * `0.3.2`:
 
@@ -47,13 +54,11 @@ Find the extended documentation at [syncacre.readthedocs.io](http://syncacre.rea
 Coming features are:
 
 * resume interrupted upload/download
-* auto-clean locks on restart
+* auto-clear locks on restart
 * file auto-destruction when several pullers have been defined and one takes too much time to get its copy of the file
 * actually support multiple pullers
 * split and recombine big files
-* send an email to the maintainer when a client is aborting
 * more (symmetric) cryptographic algorithms and more cryptographic options
-* ask for username and password at runtime
 * OAuth support
 * SSH support
 

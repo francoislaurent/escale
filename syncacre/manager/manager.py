@@ -14,7 +14,7 @@ import os
 import sys
 import traceback
 import itertools
-from syncacre.base import PYTHON_VERSION, join, Clock, Reporter
+from syncacre.base import PYTHON_VERSION, join, Clock, Reporter, storage_space_unit
 from syncacre.encryption import Plain
 from math import *
 
@@ -53,7 +53,7 @@ class Manager(Reporter):
 	"""
 	def __init__(self, relay, address=None, path=None, directory=None, mode=None, \
 		encryption=Plain(None), timestamp=True, refresh=True, clientname=None, \
-		filetype=[], **relay_args):
+		filetype=[], quota=None, **relay_args):
 		Reporter.__init__(self, **relay_args)
 		if path[-1] != '/':
 			path += '/'
@@ -72,6 +72,16 @@ class Manager(Reporter):
 					for f in filetype ]
 		else:
 			self.filetype = []
+		if isinstance(quota, tuple):
+			value, unit = quota
+			try:
+				quota = value * storage_space_unit[unit]
+			except KeyError:
+				msg = "unsupported storage space unit '{}'".format(unit)
+				self.logger.error(msg)
+				#raise ValueError(msg)
+				quota = None
+		self.quota = quota
 		self.pop_args = {}
 		if clientname:
 			relay_args['client'] = clientname
@@ -242,12 +252,28 @@ class Manager(Reporter):
 				last_modified = None
 			if filename not in remote or modified:
 				new = True
-				# TODO: check disk usage on relay
 				temp_file = self.encryption.encrypt(local_file)
-				self.logger.info("uploading file '%s'", filename)
-				ok = self.relay.push(temp_file, self.dir, \
-					relative_path=filename, blocking=False, \
-					last_modified=last_modified)
+				# check disk usage
+				ok = True
+				used, quota = self.relay.storageSpace()
+				if used is not None:
+					if self.quota:
+						if quota:
+							quota = min(quota, self.quota)
+						else:
+							quota = self.quota
+					if quota:
+						additional_space = float(os.stat(temp_file).st_size)
+						additional_space /= 1048576 # in MB
+						expected = used + additional_space
+						ok = expected < quota
+				if ok:
+					self.logger.info("uploading file '%s'", filename)
+					ok = self.relay.push(temp_file, self.dir, \
+						relative_path=filename, blocking=False, \
+						last_modified=last_modified)
+				else:
+					self.logger.info("quota exceeded (used: %sMB of %sMB); no more files can be sent", round(used), round(quota))
 				if ok:
 					self.logger.debug("file '%s' successfully uploaded", filename)
 				elif ok is not None:

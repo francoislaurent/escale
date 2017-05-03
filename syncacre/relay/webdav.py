@@ -220,6 +220,8 @@ class WebDAV(Relay):
 		self.retry_after = retry_after
 		self.ssl_version = ssl_version
 		self.verify_ssl = verify_ssl
+		self._root = None
+		self._used_space = None
 
 	def open(self):
 		kwargs = {}
@@ -261,8 +263,10 @@ class WebDAV(Relay):
 				username=self.username, password=self.password, \
 				**kwargs)
 
-	def diskFree(self):
-		return None
+	def storageSpace(self):
+		if isinstance(self._used_space, int): # in B
+			self._used_space = float(self._used_space) / 1048576 # in MB
+		return (self._used_space, None)
 
 	def hasPlaceholder(self, remote_file):
 		return self.webdav.exists(self.placeholder(remote_file))
@@ -270,7 +274,7 @@ class WebDAV(Relay):
 	def hasLock(self, remote_file):
 		return self.webdav.exists(self.lock(remote_file))
 
-	def _list(self, remote_dir, recursive=True, begin=None):
+	def _list(self, remote_dir, recursive=True, begin=None, storage_space=False):
 		if not remote_dir:
 			remote_dir = '.' # easywebdav default
 		try:
@@ -289,13 +293,23 @@ class WebDAV(Relay):
 			if remote_dir[-1] != '/':
 				remote_dir += '/'
 			begin = len(remote_dir)
+		if self._root is None:
+			self._root = asstr(remote_dir)
 		# list names (not paths) of files (no directory)
-		files = [ unquote(file.name[begin:]) for file in ls if file.contenttype ]
+		files = [ (unquote(file.name[begin:]), file.size)
+				for file in ls if file.contenttype ]
+		if files:
+			files, sizes = zip(*files)
 		if recursive:
+			if self._root == remote_dir: # let's estimate how much disk space is used
+				storage_space = True
+				self._used_space = 0 # initialize
+			if storage_space and files:
+				self._used_space += sum(sizes)
 			dirs = [ unquote(file.name) for file in ls \
 				if not file.contenttype ]
 			files = list(itertools.chain(files, \
-				*[ self._list(d, True, begin) for d in dirs \
+				*[ self._list(d, True, begin, storage_space) for d in dirs \
 					if len(remote_dir) < len(d) \
 					and os.path.split(d[:-1])[1][0] != '.' ]))
 		#print(('WebDAV._list: remote_dir, files', remote_dir, files))

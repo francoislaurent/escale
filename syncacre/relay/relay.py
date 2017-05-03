@@ -53,13 +53,15 @@ class AbstractRelay(Reporter):
 		"""
 		raise NotImplementedError('abstract method')
 
-	def diskFree(self):
+	def storageSpace(self):
 		"""
 		Queries for how much space is available on the remote host.
 
 		Returns:
 
-			int or float: available space in kilobytes.
+			(int or float, int or None):
+			first argument is available space in megabytes (MB),
+			second argument is disk quota in megabytes (MB).
 		"""
 		raise NotImplementedError('abstract method')
 
@@ -326,6 +328,9 @@ class Relay(AbstractRelay):
 
 	def close(self):
 		pass
+
+	def storageSpace(self):
+		return (None, None)
 
 	def _list(self, remote_dir, recursive=True):
 		"""
