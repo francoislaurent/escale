@@ -31,7 +31,7 @@ def asstr(s):
 
 	Returns:
 
-		str: coerced string.
+		str: regular string.
 
 	'''
 	if PYTHON_VERSION == 2 and isinstance(s, unicode):
@@ -42,7 +42,7 @@ def asstr(s):
 
 
 
-def join(dirname, basename):
+def join(*args):
 	'''
 	Call :func:`os.path.join` on properly coerced arguments.
 
@@ -56,13 +56,15 @@ def join(dirname, basename):
 
 		str: full path as expected from ``os.path.join(dirname, basename)``.
 	'''
-	return os.path.join(asstr(dirname), asstr(basename))
+	return os.path.join(*[ asstr(s) for s in args ])
 
 
 
 class Reporter(object):
 	"""
 	Base class for log- and user-interface- enabled classes.
+
+	In a feature release, `logger` may become a property.
 
 	Attributes:
 

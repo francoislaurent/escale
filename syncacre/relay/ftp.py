@@ -150,9 +150,61 @@ class FTP(IRelay):
 		if 'UTF8' not in self.ftp.sendcmd('FEAT'):
 			self.logger.debug('FTP server does not support unicode')
 		self.ftp.encoding = self._encoding
-		self.root = self.ftp.pwd()
+		self._root = self.ftp.pwd()
 		self._mlsd_support = True
+		self._size_support = None # undefined
+		self._estimated_used = None
+		self.repository_root = None
 
+
+	def storageSpace(self):
+		used = None
+		if self.repository_root is not None and self._size_support is not False: # None is ok
+			files = self._list(self.repository_root, recursive=True)
+			if files:
+				f = 0
+				if self._size_support is None:
+					self._size_support = False
+					def no_support_msg(sure=False):
+						if sure:
+							w = 'does'
+						else:
+							w = 'may'
+						return "server at '{}' {} not support 'SIZE' command".format(self.address, w)
+					file = join(self._root, self.repository_root, files[f])
+					try:
+						used = self.ftp.size(file)
+					except ftplib.error_perm as e:
+						err_code = e.args[0][:3]
+						if err_code == '550': # [vsftpd] 550 Could not get file size.
+							self.logger.critical("internal error: file '%s' does not exist", file)
+							raise
+						elif err_code == '500':
+							# TODO: find a server without SIZE support and check error code
+							self.logger.info(no_support_msg(True))
+						else:
+							self.logger.info(no_support_msg())
+							raise
+					else:
+						if used is None: # TODO: find such a case
+							self.logger.info(no_support_msg())
+						else:
+							self._size_support = True
+							f += 1
+				if self._size_support:
+					if used is None:
+						used = 0
+					for file in files[f:]:
+						s = self.ftp.size(join(self._root, self.repository_root, file))
+						if s is None:
+							raise RuntimeError("'SIZE {}' returned None".format(file))
+						used += s
+					used = float(used) / 1048576 # in MB
+				elif self._estimated_used: # `_estimated_used` estimation is not implemented yet
+					used = self._estimated_used
+			else:
+				used = 0
+		return (used, None)
 
 
 	def _list(self, remote_dir, recursive=True, append=''):
@@ -160,7 +212,10 @@ class FTP(IRelay):
 			def _join(f): return join(append, f)
 		else:
 			def _join(f): return f
-		fullpath = join(self.root, remote_dir)
+		remote_dir = asstr(remote_dir)
+		if self.repository_root is None:
+			self.repository_root = remote_dir
+		fullpath = join(self._root, remote_dir)
 		files, dirs = [], []
 		if self._mlsd_support:
 			try:
@@ -184,6 +239,8 @@ class FTP(IRelay):
 				err_code = e.args[0][:3]
 				if err_code == '500': # [vsftpd] 500 Unknown command.
 					self._mlsd_support = False
+					# initialize LIST related variables
+					self._filename_in_list = 8
 				else:
 					raise
 		if not self._mlsd_support:
@@ -203,12 +260,13 @@ class FTP(IRelay):
 				if err_code == '522': # [vsftpd] 522 SSL connection failed: session reuse required
 					self.logger.error("%s", e.args[0])
 					self.logger.info("if the running FTP server is vsftpd, \n\tthis error can be fixed adding the line 'require_ssl_reuse=NO' to '/etc/vsftpd.conf'")
-					raise
-				else:
-					raise
+				raise
+			#if remote_dir == self.repository_root:
+			#	self._estimated_used = 0
 			for line in ls:
+				parts = line.split(None, self._filename_in_list + 1)
 				try:
-					filename = line.split(None, 9)[8]
+					filename = parts[self._filename_in_list]
 				except IndexError:
 					self.logger.debug("'LIST' returned '%s'", line)
 					pass
@@ -217,6 +275,8 @@ class FTP(IRelay):
 						dirs.append(filename)
 					elif line[0] == '-':
 						files.append(_join(filename))
+						#size = int(parts[self._size_in_list]) # no size information in list
+						#self._estimated_used += size
 		if recursive and dirs:
 			if dirs[0] == '.':
 				dirs = dirs[2:]
@@ -229,14 +289,14 @@ class FTP(IRelay):
 
 	def _push(self, local_file, remote_dest, makedirs=True):
 		dirname, basename = os.path.split(remote_dest)
-		fullpath = os.path.join(self.root, dirname)
+		fullpath = os.path.join(self._root, dirname)
 		try:
 			self.ftp.cwd(fullpath)
 		except ftplib.error_perm as e:
 			err_code = e.args[0][:3]
 			if err_code == '550':
 				# [pure-ftpd] 550 Can't change directory to ...: No such file or directory
-				self.ftp.cwd(self.root)
+				self.ftp.cwd(self._root)
 				parts = os.path.normpath(dirname).split('/')
 				for part in parts:
 					if part:
@@ -255,12 +315,12 @@ class FTP(IRelay):
 			local_dir = os.path.dirname(local_file)
 			if not os.path.isdir(local_dir):
 				os.makedirs(local_dir)
-		self.ftp.retrbinary('RETR ' + join(self.root, remote_file),
+		self.ftp.retrbinary('RETR ' + join(self._root, remote_file),
 			open(local_file, 'wb').write)
 
 
 	def unlink(self, remote_file):
-		self.ftp.delete(join(self.root, remote_file))
+		self.ftp.delete(join(self._root, remote_file))
 
 
 	def close(self):

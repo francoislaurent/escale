@@ -6,7 +6,7 @@
 #   Contributor: François Laurent
 #   Contributions:
 #     * `ssl_version`, `verify_ssl`, `filetype`, `quota` in `fields`
-#     * `_item_separator`, `getlist`, `getunit`, `storage_space_unit`
+#     * `_item_separator`, `getlist`, `getunit`, `storage_space_unit` (dict() statement)
 #     * `list = getlist` and `number_unit = getnum` lines in `getter`
 
 from .essential import *
@@ -77,6 +77,10 @@ storage_space_unit = dict(
 		Eb =	137438953472,
 		EB =	1099511627776,
 	)
+# the extra units below were added in v0.4.1rc1, Copyright (c) 2017 François Laurent
+for _unit in 'KMGTPE':
+	storage_space_unit[_unit] = storage_space_unit[_unit+'B']
+	storage_space_unit[_unit+'o'] = storage_space_unit[_unit] # latin units
 
 
 def getpath(config, section, attr):
@@ -97,6 +101,23 @@ def getlist(config, section, attr):
 
 
 def getnum(config, section, attr):
+	'''
+	Getter for numbers accompanied with a unit.
+
+	A number can be formatted as ``[0-9]+([.,][0-9]+)?`` and a unit as ``[a-zA-Z]+``.
+
+	Arguments:
+
+		config (ConfigParser): configuration object.
+
+		section (str): existing configuration section.
+
+		attr (str): existing configuration option.
+
+	Returns:
+
+		(float, str): numeric value and unit.
+	'''
 	value = config.get(section, attr)
 	m = re.match(r'(?P<num>[0-9]+([.,][0-9]+)?)\s*(?P<unit>[a-zA-Z]+)', value)
 	if not m:
@@ -151,6 +172,24 @@ def parse_field(config, section, attrs, getters, logger=None):
 
 
 def parse_fields(config, section, fields, logger=None):
+	'''
+	Extract several options from a configuration object.
+
+	Arguments:
+
+		config (ConfigParser): configuration object.
+
+		section (str): existing section in `config`.
+
+		fields (dict): option definition similar to the global `~syncacre.base.config.fields`.
+
+		logger (Logger): logger.
+
+	Returns:
+
+		dict: dictionnary whose keys are borrowed from those in fields and values are the parsed 
+		option values.
+	'''
 	args = {}
 	for field, attrs in fields.items():
 		if isinstance(attrs, tuple):
