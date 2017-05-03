@@ -22,6 +22,7 @@ Find the extended documentation at [syncacre.readthedocs.io](http://syncacre.rea
 
   * ask for username and password at runtime
   * FTP backend now supports vsftpd, MLSD-deficient FTP servers and FTP TLS connections
+  * ``disk quota`` configuration option
   * ``maintainer`` configuration option
   * email the maintainer when a client is aborting, if the local machine hosts an SMTP server
 
