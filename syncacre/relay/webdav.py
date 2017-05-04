@@ -23,6 +23,7 @@ import sys
 import time
 import itertools
 import traceback
+from ssl import SSLError
 
 
 # the following fix has been suggested in
@@ -34,21 +35,6 @@ else:
 
 
 def _easywebdav_adapter(fun, mode, local_path_or_fileobj, *args):
-	"""
-	This code is partly borrowed from:
-	https://github.com/amnong/easywebdav/blob/master/easywebdav/client.py
-
-	Below follows the copyright notice of the easywebdav project which is supposed to be distibuted
-	under the ISC license:
-	::
-
-		Copyright (c) 2012 year, Amnon Grossman
-
-		Permission to use, copy, modify, and/or distribute this software for any purpose with or without fee is hereby granted, provided that the above copyright notice and this permission notice appear in all copies.
-
-		THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
-
-	"""
 	if isinstance(local_path_or_fileobj, basestring):
 		with open(local_path_or_fileobj, mode) as f:
 			fun(f, *args)
@@ -73,6 +59,27 @@ class WebDAVClient(easywebdav.Client):
 
 		ssl_version (int): any of the ``ssl.PROTOCOL_*`` constants.
 	"""
+	"""
+	This code - especially the :meth:`download` method and the 
+	:func:`_easywebdav_adapter` function - is partly borrowed from:
+	https://github.com/amnong/easywebdav/blob/master/easywebdav/client.py
+
+	Below follows the copyright notice of the easywebdav project which is
+	distributed under the ISC license:
+	::
+
+		Copyright (c) 2012 year, Amnon Grossman
+
+		Permission to use, copy, modify, and/or distribute this software for any purpose with or without fee is hereby granted, provided that the above copyright notice and this permission notice appear in all copies.
+
+		THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+
+		Copyright (c) 2011, Kenneth Reitz
+
+		Permission to use, copy, modify, and/or distribute this software for any purpose with or without fee is hereby granted, provided that the above copyright notice and this permission notice appear in all copies.
+
+		THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+	"""
 	def __init__(self, host, retry_after=10, max_retry=None, timeout=None, url='', ssl_version=None, logger=None, \
 		**kwargs):
 		if logger is None:
@@ -87,16 +94,21 @@ class WebDAVClient(easywebdav.Client):
 		self.retry_after = retry_after
 		self.timeout = timeout
 		self.url = url # for debug purposes
+		self._response = None
 
 	def _send(self, *args, **kwargs):
+		if self._response is not None:
+			# not sure easywebdav fully consumes all the responses
+			# see also http://docs.python-requests.org/en/master/user/advanced/#body-content-workflow
+			self._response.close()
 		try:
 			if self.max_retry is None:
-				return easywebdav.Client._send(self, *args, **kwargs)
+				self._response = easywebdav.Client._send(self, *args, **kwargs)
 			else:
 				clock = Clock(self.retry_after, timeout=self.timeout, max_count=self.max_count)
 				while True:
 					try:
-						return easywebdav.Client._send(self, *args, **kwargs)
+						self._response = easywebdav.Client._send(self, *args, **kwargs)
 					except requests.exceptions.ConnectionError as e:
 						info = e.args
 						# extract information from (a certain type of) ConnectionErrors
@@ -120,6 +132,8 @@ class WebDAVClient(easywebdav.Client):
 						except StopIteration:
 							self.logger.error('too many connection attempts')
 							raise
+					else:
+						break
 		except easywebdav.OperationFailed as e:
 			path = args[1]
 			if e.actual_code == 403:
@@ -127,6 +141,29 @@ class WebDAVClient(easywebdav.Client):
 			elif e.actual_code == 423: # 423 Locked
 				self.logger.error("resource '%s%s' locked", self.url, path)
 			raise
+		except SSLError as e:
+			# TODO: find out which `args` for "SSLError: [Errno 24] Too many open files"
+			self.logger.error("%s", e)
+			self.logger.debug(e.args)
+			self.logger.info('reinitializing the session')
+			# backup parameters
+			verify = self.session.verify
+			stream = self.session.stream
+			cert = self.session.cert
+			auth = self.session.auth
+			# clear
+			self.session.close()
+			# new session
+			import requests
+			self.session = requests.session()
+			self.session.verify = verify
+			self.session.stream = stream
+			self.session.cert = cert
+			self.session.auth = auth
+			# signal failure upstream
+			raise
+		return self._response
+
 
 	def _get_url(self, path):
 		return easywebdav.Client._get_url(self, quote(asstr(path)))
@@ -142,26 +179,6 @@ class WebDAVClient(easywebdav.Client):
 		_easywebdav_adapter(self._upload, 'rb', local_path_or_fileobj, remote_path)
 
 	def download(self, remote_path, local_path_or_fileobj):
-		"""
-		This code is partly borrowed from:
-		https://github.com/amnong/easywebdav/blob/master/easywebdav/client.py
-
-		Below follows the copyright notice of the easywebdav project which is
-		distributed under the ISC license:
-		::
-
-			Copyright (c) 2012 year, Amnon Grossman
-
-			Permission to use, copy, modify, and/or distribute this software for any purpose with or without fee is hereby granted, provided that the above copyright notice and this permission notice appear in all copies.
-
-			THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
-
-			Copyright (c) 2011, Kenneth Reitz
-
-			Permission to use, copy, modify, and/or distribute this software for any purpose with or without fee is hereby granted, provided that the above copyright notice and this permission notice appear in all copies.
-
-			THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
-		"""
 		try:
 			response = self._send('GET', remote_path, 200, stream=True)
 		except easywebdav.OperationFailed as e:
