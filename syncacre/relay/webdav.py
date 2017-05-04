@@ -246,9 +246,8 @@ class WebDAV(Relay):
 		if self.protocol == 'webdav':
 			self.protocol = 'https'
 		# borrowing certificate/certfile/keyfile support from syncacre.relay.ftp
-		if certificate:
-			self.certificate = certificate
-		elif certfile:
+		self.certificate = certificate
+		if certfile:
 			if keyfile: # a keyfile alone is useless
 				self.certificate = (certfile, keyfile)
 			else:

@@ -60,9 +60,8 @@ class FTP(IRelay):
 		self.protocol = protocol.lower()
 		self._encoding = encoding
 		# certificate for FTP_TLS
-		if certificate:
-			self.certificate = certificate
-		elif certfile:
+		self.certificate = certificate
+		if certfile:
 			if keyfile: # a keyfile alone is useless
 				self.certificate = (certfile, keyfile)
 			else:
