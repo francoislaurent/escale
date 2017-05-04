@@ -90,13 +90,13 @@ Other parameters are:
 * either ``push only`` or ``pull only``: boolean that defines whether the client should only push or pull. By default a client both pushes and pulls. Supported aliases for ``push only`` and ``pull only`` are ``read only`` and ``write only`` respectively
 * ``encryption``: boolean that defines whether to encrypt/decrypt the files or not, or algorithm identifier (e.g. ``fernet``, ``blowfish``, etc)
 * ``passphrase`` or ``key``: passphrase or path to a file that contains the passphrase for the encryption algorithm
+* ``certificate`` or ``certfile``: path to the client certificate
+* ``keyfile``: path to the client private key
 * ``verify ssl``: boolean that defines whether to check the remote host's certificate
 * ``ssl version``: either ``SSLv2``, ``SSLv3``, ``SSLv23``, ``TLS``, ``TLSv1``, ``TLSv1.1`` or ``TLSv1.2``
 * ``file extension`` (or ``file type``): a comma-separated list of file extensions (with or without the initial dot)
 * ``disk quota``: a decimal number with storage space units such as ``KB``, ``MB``, ``GB``, etc
 * ``maintainer``: an email address; if a client aborts and an SMTP server is available on the client machine, a notice email can be sent to this address
-
-.. note:: the ``conf`` and ``test`` directories contain examples of configuration files.
 
 
 API
