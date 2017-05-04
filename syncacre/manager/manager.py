@@ -74,13 +74,16 @@ class Manager(Reporter):
 			self.filetype = []
 		if isinstance(quota, tuple):
 			value, unit = quota
-			try:
-				quota = value * storage_space_unit[unit]
-			except KeyError:
-				msg = "unsupported storage space unit '{}'".format(unit)
-				self.logger.error(msg)
-				#raise ValueError(msg)
-				quota = None
+			if unit:
+				try:
+					quota = value * storage_space_unit[unit]
+				except KeyError:
+					msg = "unsupported storage space unit '{}'".format(unit)
+					self.logger.error(msg)
+					#raise ValueError(msg)
+					quota = None
+			else:
+				quota = value
 		self.quota = quota
 		self.pop_args = {}
 		if clientname:

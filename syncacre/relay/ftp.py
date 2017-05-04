@@ -3,6 +3,7 @@
 # Copyright (c) 2017, François Laurent
 
 from syncacre.base.essential import *
+from syncacre.base.ssl import *
 from syncacre.cli.auth import *
 from .relay import IRelay
 import ftplib
@@ -17,6 +18,8 @@ class FTP(IRelay):
 	"""
 	Adds support for FTP remote hosts on top of the :mod:`ftplib` standard library.
 
+	Tested with pure-ftpd, vsftpd and proftpd.
+
 	Attributes:
 
 		username (str): FTP username.
@@ -29,40 +32,63 @@ class FTP(IRelay):
 
 		account (?): `acct` argument for :class:`ftplib.FTP` and :class:`ftplib.FTP_TLS`.
 
-		keyfile (str): `keyfile` argument for :class:`ftplib.FTP_TLS`.
+		certificate (str): path to .pem certificate file, or pair of paths (.cert.pem, .key.pem).
 
-		certificate (str): path to a certificate file.
+		certfile (str): path to .cert.pem certificate file.
+
+		keyfile (str): path to .key.pem private key file; requires `certfile` to be defined.
 
 		ssl_version (int or str): SSL version as supported by 
 			:func:`~syncacre.base.ssl.parse_ssl_version`.
+
+		verify_ssl (bool): if ``True`` check server's certificate; if ``None``
+			check certificate if any; if ``False`` do not check certificate.
 	
 	"""
 
 	__protocol__ = ['ftp', 'ftps']
 
 	def __init__(self, address, username=None, password=None, protocol=None,
-			encoding='utf-8', account=None, keyfile=None, context=None,
-			certificate=None, verify_ssl=True, ssl_version=None,
+			encoding='utf-8', account=None, keyfile=None, certfile=None, context=None,
+			certificate=None, verify_ssl=None, ssl_version=None,
 			client='', logger=None, ui_controller=None, **ignored):
 		IRelay.__init__(self, address, client=client, logger=logger,
 				ui_controller=ui_controller)
 		self.username = username
 		self.password = password
+		self.account = account # `acct` argument for FTP and FTP_TLS
 		self.protocol = protocol.lower()
 		self._encoding = encoding
-		self.account = account # `acct` argument for FTP and FTP_TLS
-		self.keyfile = keyfile # `keyfile` argument for FTP_TLS
+		# certificate for FTP_TLS
+		if certificate:
+			self.certificate = certificate
+		elif certfile:
+			if keyfile: # a keyfile alone is useless
+				self.certificate = (certfile, keyfile)
+			else:
+				self.certificate = certfile
+		if keyfile and not certfile:
+			self.logger.warning('`keyfile` requires `certfile` to be defined as well')
+		# SSL arguments
 		self.context = context # `context` argument for FTP_TLS
-		self.certificate = certificate # `certfile` argument for FTP_TLS
-		if ssl_version: # compatibility argument ...
+		if ssl_version:
+			if context:
+				self.logger.warning('`context` and `ssl_version` arguments are conflicting')
 			ssl_version = parse_ssl_version(ssl_version)
 			if isinstance(ssl_version, ssl.SSLContext):
 				self.context = ssl_version
 			else:
 				self.context = ssl.SSLContext(ssl_version)
-		if not verify_ssl:
-			# TODO: `context` may be the place where to turn verification off
-			self.logger.warning("'verify_ssl' is not supported yet")
+		if verify_ssl is None:
+			if self.context is not None:
+				self.context.verify_mode = ssl.CERT_OPTIONAL
+		else:
+			if self.context is None:
+				self.context = ssl.SSLContext(ssl.PROTOCOL_TLS)
+			if verify_ssl:
+				self.context.verify_mode = ssl.CERT_REQUIRED
+			else:
+				self.context.verify_mode = ssl.CERT_NONE
 
 
 	@property
@@ -81,6 +107,20 @@ class FTP(IRelay):
 		except AttributeError:
 			pass
 
+	@property
+	def certfile(self):
+		if isinstance(self.certificate, tuple):
+			return self.certificate[0]
+		else:
+			return self.certificate
+
+	@property
+	def keyfile(self):
+		if isinstance(self.certificate, tuple):
+			return self.certificate[1]
+		else:
+			return self.certificate
+
 	
 	def login(self):
 		_user = self.username
@@ -90,45 +130,48 @@ class FTP(IRelay):
 				_pass = self.ui_controller.requestCredential(self.address, _user)
 			else:
 				_user, _pass = self.ui_controller.requestCredential(self.address)
-		first_iteration = True
-		auth = True
-		while auth:
+		while True:
 			try:
 				self.ftp.login(_user, _pass, self.account)
 			except KeyboardInterrupt:
 				raise
+			except ssl.SSLError as e:
+				self.logger.error("%s", e)
+				if not self.ui_controller.getServerCertificate(self.ftp.sock):
+					raise
+				#continue # try again
 			except IOError as e:
 				import errno
 				if e.errno == errno.EPIPE and self.protocol == 'ftp':
-					self.logger.error("'%s' may not accept non-SSL connections", self.address)
-				return False
+					self.logger.error("'%s' might exclusively accept SSL/TLS connections", self.address)
+					return False
+				else:
+					raise
 			except ftplib.error_perm as e:
 				err_code = e.args[0][:3]
 				if err_code == '530': # [vsftpd] 530 Login incorrect.
-					if first_iteration:
-						self.logger.info('missing or incorrect username and password')
-					else:
-						print('wrong username or password; try again')
+					print('wrong username or password; try again')
 					_user, _pass = self.ui_controller.requestCredential(self.address)
-				elif err_code == '500': # [pure-ftpd] 500 This security scheme is not implemented
-					assert first_iteration
-					self.logger.error("'%s' does not accept SSL connections", self.address)
+					#continue # try again
+				elif err_code == '500':
+					# [pure-ftpd] 500 This security scheme is not implemented
+					# [proftpd] 500 AUTH not understood
+					self.logger.info(traceback.format_exc())
+					self.logger.error("'%s' does not accept SSL/TLS connections", self.address)
 					return False
 				else:
 					raise
 			else:
-				auth = False
 				self.username = _user
 				self.password = _pass
-			first_iteration = False
-		return True
+				return True # auth ok
 
 
 	def open(self):
 		self.ftp = None
 		if self.protocol is None or self.protocol == 'ftps':
 			self.ftp = ftplib.FTP_TLS(self.address,
-					keyfile=self.keyfile, certfile=self.certificate, context=self.context)
+					certfile=self.certfile, keyfile=self.keyfile, context=self.context)
 			if self.login():
 				self.ftp.prot_p()
 			else:
@@ -153,6 +196,7 @@ class FTP(IRelay):
 		self._root = self.ftp.pwd()
 		self._mlsd_support = True
 		self._size_support = None # undefined
+		self._size_needs_binary = None
 		self._estimated_used = None
 		self.repository_root = None
 
@@ -162,9 +206,10 @@ class FTP(IRelay):
 		if self.repository_root is not None and self._size_support is not False: # None is ok
 			files = self._list(self.repository_root, recursive=True)
 			if files:
+				if self._size_needs_binary:
+					self.ftp.voidcmd('TYPE I') # set binary mode
 				f = 0
 				if self._size_support is None:
-					self._size_support = False
 					def no_support_msg(sure=False):
 						if sure:
 							w = 'does'
@@ -172,25 +217,31 @@ class FTP(IRelay):
 							w = 'may'
 						return "server at '{}' {} not support 'SIZE' command".format(self.address, w)
 					file = join(self._root, self.repository_root, files[f])
-					try:
-						used = self.ftp.size(file)
-					except ftplib.error_perm as e:
-						err_code = e.args[0][:3]
-						if err_code == '550': # [vsftpd] 550 Could not get file size.
-							self.logger.critical("internal error: file '%s' does not exist", file)
+					while True: # should not iterate more than twice
+						try:
+							used = self.ftp.size(file)
+						except ftplib.error_perm as e:
+							err_code = e.args[0][:3]
+							if err_code == '550':
+								# [vsftpd] 550 Could not get file size.
+								# [proftpd] 550 SIZE not allowed in ASCII mode
+								if 'ASCII' in e.args[0].split(): # proftpd
+									if not self._size_needs_binary:
+										self._size_needs_binary = True
+										self.ftp.voidcmd('TYPE I')
+										continue # try again
+								else:
+									self.logger.critical("internal error: file '%s' does not exist", file)
+							elif err_code == '500':
+								# TODO: find a server without SIZE support and check error code
+								self.logger.info(no_support_msg(True))
+								break # do not raise the exception again
+							else:
+								self.logger.info(no_support_msg())
 							raise
-						elif err_code == '500':
-							# TODO: find a server without SIZE support and check error code
-							self.logger.info(no_support_msg(True))
-						else:
-							self.logger.info(no_support_msg())
-							raise
-					else:
-						if used is None: # TODO: find such a case
-							self.logger.info(no_support_msg())
-						else:
-							self._size_support = True
-							f += 1
+						break
+					self._size_support = used is not None
+					f += 1
 				if self._size_support:
 					if used is None:
 						used = 0
@@ -200,8 +251,6 @@ class FTP(IRelay):
 							raise RuntimeError("'SIZE {}' returned None".format(file))
 						used += s
 					used = float(used) / 1048576 # in MB
-				elif self._estimated_used: # `_estimated_used` estimation is not implemented yet
-					used = self._estimated_used
 			else:
 				used = 0
 		return (used, None)
@@ -261,8 +310,6 @@ class FTP(IRelay):
 					self.logger.error("%s", e.args[0])
 					self.logger.info("if the running FTP server is vsftpd, \n\tthis error can be fixed adding the line 'require_ssl_reuse=NO' to '/etc/vsftpd.conf'")
 				raise
-			#if remote_dir == self.repository_root:
-			#	self._estimated_used = 0
 			for line in ls:
 				parts = line.split(None, self._filename_in_list + 1)
 				try:
@@ -275,8 +322,6 @@ class FTP(IRelay):
 						dirs.append(filename)
 					elif line[0] == '-':
 						files.append(_join(filename))
-						#size = int(parts[self._size_in_list]) # no size information in list
-						#self._estimated_used += size
 		if recursive and dirs:
 			if dirs[0] == '.':
 				dirs = dirs[2:]

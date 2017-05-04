@@ -242,7 +242,7 @@ def add_section(cfg_file, msgs=[]):
 			encryption = 'on'
 		config.set(section, _enc_, encryption)
 		# encryption passphrase
-		if not any([ encryption == b for b in [ '0', 'off', 'no', 'false' ] ]):
+		if encryption not in [ '0', 'off', 'no', 'false' ]:
 			_pass_, passphrase = query_field(config, section, 'passphrase', required=True)
 			if not os.path.isabs(passphrase):
 				if os.path.isfile(passphrase):
@@ -312,11 +312,9 @@ def add_section(cfg_file, msgs=[]):
 			suggestion = 'pull/push/no'
 		answer = input("should the client either pull or push? [{}] ".format(suggestion))
 		if answer:
-			answer = answer.lower()
-		else:
-			answer = pull_push
+			pull_push = answer.lower()
 		# write down changes, if any
-		if answer == 'pull':
+		if pull_push == 'pull':
 			config.set(section, pull_option, 'yes')
 		elif pull_push == 'push':
 			config.set(section, push_option, 'yes')
@@ -327,6 +325,13 @@ def add_section(cfg_file, msgs=[]):
 		if not refresh:
 			refresh = default_refresh
 		config.set(section, _refresh_, refresh)
+		# disk quota for webdav
+		if pull_push != 'pull':
+			print("quotas on the amount of sent data are recommended for pushers")
+			print(" examples:  2GB  4.5G  1To  (default unit is gigabyte)")
+			_quota_, quota = query_field(config, section, 'quota')
+			if quota:
+				config.set(section, _quota_, quota)
 		## stop
 		if not input('do you want to add/edit another section? [y/N] ').lower().startswith('y'):
 			break

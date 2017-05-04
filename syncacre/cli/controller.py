@@ -26,6 +26,9 @@ class DirectController(object):
 	def requestCredential(self, hostname=None, username=None):
 		return request_credential(hostname, username)
 
+	def getServerCertificate(self, ssl_socket):
+		return False # not implemented yet
+
 	def notifyShutdown(self, backtrace):
 		if self.maintainer:
 			# try to email the maintainer about the unexpected shutdown

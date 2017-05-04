@@ -3,6 +3,9 @@
 # Copyright (c) 2017, Institut Pasteur
 #   Contributor: François Laurent
 
+# Copyright (c) 2017, François Laurent
+#   new certificate verification feature
+
 from syncacre.base.essential import *
 from syncacre.base.timer import *
 from syncacre.base.ssl import *
@@ -79,7 +82,7 @@ class WebDAVClient(easywebdav.Client):
 			kwargs['path'] = quote(kwargs['path'])
 		easywebdav.Client.__init__(self, host, **kwargs)
 		if ssl_version:
-			self.session.adapters['https://'] = make_https_adapter(parse_ssl_version(ssl_version))()
+			self.session.mount('https://', make_https_adapter(parse_ssl_version(ssl_version))())
 		self.max_retry = max_retry
 		self.retry_after = retry_after
 		self.timeout = timeout
@@ -143,7 +146,7 @@ class WebDAVClient(easywebdav.Client):
 		This code is partly borrowed from:
 		https://github.com/amnong/easywebdav/blob/master/easywebdav/client.py
 
-		Below follows the copyright notice of the easywebdav project which is supposed to be
+		Below follows the copyright notice of the easywebdav project which is
 		distributed under the ISC license:
 		::
 
@@ -153,6 +156,11 @@ class WebDAVClient(easywebdav.Client):
 
 			THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
+			Copyright (c) 2011, Kenneth Reitz
+
+			Permission to use, copy, modify, and/or distribute this software for any purpose with or without fee is hereby granted, provided that the above copyright notice and this permission notice appear in all copies.
+
+			THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 		"""
 		try:
 			response = self._send('GET', remote_path, 200, stream=True)
@@ -186,12 +194,16 @@ class WebDAV(Relay):
 
 		protocol (str): either 'http' or 'https'.
 
-		certificate (str): path to a .pem certificate file.
+		certificate (str): path to .pem certificate file, or pair of paths (.cert.pem, .key.pem).
 
-		verify_ssl (bool): if ``True``, check server's certificate.
+		certfile (str): path to .cert.pem certificate file.
+
+		keyfile (str): path to .key.pem private key file; requires `certfile` to be defined.
 
 		ssl_version (int or str): any valid argument to 
 			:func:`~syncacre.base.ssl.parse_ssl_version`.
+
+		verify_ssl (bool): if ``False`` do not check server's certificate.
 
 		max_retry (bool or int): defines the maximum number of retries.
 			Applies to connection failures.
@@ -203,8 +215,9 @@ class WebDAV(Relay):
 
 	__protocol__ = ['webdav', 'https']
 
-	def __init__(self, address, username=None, password=None, protocol=None, certificate=None, \
-		verify_ssl=True, ssl_version=None, max_retry=True, retry_after=None, \
+	def __init__(self, address, username=None, password=None, protocol=None, \
+		certificate=None, certfile=None, keyfile=None, \
+		ssl_version=None, verify_ssl=None, max_retry=True, retry_after=None, \
 		client='', logger=None, ui_controller=None, **ignored):
 		Relay.__init__(self, address, client=client, logger=logger, ui_controller=ui_controller)
 		if PYTHON_VERSION == 3: # deal with encoding issues with requests
@@ -215,7 +228,16 @@ class WebDAV(Relay):
 		self.protocol = protocol.lower()
 		if self.protocol == 'webdav':
 			self.protocol = 'https'
-		self.certificate = certificate
+		# borrowing certificate/certfile/keyfile support from syncacre.relay.ftp
+		if certificate:
+			self.certificate = certificate
+		elif certfile:
+			if keyfile: # a keyfile alone is useless
+				self.certificate = (certfile, keyfile)
+			else:
+				self.certificate = certfile
+		if keyfile and not certfile:
+			self.logger.warning('`keyfile` requires `certfile` to be defined as well')
 		self.max_retry = max_retry
 		self.retry_after = retry_after
 		self.ssl_version = ssl_version
@@ -230,7 +252,8 @@ class WebDAV(Relay):
 			kwargs['cert'] = self.certificate
 		if self.protocol:
 			kwargs['protocol'] = self.protocol
-		kwargs['verify_ssl'] = self.verify_ssl
+		if self.verify_ssl is not None:
+			kwargs['verify_ssl'] = self.verify_ssl
 		if self.ssl_version:
 			kwargs['ssl_version'] = parse_ssl_version(self.ssl_version)
 		try:

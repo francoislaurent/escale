@@ -37,6 +37,7 @@ default_conf_files = [ os.path.join(d, default_filename) for d in default_cfg_di
 # 'refresh': can be bool in version 0.4a3
 # 'maintainer' added in version 0.4.1a1
 # 'quota' added in version 0.4.1a2
+# 'certfile' and 'keyfile' added in version 0.4.1
 fields = dict(path=('path', ['local path', 'path']),
 	address=['host address', 'relay address', 'remote address', 'address'],
 	directory=['host directory', 'relay directory', 'remote directory',
@@ -57,7 +58,9 @@ fields = dict(path=('path', ['local path', 'path']),
 	verify_ssl=('bool', ['verify ssl']),
 	filetype=('list', ['file extension', 'file type']),
 	quota=('number_unit', ['disk quota']),
-	maintainer=['maintainer', 'email'])
+	maintainer=['maintainer', 'email'],
+	certfile=('path', ['certfile', 'cert file', 'certificate']),
+	keyfile=('path', ['keyfile', 'key file', 'private key']))
 
 
 # convenient unit-to-megabyte conversion table for storage space.
@@ -119,7 +122,7 @@ def getnum(config, section, attr):
 		(float, str): numeric value and unit.
 	'''
 	value = config.get(section, attr)
-	m = re.match(r'(?P<num>[0-9]+([.,][0-9]+)?)\s*(?P<unit>[a-zA-Z]+)', value)
+	m = re.match(r'(?P<num>[0-9]+([.,][0-9]+)?)\s*(?P<unit>[a-zA-Z]*)', value)
 	if not m:
 		raise ValueError("wrong number or unit format: '{}'".format(value))
 	num = float(m.group('num').replace(',', '.'))

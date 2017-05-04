@@ -120,9 +120,13 @@ def make_https_adapter(ssl_version_or_context):
 	else:
 		ssl_arg = dict(ssl_version=ssl_version_or_context)
 	class HTTPSAdapter(HTTPAdapter):
-		def init_poolmanager(self, connections, maxsize, block=False):
+		def init_poolmanager(self, connections, maxsize, block=False, **pool_args):
+			self._pool_connections = connections
+			self._pool_maxsize = maxsize
+			self._pool_block = block
+			pool_args.update(ssl_arg)
 			self.poolmanager = PoolManager(
 				num_pools=connections, maxsize=maxsize, block=block,
-				**ssl_arg)
+				**pool_args)
 	return HTTPSAdapter
 
