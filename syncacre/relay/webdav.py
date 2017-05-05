@@ -134,13 +134,6 @@ class WebDAVClient(easywebdav.Client):
 							raise
 					else:
 						break
-		except easywebdav.OperationFailed as e:
-			path = args[1]
-			if e.actual_code == 403:
-				self.logger.error("access to '%s%s' forbidden", self.url, path)
-			elif e.actual_code == 423: # 423 Locked
-				self.logger.error("resource '%s%s' locked", self.url, path)
-			raise
 		except SSLError as e:
 			# TODO: find out which `args` for "SSLError: [Errno 24] Too many open files"
 			self.logger.error("%s", e)
@@ -161,6 +154,13 @@ class WebDAVClient(easywebdav.Client):
 			self.session.cert = cert
 			self.session.auth = auth
 			# signal failure upstream
+			raise
+		except easywebdav.OperationFailed as e:
+			path = args[1]
+			if e.actual_code == 403:
+				self.logger.error("access to '%s%s' forbidden", self.url, path)
+			elif e.actual_code == 423: # 423 Locked
+				self.logger.error("resource '%s%s' locked", self.url, path)
 			raise
 		return self._response
 
