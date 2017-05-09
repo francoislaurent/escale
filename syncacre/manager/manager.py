@@ -14,7 +14,12 @@ import os
 import sys
 import traceback
 import itertools
-from syncacre.base import PYTHON_VERSION, join, Clock, Reporter, storage_space_unit
+from syncacre.base import PYTHON_VERSION,
+	UnrecoverableError,
+	join,
+	Clock,
+	Reporter,
+	storage_space_unit
 from syncacre.encryption import Plain
 from math import *
 
@@ -160,6 +165,11 @@ class Manager(Reporter):
 			# if last exception is not a keyboard interrupt
 			if self.ui_controller is not None:
 				self.ui_controller.notifyShutdown(_last_trace)
+			if isinstance(_last_error, UnrecoverableError):
+				self.logger.critical("unrecoverable error:")
+				self.logger.critical(" %s", _last_error.args[0])
+				self.logger.critical("the Python environment should be reset")
+				raise _last_error # so that syncacre main process can signal the other processes
 
 
 	def filter(self, files):

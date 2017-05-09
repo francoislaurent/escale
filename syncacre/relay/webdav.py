@@ -6,6 +6,7 @@
 # Copyright (c) 2017, François Laurent
 #   new certificate verification feature
 
+from syncacre.base.exceptions import *
 from syncacre.base.essential import *
 from syncacre.base.timer import *
 from syncacre.base.ssl import *
@@ -23,7 +24,17 @@ import sys
 import time
 import itertools
 import traceback
-from ssl import SSLError
+
+
+## trying SO_REUSEADDR fix - doesn't work
+#import socket
+#try:
+#	from urllib3.connection import HTTPConnection
+#except ImportError:
+#	pass
+#else:
+#	# modify globally :/
+#	HTTPConnection.default_socket_options + [(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)]
 
 
 # the following fix has been suggested in
@@ -33,13 +44,6 @@ if PYTHON_VERSION == 3:
 else:
 	basestring = basestring
 
-
-def _easywebdav_adapter(fun, mode, local_path_or_fileobj, *args):
-	if isinstance(local_path_or_fileobj, basestring):
-		with open(local_path_or_fileobj, mode) as f:
-			fun(f, *args)
-	else:
-		fun(local_path_or_fileobj, *args)
 
 
 class WebDAVClient(easywebdav.Client):
@@ -67,14 +71,9 @@ class WebDAVClient(easywebdav.Client):
 	Below follows the copyright notice of the easywebdav project which is
 	distributed under the ISC license:
 	::
+		Copyright (c) 2011, Kenneth Reitz
 
 		Copyright (c) 2012 year, Amnon Grossman
-
-		Permission to use, copy, modify, and/or distribute this software for any purpose with or without fee is hereby granted, provided that the above copyright notice and this permission notice appear in all copies.
-
-		THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
-
-		Copyright (c) 2011, Kenneth Reitz
 
 		Permission to use, copy, modify, and/or distribute this software for any purpose with or without fee is hereby granted, provided that the above copyright notice and this permission notice appear in all copies.
 
@@ -98,7 +97,7 @@ class WebDAVClient(easywebdav.Client):
 
 	def _send(self, *args, **kwargs):
 		if self._response is not None:
-			# not sure easywebdav fully consumes all the responses
+			# not sure easywebdav fully consumes every response
 			# see also http://docs.python-requests.org/en/master/user/advanced/#body-content-workflow
 			self._response.close()
 		try:
@@ -123,9 +122,6 @@ class WebDAVClient(easywebdav.Client):
 								except IndexError:
 									pass
 						self.logger.warn("%s", info)
-						#debug_info = list(args)
-						#debug_info.append(kwargs)
-						#self.logger.debug(' %s %s %s %s', *debug_info)
 						# wait
 						try:
 							clock.wait(self.logger)
@@ -134,33 +130,26 @@ class WebDAVClient(easywebdav.Client):
 							raise
 					else:
 						break
-		except SSLError as e:
-			# TODO: find out which `args` for "SSLError: [Errno 24] Too many open files"
-			self.logger.error("%s", e)
-			self.logger.debug(e.args)
-			self.logger.info('reinitializing the session')
-			# backup parameters
-			verify = self.session.verify
-			stream = self.session.stream
-			cert = self.session.cert
-			auth = self.session.auth
-			# clear
-			self.session.close()
-			# new session
-			import requests
-			self.session = requests.session()
-			self.session.verify = verify
-			self.session.stream = stream
-			self.session.cert = cert
-			self.session.auth = auth
-			# signal failure upstream
-			raise
+		except requests.exceptions.SSLError as e:
+			try:
+				errno = e.args[0].args[0].args[0]
+			except:
+				pass
+			else:
+				if errno == 24:
+					# SSLError: [Errno 24] Too many open files
+					raise UnrecoverableError(e.args[0])
+			raise e
 		except easywebdav.OperationFailed as e:
-			path = args[1]
-			if e.actual_code == 403:
-				self.logger.error("access to '%s%s' forbidden", self.url, path)
-			elif e.actual_code == 423: # 423 Locked
-				self.logger.error("resource '%s%s' locked", self.url, path)
+			try:
+				path = e.args[1]
+			except:
+				pass
+			else:
+				if e.actual_code == 403:
+					self.logger.error("access to '%s%s' forbidden", self.url, path)
+				elif e.actual_code == 423: # 423 Locked
+					self.logger.error("resource '%s%s' locked", self.url, path)
 			raise
 		return self._response
 
@@ -175,10 +164,11 @@ class WebDAVClient(easywebdav.Client):
 	# We would like `ls` to return unquoted file paths, but files are listed as read-only named tuples
 	# unfortunately. The :meth:`WebDAV._list` method should therefore unquote by itself.
 
-	def upload(self, local_path_or_fileobj, remote_path):
-		_easywebdav_adapter(self._upload, 'rb', local_path_or_fileobj, remote_path)
+	def upload(self, local_path, remote_path):
+		with open(local_path, 'rb') as f:
+			self._upload(f, remote_path)
 
-	def download(self, remote_path, local_path_or_fileobj):
+	def download(self, remote_path, local_path):
 		try:
 			response = self._send('GET', remote_path, 200, stream=True)
 		except easywebdav.OperationFailed as e:
@@ -186,7 +176,12 @@ class WebDAVClient(easywebdav.Client):
 				self.logger.warning("the file is no longer available")
 				self.logger.debug(traceback.format_exc())
 		else:
-			_easywebdav_adapter(self._download, 'wb', local_path_or_fileobj, response)
+			with open(local_path, 'wb') as f:
+				self._download(f, response)
+			try:
+				response.close()
+			except:
+				print('no need to close response')
 
 	def exists(self, remote_path):
 		try:
@@ -254,6 +249,7 @@ class WebDAV(Relay):
 				self.certificate = certfile
 		if keyfile and not certfile:
 			self.logger.warning('`keyfile` requires `certfile` to be defined as well')
+		#
 		self.max_retry = max_retry
 		self.retry_after = retry_after
 		self.ssl_version = ssl_version

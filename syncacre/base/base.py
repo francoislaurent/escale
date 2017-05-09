@@ -10,6 +10,7 @@ try:
 except ImportError:
 	from ConfigParser import NoOptionError
 
+from .exceptions import *
 from .essential import *
 from .config import *
 from syncacre.log import *
@@ -214,7 +215,7 @@ def syncacre_launcher(cfg_file, msgs=[], verbosity=logging.NOTSET, daemon=None):
 		try:
 			for worker in workers:
 				worker.join()
-		except KeyboardInterrupt:
+		except (KeyboardInterrupt, UnrecoverableError):
 			for worker in workers:
 				worker.terminate()
 		ui_controller.abort()
