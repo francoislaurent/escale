@@ -14,12 +14,12 @@ import os
 import sys
 import traceback
 import itertools
-from syncacre.base import PYTHON_VERSION,
+from syncacre.base import (PYTHON_VERSION,
 	UnrecoverableError,
 	join,
 	Clock,
 	Reporter,
-	storage_space_unit
+	storage_space_unit)
 from syncacre.encryption import Plain
 from math import *
 
