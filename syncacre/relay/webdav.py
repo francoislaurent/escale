@@ -5,7 +5,7 @@
 
 # Copyright (c) 2017, François Laurent
 #   new certificate verification feature
-#	`ls` extraction, `_last_ls` trick in `ls` and `listTransfered` in class `WebDAV`
+#	`ls` extraction, `_last_ls` trick in `ls` in class `WebDAV`
 
 from syncacre.base.exceptions import *
 from syncacre.base.essential import *
@@ -308,7 +308,9 @@ class WebDAV(Relay):
 
 	def ls(self, remote_dir):
 		if hasattr(self, '_last_ls') and self._last_ls is not None:
-			return self._last_ls
+			ls = self._last_ls
+			self._last_ls = None
+			return ls
 		try:
 			ls = self.webdav.ls(remote_dir)
 		except easywebdav.OperationFailed as e:
@@ -354,11 +356,6 @@ class WebDAV(Relay):
 					and os.path.split(d[:-1])[1][0] != '.' ]))
 		#print(('WebDAV._list: remote_dir, files', remote_dir, files))
 		return files
-
-	def listTransfered(self, *args, **kwargs):
-		ls = Relay.listTransfered(self, *args, **kwargs)
-		self._last_ls = None
-		return ls
 
 	def _push(self, local_file, remote_file, makedirs=True):
 		# webdav destination should be a path to file
