@@ -10,7 +10,9 @@ import tempfile
 import logging
 
 from syncacre.base.essential import *
+from .info import *
 from syncacre.log import log_root
+
 
 
 def with_path(path, fun, *args, **kwargs):
@@ -24,7 +26,7 @@ def with_path(path, fun, *args, **kwargs):
 
 class AbstractRelay(Reporter):
 	"""
-	Sends files to/from a remote host.
+	Send files to/from a remote host.
 
 	This class is an interface that groups together the methods called by 
 	:class:`syncacre.manager.Manager`.
@@ -45,7 +47,7 @@ class AbstractRelay(Reporter):
 
 	def open(self):
 		"""
-		Establishes the connection with the remote host.
+		Establish the connection with the remote host.
 
 		Returns:
 
@@ -55,7 +57,7 @@ class AbstractRelay(Reporter):
 
 	def storageSpace(self):
 		"""
-		Queries for how much space is available on the remote host.
+		Query for how much space is available on the remote host.
 
 		Returns:
 
@@ -67,7 +69,7 @@ class AbstractRelay(Reporter):
 
 	def listReady(self, remote_dir, recursive=True):
 		"""
-		Gets the files on the remote host that are ready for download.
+		List the files on the remote host that are ready for download.
 
 		Arguments:
 
@@ -81,16 +83,42 @@ class AbstractRelay(Reporter):
 		"""
 		raise NotImplementedError('abstract method')
 
+	def listCorrupted(self, remote_dir, recursive=True):
+		"""
+		List the files on the remote host that are corrupted.
+
+		Corrupted files are files with a lock owned by `self`, as identified
+		by the `client` attribute.
+		If `client` evaluates to ``False``, corrupted files are returned
+		as an empty list.
+
+		Corrupted files are represented by the unreleased locks.
+
+		Arguments:
+
+			remote_dir (str): remote directory to "ls".
+
+			recursive (bool): whether to list subdirectories or not.
+
+		Returns:
+
+			list of LockInfo: list of locks.
+		"""
+		if self.client:
+			raise NotImplementedError('abstract method')
+		else:
+			return []
+
 	def listTransfered(self, remote_dir, end2end=True, recursive=True):
 		"""
-		Gets the files on the remote host that were transfered.
+		List the files on the remote host that have been transfered.
 
 		Arguments:
 
 			remote_dir (str): relative path to remote directory to "ls".
 
-			end2end (bool): if True, list only files that are no longer
-				available on the remote host.
+			end2end (bool): if True, list only files which content is no 
+				longer available on the remote host.
 
 			recursive (bool): whether to list subdirectories or not.
 
@@ -100,11 +128,16 @@ class AbstractRelay(Reporter):
 		"""
 		raise NotImplementedError('abstract method')
 
-	def getPlaceholder(self, remote_file):
+	def getMetaInfo(self, remote_file, output_file=None):
 		"""
-		Downloads the placeholder file.
+		Download meta-information.
 
-		It makes a temporary file to be manually unlinked once done with it.
+		If no local file is specified, it makes a temporary file to be manually unlinked 
+		once done with it.
+
+		The first line in the created file is the original file modification time.
+
+		A default implementation may use placeholders as files where to store the header.
 
 		Example:
 
@@ -112,17 +145,19 @@ class AbstractRelay(Reporter):
 
 			import os
 
-			placeholder = relay.getPlaceholder(path_to_remote_file)
+			tmpfile = relay.getMetaInfo(path_to_remote_file)
 
-			with open(placeholder, 'r') as f:
+			with open(tmpfile, 'r') as f:
 				# do something with `f`
 
-			os.unlink(placeholder)
+			os.unlink(tmpfile)
 
 		
 		Arguments:
 
-			remote_file (str): relative path to regular file (not placeholder or lock).
+			remote_file (str): relative path to regular file (no placeholder or lock).
+
+			output_file (str): path to local file.
 
 		Returns:
 
@@ -132,7 +167,7 @@ class AbstractRelay(Reporter):
 
 	def push(self, local_file, remote_dest, relative_path=None, last_modified=None, blocking=True):
 		"""
-		Uploads a file to the remote host.
+		Upload a file to the remote host.
 
 		Arguments:
 
@@ -156,7 +191,7 @@ class AbstractRelay(Reporter):
 
 	def pop(self, remote_file, local_dest, blocking=True, placeholder=1, **kwargs):
 		"""
-		Downloads a file from the remote host and unlinks remote copy if relevant.
+		Download a file from the remote host and unlinks remote copy if relevant.
 
 		Arguments:
 
@@ -177,9 +212,23 @@ class AbstractRelay(Reporter):
 		"""
 		raise NotImplementedError('abstract method')
 
+	def repair(self, lock, local_file):
+		"""
+		Attempt to repair a corrupted file.
+
+		Arguments:
+
+			lock (LockInfo): lock information for the corrupted file; the `target`
+				attribute refers to the file on the remote host.
+
+			local_file (str or None): absolute path to the local copy of the remote 
+				file, if any.
+		"""
+		raise NotImplementedError('abstract method')
+
 	def close(self):
 		"""
-		Closes the connection with the remote host.
+		Close the connection with the remote host.
 
 		Returns:
 
@@ -188,9 +237,10 @@ class AbstractRelay(Reporter):
 		raise NotImplementedError('abstract method')
 
 
+
 class Relay(AbstractRelay):
 	"""
-	Sends files to/from a remote relay.
+	Send files to/from a remote relay.
 
 	This class is a partial implementation of :class:`AbstractRelay`.
 	Especially, it implements independent placeholders and locks.
@@ -302,11 +352,23 @@ class Relay(AbstractRelay):
 			end = None
 		return filename[len(self._lock_prefix):end]
 
+	def _safePlaceholder(self, filename):
+		if self._isPlaceholder(filename):
+			return filename
+		else:
+			return self._placeholder(filename)
+
+	def _safeLock(self, filename):
+		if self._isLock(filename):
+			return filename
+		else:
+			return self._lock(filename)
+
 	def placeholder(self, path):
-		return with_path(path, self._placeholder)
+		return with_path(path, self._safePlaceholder)
 
 	def lock(self, path):
-		return with_path(path, self._lock)
+		return with_path(path, self._safeLock)
 
 	def isPlaceholder(self, path):
 		_, filename = os.path.split(path)
@@ -330,6 +392,7 @@ class Relay(AbstractRelay):
 		pass
 
 	def storageSpace(self):
+		# TODO: default implementation with `size`
 		return (None, None)
 
 	def _list(self, remote_dir, recursive=True):
@@ -350,6 +413,9 @@ class Relay(AbstractRelay):
 		raise NotImplementedError('abstract method')
 
 	def listReady(self, remote_dir, recursive=True):
+		"""
+		The default implementation manipulates placeholders and locks as individual files.
+		"""
 		ls = self._list(remote_dir, recursive=recursive)
 		ready = []
 		for file in ls:
@@ -360,7 +426,25 @@ class Relay(AbstractRelay):
 				ready.append(file)
 		return ready
 
+	def listCorrupted(self, remote_dir, recursive=True):
+		"""
+		The default implementation manipulates locks as individual files.
+		"""
+		if not self.client:
+			return self.listReady(remote_dir, recursive=recursive)
+		ls = self._list(remote_dir, recursive=recursive)
+		locks = []
+		for file in ls:
+			if self.isLock(file):
+				lock = self.getLockInfo(join(remote_dir, self.fromLock(file)))
+				if lock.owner == self.client:
+					locks.append(lock)
+		return locks
+
 	def listTransfered(self, remote_dir, end2end=True, recursive=True):
+		"""
+		The default implementation manipulates placeholders and locks as individual files.
+		"""
 		ls = self._list(remote_dir, recursive=recursive)
 		placeholders = []
 		others = []
@@ -382,23 +466,52 @@ class Relay(AbstractRelay):
 					others.append(file)
 			return others + placeholders + locks
 
+	def size(self, remote_file):
+		"""
+		Size of a file in bytes.
+
+		If the file does not exist, return ``None`` instead.
+
+		Arguments:
+
+			remote_file (str): relative path to a file on the remote host.
+
+		Returns:
+
+			int or None: file size in bytes.
+
+		"""
+		raise NotImplementedError('abstract method')
+
 	def touch(self, remote_file, content=None):
 		local_file = self.newTemporaryFile()
-		f = open(local_file, 'w')
-		if content:
-			f.write(asstr(content))
-		f.close()
+		with open(local_file, 'w') as f:
+			if content:
+				if isinstance(content, list):
+					nlines = len(content)
+					for lineno, line in enumerate(content):
+						f.write(asstr(line))
+						if lineno + 1 < nlines:
+							f.write('\n')
+				else:
+					f.write(asstr(content))
 		self._push(local_file, remote_file)
 		self.delTemporaryFile(local_file)
 
 	def unlink(self, remote_file):
 		trash = self.newTemporaryFile()
-		self._pop(remote_file, trash)
+		if isinstance(remote_file, list):
+			for file in remote_file:
+				self._pop(file, trash)
+		else:
+			self._pop(remote_file, trash)
 		self.delTemporaryFile(trash)
 
 	def hasPlaceholder(self, remote_file):
 		"""
 		Checks for placeholder presence.
+
+		The default implementation manipulates placeholders as individual files.
 
 		Arguments:
 
@@ -410,11 +523,14 @@ class Relay(AbstractRelay):
 				``False`` otherwise.
 
 		"""
-		raise NotImplementedError('abstract method')
+		dirname, filename = os.path.split(remote_file)
+		return self.exists(self._placeholder(filename), dirname=dirname)
 
 	def hasLock(self, remote_file):
 		"""
 		Checks for lock presence.
+
+		The default implementation manipulates locks as individual files.
 
 		Arguments:
 
@@ -426,12 +542,37 @@ class Relay(AbstractRelay):
 				``False`` otherwise.
 
 		"""
-		raise NotImplementedError('abstract method')
+		dirname, filename = os.path.split(remote_file)
+		return self.exists(self._lock(filename), dirname=dirname)
 
-	def getPlaceholder(self, remote_file):
+	def getLockInfo(self, remote_file):
+		"""
+		This method treats locks as files.
+		"""
+		remote_lock = self.lock(remote_file)
+		local_lock = tempfile.mkstemp()[1]
+		try:
+			self._get(remote_lock, local_lock)
+		except KeyboardInterrupt:
+			raise
+		except:
+			info = LockInfo()
+		else:
+			info = parse_lock_file(local_lock, target=remote_file)
+		finally:
+			os.unlink(local_lock)
+		return info
+
+	def getMetaInfo(self, remote_file, output_file=None):
+		"""
+		This method treats placeholders as files.
+		"""
 		if self.hasPlaceholder(remote_file):
 			remote_placeholder = self.placeholder(remote_file)
-			local_placeholder = self.newTemporaryFile()
+			if output_file:
+				local_placeholder = output_file
+			else:
+				local_placeholder = self.newTemporaryFile()
 			self._get(remote_placeholder, local_placeholder)
 			return local_placeholder
 		else:
@@ -441,11 +582,22 @@ class Relay(AbstractRelay):
 		"""
 		Update a placeholder when the corresponding file is pushed.
 
+		This method treats placeholders as files.
+
 		To pop or get a file, use :meth:`markAsRead` instead.
 		"""
 		self.touch(self.placeholder(remote_file), last_modified)
 
-	def acquireLock(self, remote_file, blocking=True):
+	def releasePlace(self, remote_file):
+		"""
+		This method treats placeholders as files.
+		"""
+		self.unlink(self.placeholder(remote_file))
+
+	def acquireLock(self, remote_file, mode=None, blocking=True):
+		"""
+		This method treats locks as files.
+		"""
 		if blocking:
 			if blocking is True: # if not numerical
 				blocking = 60 # translate it to time, in seconds
@@ -454,15 +606,19 @@ class Relay(AbstractRelay):
 				time.sleep(blocking)
 		elif self.hasLock(remote_file):
 			return False
-		self.touch(self.lock(remote_file), content=self.client)
+		lock_info = LockInfo(owner=self.client, mode=mode)
+		self.touch(self.lock(remote_file), content=repr(lock_info))
 		return True
 
 	def releaseLock(self, remote_file):
+		"""
+		This method treats locks as files.
+		"""
 		self.unlink(self.lock(remote_file))
 
 	def _push(self, local_file, remote_dest):
 		"""
-		Sends a local file to the remote host.
+		Send a local file to the remote host.
 
 		Arguments:
 
@@ -482,7 +638,7 @@ class Relay(AbstractRelay):
 			_, relative_path = os.path.split(local_file)
 		remote_dir = remote_dest # TODO: check this and adjust
 		remote_file = join(remote_dir, relative_path)
-		if not self.acquireLock(remote_file, blocking=blocking):
+		if not self.acquireLock(remote_file, mode='w', blocking=blocking):
 			return False
 		if last_modified:
 			self.updatePlaceholder(remote_file, last_modified=last_modified)
@@ -492,7 +648,7 @@ class Relay(AbstractRelay):
 
 	def _pop(self, remote_file, local_dest, makedirs=True):
 		"""
-		Downloads a file and deletes it from the remote host.
+		Download a file and delete it from the remote host.
 
 		.. note:: :meth:`_pop` can be implemented with an extra `_unlink` keyword argument
 			that is not supported by default and makes the default implementation for
@@ -519,7 +675,7 @@ class Relay(AbstractRelay):
 
 	def _get(self, remote_file, local_dest, makedirs=True):
 		"""
-		Downloads a file and does NOT delete it from the remote host.
+		Download a file and do NOT delete it from the remote host.
 
 		Arguments:
 
@@ -538,7 +694,7 @@ class Relay(AbstractRelay):
 
 	def pop(self, remote_file, local_dest, blocking=True, placeholder=1, **kwargs):
 		# TODO: ensure that local_dest is a path to a file and not a directory
-		if not self.acquireLock(remote_file, blocking=blocking):
+		if not self.acquireLock(remote_file, mode='r', blocking=blocking):
 			return False
 		let = False
 		if placeholder:
@@ -565,7 +721,7 @@ class Relay(AbstractRelay):
 
 	def get(self, remote_file, local_dest, blocking=True, placeholder=True, **kwargs):
 		# TODO: ensure that local_dest is a path to a file and not a directory
-		if not self.acquireLock(remote_file, blocking=blocking):
+		if not self.acquireLock(remote_file, mode='r', blocking=blocking):
 			return False
 		self._get(remote_file, local_dest)
 		if placeholder and self.hasPlaceholder(remote_file):
@@ -574,30 +730,98 @@ class Relay(AbstractRelay):
 		return True
 
 	def markAsRead(self, remote_file, local_placeholder=None):
+		"""
+		This method treats placeholders as files.
+		"""
 		remote_placeholder = self.placeholder(remote_file)
-		if not local_placeholder:
+		get = not local_placeholder
+		if get:
 			local_placeholder = self.newTemporaryFile()
 			self._get(remote_placeholder, local_placeholder)
 		with open(local_placeholder, 'a') as f:
 			f.write('\n{}'.format(self.client))
 		self._push(local_placeholder, remote_placeholder)
-		self.delTemporaryFile(local_placeholder)
+		if get:
+			self.delTemporaryFile(local_placeholder)
 
+	def exists(self, filename, dirname=None):
+		if not dirname:
+			dirname, filename = os.path.split(filename)
+		return filename in self._list(dirname, recursive=False)
+
+	def repair(self, lock, local_file):
+		remote_file = lock.target
+		if lock.mode == 'w':
+			if local_file is None:
+				self.logger.error("could not find local file '%s'", local_file)
+				self.logger.debug("clearing related remote files")
+				# this is actually the default behavior
+			if self.exists(remote_file):
+				# do not take any risk; size is not a reliable indicator
+				#remote_size = self.size(remote_file)
+				#local_size = os.path.getsize(local_file)
+				#if remote_size != local_size:
+					self.unlink(remote_file)
+			# delete the placeholder to send the file again
+			self.releasePlace(remote_file)
+		elif lock.mode == 'r':
+			if local_file:
+				# TODO: check modification time
+				# do not take any risk; size is not a reliable indicator
+				#remote_size = self.size(remote_file)
+				#if remote_size is not None:
+				#	local_size = os.path.getsize(local_file)
+				#	if local_size != remote_size:
+						os.unlink(local_file)
+			if not self.exists(remote_file):
+						# delete the placeholder to request the file again
+						self.releasePlace(remote_file)
+		# release the lock
+		self.releaseLock(remote_file)
 
 
 
 class IRelay(Relay):
 	"""
-	Extends :class:`Relay` with default implementation for :meth:`hasPlaceholder` and 
+	Extend :class:`Relay` with alternative implementation for :meth:`hasPlaceholder` and 
 	:meth:`hasLock`.
 
-	This class is not used at the moment.
+	This class is useful if placeholders (respectively locks) are available together in 
+	a list.
+
+	"I" stands for "individual" because placeholders and locks are individual entities
+	and can be manipulated as a file, in addition to be records in a list.
+
+	The :meth:`listPlaceholders` and :meth:`listLocks` methods should be overloaded.
+
 	"""
 	def listPlaceholders(self, remote_dir):
+		"""
+		List placeholders.
+
+		Arguments:
+
+			remote_dir (str): path to a remote directory.
+
+		Returns:
+
+			list of str: list of relative paths to placeholders.
+		"""
 		ls = self._list(remote_dir, recursive=False)
 		return [ file for file in ls if self.isPlaceholder(file) ]
 
 	def listLocks(self, remote_dir):
+		"""
+		List locks.
+
+		Arguments:
+
+			remote_dir (str): path to a remote directory.
+
+		Returns:
+
+			list of str: list of relative paths to locks.
+		"""
 		ls = self._list(remote_dir, recursive=False)
 		return [ file for file in ls if self.isLock(file) ]
 
@@ -611,18 +835,47 @@ class IRelay(Relay):
 
 
 
-class PDRelay(Relay):
+class PRelay(Relay):
 	"""
-	Extends :class:`Relay` with default implementation for :meth:`hasPlaceholder` and 
+	Extend :class:`Relay` with alternative implementation for :meth:`hasPlaceholder` and 
 	:meth:`hasLock`.
 
-	This class is not used at the moment.
+	This class is useful if "placeheld" (respectively locked) files are available together 
+	in a list.
+
+	"P" stands for "page" and refers to the fact that placeholders and locks live as records.
+	They may not be actual files.
+
+	The :meth:`listPlaceheld` and :meth:`listLocked` methods should be overloaded.
+
 	"""
 	def listPlaceheld(self, remote_dir):
+		"""
+		List placeheld files.
+
+		Arguments:
+
+			remote_dir (str): path to a remote directory.
+
+		Returns:
+
+			list of str: list of relative paths to placeheld files.
+		"""
 		ls = self._list(remote_dir, recursive=False)
 		return [ file for file in ls if self.isPlaceholder(file) ]
 
 	def listLocked(self, remote_dir):
+		"""
+		List locked files.
+
+		Arguments:
+
+			remote_dir (str): path to a remote directory.
+
+		Returns:
+
+			list of str: list of relative paths to locked files.
+		"""
 		ls = self._list(remote_dir, recursive=False)
 		return [ file for file in ls if self.isLock(file) ]
 

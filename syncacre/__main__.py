@@ -4,7 +4,7 @@
 
 # Copyright (c) 2017, Institut Pasteur
 #   Contributor: François Laurent
-#   Contribution: -p option
+#   Contribution: -p option (initial support, without `try` block)
 
 import argparse
 import sys
@@ -60,7 +60,11 @@ def main(**args):
 			if start_or_restart:
 				print('syncacre is going to restart')
 				print(' please Ctrl+C now to prevent restart')
-				time.sleep(60)
+				try:
+					time.sleep(60)
+				except KeyboardInterrupt:
+					print('shutting down')
+					start_or_restart = False
 	return 0
 
 

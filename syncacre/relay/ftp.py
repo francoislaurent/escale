@@ -5,7 +5,7 @@
 from syncacre.base.essential import *
 from syncacre.base.ssl import *
 from syncacre.cli.auth import *
-from .relay import IRelay
+from .relay import Relay
 import ftplib
 import ssl
 import os
@@ -32,7 +32,7 @@ elif PYTHON_VERSION == 2:
 
 
 
-class FTP(IRelay):
+class FTP(Relay):
 	"""
 	Adds support for FTP remote hosts on top of the :mod:`ftplib` standard library.
 
@@ -70,7 +70,7 @@ class FTP(IRelay):
 			encoding='utf-8', account=None, keyfile=None, certfile=None, context=None,
 			certificate=None, verify_ssl=None, ssl_version=None,
 			client='', logger=None, ui_controller=None, **ignored):
-		IRelay.__init__(self, address, client=client, logger=logger,
+		Relay.__init__(self, address, client=client, logger=logger,
 				ui_controller=ui_controller)
 		self.username = username
 		self.password = password
@@ -220,6 +220,59 @@ class FTP(IRelay):
 		self.repository_root = None
 
 
+	def size(self, remote_file, fail=False):
+		remote_file = join(self._root, remote_file)
+		if self._size_needs_binary:
+			self.ftp.voidcmd('TYPE I') # set binary mode
+		if self._size_support is None:
+			def no_support_msg(sure=False):
+				if sure:
+					w = 'does'
+				else:
+					w = 'may'
+				return "server at '{}' {} not support 'SIZE' command".format(self.address, w)
+			size = None
+			while True: # should not iterate more than twice
+				try:
+					size = self.ftp.size(remote_file)
+				except ftplib.error_perm as e:
+					err_code = e.args[0][:3]
+					if err_code == '550':
+						# [vsftpd] 550 Could not get file size.
+						# [proftpd] 550 SIZE not allowed in ASCII mode
+						if 'ASCII' in e.args[0].split(): # proftpd
+							if not self._size_needs_binary:
+								self._size_needs_binary = True
+								self.ftp.voidcmd('TYPE I')
+								continue # try again
+						elif fail:
+							self.logger.critical("internal error: file '%s' does not exist",
+								remote_file)
+					elif err_code == '500':
+						# TODO: find a server without SIZE support and check error code
+						self.logger.info(no_support_msg(True))
+						if fail:
+							break # do not raise the exception again
+					else:
+						self.logger.info(no_support_msg())
+					if fail:
+						raise
+				break
+			self._size_support = size is not None
+		else:
+			try:
+				size = self.ftp.size(remote_file)
+			except ftplib.error_perm as e:
+				#err_code = e.args[0][:3]
+				#if err_code == '550':
+				#	# [proftpd] No such file or directory
+				if fail:
+					raise
+				else:
+					size = None
+		return size
+
+
 	def storageSpace(self):
 		used = None
 		if self.repository_root is not None and self._size_support is not False: # None is ok
@@ -229,38 +282,9 @@ class FTP(IRelay):
 					self.ftp.voidcmd('TYPE I') # set binary mode
 				f = 0
 				if self._size_support is None:
-					def no_support_msg(sure=False):
-						if sure:
-							w = 'does'
-						else:
-							w = 'may'
-						return "server at '{}' {} not support 'SIZE' command".format(self.address, w)
-					file = join(self._root, self.repository_root, files[f])
-					while True: # should not iterate more than twice
-						try:
-							used = self.ftp.size(file)
-						except ftplib.error_perm as e:
-							err_code = e.args[0][:3]
-							if err_code == '550':
-								# [vsftpd] 550 Could not get file size.
-								# [proftpd] 550 SIZE not allowed in ASCII mode
-								if 'ASCII' in e.args[0].split(): # proftpd
-									if not self._size_needs_binary:
-										self._size_needs_binary = True
-										self.ftp.voidcmd('TYPE I')
-										continue # try again
-								else:
-									self.logger.critical("internal error: file '%s' does not exist", file)
-							elif err_code == '500':
-								# TODO: find a server without SIZE support and check error code
-								self.logger.info(no_support_msg(True))
-								break # do not raise the exception again
-							else:
-								self.logger.info(no_support_msg())
-							raise
-						break
-					self._size_support = used is not None
-					f += 1
+					used = self.size(join(self.repository_root, files[f]), fail=True)
+					if self._size_support:
+						f += 1
 				if self._size_support:
 					if used is None:
 						used = 0
@@ -352,6 +376,15 @@ class FTP(IRelay):
 				*[ self._list(join(remote_dir, d), True, append=_join(d))
 					for d in dirs ]))
 		return files
+
+
+	def exists(self, remote_file, dirname=None):
+		if self._size_support:
+			if dirname:
+				remote_file = join(dirname, remote_file)
+			return 0 <= self.size(remote_file)
+		else:
+			return Relay.exists(self, remote_file, dirname=dirname)
 
 
 	def _push(self, local_file, remote_dest, makedirs=True):

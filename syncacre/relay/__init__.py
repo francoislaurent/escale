@@ -6,9 +6,10 @@
 #   Contributor: François Laurent
 #   Contribution: webdav try block
 
+from .info import *
 from .relay import AbstractRelay, Relay
 
-__all__ = ['AbstractRelay', 'Relay']
+__all__ = ['LockInfo', 'parse_lock_file', 'AbstractRelay', 'Relay']
 
 __protocols__ = []
 

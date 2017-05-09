@@ -7,6 +7,7 @@
 #   Contributions:
 #     * `filetype` argument and attribute
 #     * `filter` method
+#     * `UnrecoverableError` handling
 
 import time
 import calendar
@@ -62,6 +63,8 @@ class Manager(Reporter):
 		Reporter.__init__(self, **relay_args)
 		if path[-1] != '/':
 			path += '/'
+		if not directory or directory[0] != '/':
+			directory = '/' + directory
 		self.path = path
 		self.dir = directory
 		self.mode = mode
@@ -122,19 +125,24 @@ class Manager(Reporter):
 			raise
 		else:
 			self.logger.debug('connected')
+		# initial state
+		_check_sanity = True
+		_fresh_start = True
 		_last_error = None
-		fresh_start = True
 		new = False
 		while True:
 			try:
+				if _check_sanity:
+					self.sanityCheck()
+					_check_sanity = False
 				if self.mode is None or self.mode == 'download':
 					new |= self.download()
 				if self.mode is None or self.mode == 'upload':
 					new |= self.upload()
-				if fresh_start:
+				if _fresh_start:
 					if not new:
 						self.logger.info('repository is up to date')
-					fresh_start = False
+					_fresh_start = False
 				if self.refresh:
 					clock = Clock(self.refresh)
 					clock.wait(self.logger)
@@ -154,6 +162,8 @@ class Manager(Reporter):
 				_last_error_time = t
 				_last_trace = traceback.format_exc()
 				self.logger.critical(_last_trace)
+				_check_sanity = True # check again for corrupted files
+		# close and clear everything
 		try:
 			self.relay.close()
 		except:
@@ -161,6 +171,7 @@ class Manager(Reporter):
 			self.logger.debug(traceback.format_exc())
 		del self.relay # delete temporary files
 		del self.encryption # delete temporary files
+		# notify
 		if not isinstance(_last_error, KeyboardInterrupt):
 			# if last exception is not a keyboard interrupt
 			if self.ui_controller is not None:
@@ -188,6 +199,18 @@ class Manager(Reporter):
 			files = [ f for f in files if os.path.splitext(f)[1] in self.filetype ]
 		return files
 
+	def sanityCheck(self):
+		"""
+		Performs sanity checks and fixes the corrupted files.
+		"""
+		for lock in self.relay.listCorrupted(self.dir):
+			remote_file = os.path.relpath(lock.target, self.dir)
+			local_file = join(self.path, remote_file)
+			if not os.path.isfile(local_file):
+				local_file = None
+			self.logger.info("fixing uncomplete transfer: '%s'", remote_file)
+			self.relay.repair(lock, local_file)
+
 	def download(self):
 		"""
 		Finds out which files are to be downloaded and download them.
@@ -200,11 +223,11 @@ class Manager(Reporter):
 			remote_file = join(self.dir, filename)
 			last_modified = None
 			if self.timestamp:
-				placeholder = self.relay.getPlaceholder(remote_file)
-				if placeholder:
-					with open(placeholder, 'r') as f:
+				meta = self.relay.getMetaInfo(remote_file)
+				if meta:
+					with open(meta, 'r') as f:
 						last_modified = f.readline().rstrip()
-					os.unlink(placeholder)
+					os.unlink(meta)
 					last_modified = time.strptime(last_modified, self.timestamp)
 					last_modified = calendar.timegm(last_modified) # remote_mtime
 			if os.path.isfile(local_file):
@@ -247,19 +270,19 @@ class Manager(Reporter):
 				last_modified = time.strftime(self.timestamp, last_modified)
 				if filename in remote:
 					remote_file = join(self.dir, filename)
-					placeholder = self.relay.getPlaceholder(remote_file)
-					if placeholder:
-						with open(placeholder, 'r') as f:
+					meta = self.relay.getMetaInfo(remote_file)
+					if meta:
+						with open(meta, 'r') as f:
 							remote_mtime = f.readline().rstrip()
-						os.unlink(placeholder)
+						os.unlink(meta)
 						if remote_mtime:
 							remote_mtime = time.strptime(remote_mtime, self.timestamp)
 							remote_mtime = calendar.timegm(remote_mtime)
 							modified = remote_mtime < local_mtime
-						else: # placeholder is empty
+						else: # no meta information
 							modified = True
-							# this may not be true, but this will replace 
-							# the current placeholder with a valid one.
+							# this may not be true, but this will update the meta
+							# information with a valid content.
 					#else: (TODO) directly read mtime on remote copy?
 			else:
 				last_modified = None

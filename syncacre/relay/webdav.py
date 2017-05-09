@@ -5,6 +5,7 @@
 
 # Copyright (c) 2017, François Laurent
 #   new certificate verification feature
+#	`ls` extraction, `_last_ls` trick in `ls` and `listTransfered` in class `WebDAV`
 
 from syncacre.base.exceptions import *
 from syncacre.base.essential import *
@@ -127,7 +128,7 @@ class WebDAVClient(easywebdav.Client):
 							clock.wait(self.logger)
 						except StopIteration:
 							self.logger.error('too many connection attempts')
-							raise
+							raise e
 					else:
 						break
 		except requests.exceptions.SSLError as e:
@@ -150,7 +151,7 @@ class WebDAVClient(easywebdav.Client):
 					self.logger.error("access to '%s%s' forbidden", self.url, path)
 				elif e.actual_code == 423: # 423 Locked
 					self.logger.error("resource '%s%s' locked", self.url, path)
-			raise
+			raise e
 		return self._response
 
 
@@ -178,14 +179,11 @@ class WebDAVClient(easywebdav.Client):
 		else:
 			with open(local_path, 'wb') as f:
 				self._download(f, response)
-			try:
-				response.close()
-			except:
-				print('no need to close response')
+			response.close()
 
-	def exists(self, remote_path):
+	def exists(self, remote_file):
 		try:
-			return easywebdav.Client.exists(self, remote_path)
+			return easywebdav.Client.exists(self, quote(asstr(remote_file)))
 		except easywebdav.OperationFailed as e:
 			if e.actual_code == 423: # '423 Locked', therefore it exists!
 				return True
@@ -303,15 +301,14 @@ class WebDAV(Relay):
 			self._used_space = float(self._used_space) / 1048576 # in MB
 		return (self._used_space, None)
 
-	def hasPlaceholder(self, remote_file):
-		return self.webdav.exists(self.placeholder(remote_file))
+	def exists(self, remote_file, dirname=None):
+		if dirname:
+			self.webdav.cd(dirname)
+		return self.webdav.exists(remote_file)
 
-	def hasLock(self, remote_file):
-		return self.webdav.exists(self.lock(remote_file))
-
-	def _list(self, remote_dir, recursive=True, begin=None, storage_space=False):
-		if not remote_dir:
-			remote_dir = '.' # easywebdav default
+	def ls(self, remote_dir):
+		if hasattr(self, '_last_ls') and self._last_ls is not None:
+			return self._last_ls
 		try:
 			ls = self.webdav.ls(remote_dir)
 		except easywebdav.OperationFailed as e:
@@ -322,6 +319,14 @@ class WebDAV(Relay):
 					self.logger.error("easywebdav.Client.ls('%s') failed", remote_dir)
 					self.logger.debug(traceback.format_exc())
 			return []
+		else:
+			self._last_ls = ls
+			return ls
+
+	def _list(self, remote_dir, recursive=True, begin=None, storage_space=False):
+		if not remote_dir:
+			remote_dir = '.' # easywebdav default
+		ls = self.ls(remote_dir)
 		if begin is None:
 			if remote_dir[0] != '/':
 				remote_dir = '/' + remote_dir
@@ -349,6 +354,11 @@ class WebDAV(Relay):
 					and os.path.split(d[:-1])[1][0] != '.' ]))
 		#print(('WebDAV._list: remote_dir, files', remote_dir, files))
 		return files
+
+	def listTransfered(self, *args, **kwargs):
+		ls = Relay.listTransfered(self, *args, **kwargs)
+		self._last_ls = None
+		return ls
 
 	def _push(self, local_file, remote_file, makedirs=True):
 		# webdav destination should be a path to file

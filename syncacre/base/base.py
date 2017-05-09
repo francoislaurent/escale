@@ -2,6 +2,10 @@
 
 # Copyright (c) 2017, François Laurent
 
+# Copyright (c) 2017, Institut Pasteur
+#   Contributor: François Laurent
+#   Contribution: UnrecoverableError
+
 import logging, logging.handlers, logging.config
 from multiprocessing import Process, Queue
 import threading

@@ -42,7 +42,7 @@ def asstr(s):
 
 
 
-def join(*args):
+def join(dirname, *args):
 	'''
 	Call :func:`os.path.join` on properly coerced arguments.
 
@@ -56,7 +56,8 @@ def join(*args):
 
 		str: full path as expected from ``os.path.join(dirname, basename)``.
 	'''
-	return os.path.join(*[ asstr(s) for s in args ])
+	args = [ s[1:] if s and s[0] == '/' else s for s in args ]
+	return os.path.join(asstr(dirname), *[ asstr(s) for s in args ])
 
 
 
