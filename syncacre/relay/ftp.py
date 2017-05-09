@@ -14,6 +14,24 @@ import traceback
 
 
 
+if PYTHON_VERSION == 3:
+	class _FTP_TLS(ftplib.FTP_TLS):
+		"""Explicit FTPS, with shared TLS session.
+
+		This code is borrowed from http://stackoverflow.com/questions/14659154/ftpes-session-reuse-required#26452738
+		"""
+		def ntransfercmd(self, cmd, rest=None):
+			conn, size = ftplib.FTP.ntransfercmd(self, cmd, rest)
+			if self._prot_p:
+				conn = self.context.wrap_socket(conn,
+					server_hostname=self.host,
+					session=self.sock.session) # this is the fix
+			return conn, size
+elif PYTHON_VERSION == 2:
+	_FTP_TLS = ftplib.FTP_TLS
+
+
+
 class FTP(IRelay):
 	"""
 	Adds support for FTP remote hosts on top of the :mod:`ftplib` standard library.
@@ -78,6 +96,8 @@ class FTP(IRelay):
 				self.context = ssl_version
 			else:
 				self.context = ssl.SSLContext(ssl_version)
+		# note from https://docs.python.org/2/library/ssl.html#ssl-security :
+		# > In client mode, CERT_OPTIONAL and CERT_REQUIRED are equivalent unless anonymous ciphers are enabled (they are disabled by default).
 		if verify_ssl is None:
 			if self.context is not None:
 				self.context.verify_mode = ssl.CERT_OPTIONAL
@@ -169,7 +189,7 @@ class FTP(IRelay):
 	def open(self):
 		self.ftp = None
 		if self.protocol is None or self.protocol == 'ftps':
-			self.ftp = ftplib.FTP_TLS(self.address,
+			self.ftp = _FTP_TLS(self.address,
 					certfile=self.certfile, keyfile=self.keyfile, context=self.context)
 			if self.login():
 				self.ftp.prot_p()
@@ -307,7 +327,10 @@ class FTP(IRelay):
 				err_code = e.args[0][:3]
 				if err_code == '522': # [vsftpd] 522 SSL connection failed: session reuse required
 					self.logger.error("%s", e.args[0])
-					self.logger.info("if the running FTP server is vsftpd, \n\tthis error can be fixed adding the line 'require_ssl_reuse=NO' to '/etc/vsftpd.conf'")
+					if PYTHON_VERSION == 2:
+						self.logger.info("if the running FTP server is vsftpd, \n\tthis error can be fixed adding the line 'require_ssl_reuse=NO' to '/etc/vsftpd.conf'")
+						self.logger.info(" another solution consists of switching to Python 3.6+")
+					# the _FTP_TLS fix is supposed to solve this vsftpd issue
 				raise
 			for line in ls:
 				parts = line.split(None, self._filename_in_list + 1)

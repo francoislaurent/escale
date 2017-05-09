@@ -9,5 +9,14 @@ dist/
 build/
 _build/
 
+# test material should be manually added
+test/
+
 # anything hidden should be manually added
 .*
+
+# logs
+*.log
+
+# keys
+*.pem
