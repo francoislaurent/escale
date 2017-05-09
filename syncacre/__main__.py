@@ -11,6 +11,7 @@ import sys
 import os
 
 import logging
+import time
 
 from syncacre.base import *
 from syncacre.cli.config import *
@@ -49,11 +50,17 @@ def main(**args):
 	launcher_args = (args['config'], msgs, not args['quiet'])
 	# spawn syncacre subprocess(es)
 	if args['daemon']:
-		pwd = os.getcwd()
-		with daemon.DaemonContext(working_directory=pwd):
+		with daemon.DaemonContext(working_directory=os.getcwd()):
 			syncacre_launcher(*launcher_args)
 	else:
-		syncacre_launcher(*launcher_args)
+		start_or_restart = True
+		while start_or_restart:
+			syncacre_launcher(*launcher_args)
+			start_or_restart = args['auto_restart']
+			if start_or_restart:
+				print('syncacre is going to restart')
+				print(' please Ctrl+C now to prevent restart')
+				time.sleep(60)
 	return 0
 
 
@@ -68,6 +75,7 @@ if __name__ == '__main__':
 	parser.add_argument('-i', '--interactive', action='store_true', help='asks questions to fill in an extra section in the configuration file')
 	parser.add_argument('-q', '--quiet', action='store_true', help='runs silently')
 	parser.add_argument('-p', '--disable-proxy', action='store_true', help='disables proxies [deprecated]')
+	parser.add_argument('-r', '--auto-restart', action='store_true', help='restart syncacre when it crashed [only in non-daemon mode]')
 
 	args = parser.parse_args()
 	exit_code = main(**args.__dict__)
