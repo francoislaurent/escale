@@ -5,7 +5,6 @@
 
 # Copyright (c) 2017, François Laurent
 #   new certificate verification feature
-#	`ls` extraction, `_last_ls` trick in `ls` in class `WebDAV`
 
 from syncacre.base.exceptions import *
 from syncacre.base.essential import *
@@ -307,10 +306,10 @@ class WebDAV(Relay):
 		return self.webdav.exists(remote_file)
 
 	def ls(self, remote_dir):
-		if hasattr(self, '_last_ls') and self._last_ls is not None:
-			ls = self._last_ls
-			self._last_ls = None
-			return ls
+		#if hasattr(self, '_last_ls') and self._last_ls is not None:
+		#	ls = self._last_ls
+		#	self._last_ls = None
+		#	return ls
 		try:
 			ls = self.webdav.ls(remote_dir)
 		except easywebdav.OperationFailed as e:
