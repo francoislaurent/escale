@@ -431,7 +431,7 @@ class Relay(AbstractRelay):
 		The default implementation manipulates locks as individual files.
 		"""
 		if not self.client:
-			return self.listReady(remote_dir, recursive=recursive)
+			return []
 		ls = self._list(remote_dir, recursive=recursive)
 		locks = []
 		for file in ls:
@@ -484,28 +484,36 @@ class Relay(AbstractRelay):
 		raise NotImplementedError('abstract method')
 
 	def touch(self, remote_file, content=None):
-		local_file = self.newTemporaryFile()
-		with open(local_file, 'w') as f:
-			if content:
-				if isinstance(content, list):
-					nlines = len(content)
-					for lineno, line in enumerate(content):
-						f.write(asstr(line))
-						if lineno + 1 < nlines:
-							f.write('\n')
-				else:
-					f.write(asstr(content))
-		self._push(local_file, remote_file)
-		self.delTemporaryFile(local_file)
+		#local_file = self.newTemporaryFile()
+		local_file = tempfile.mkstemp()[1]
+		try:
+			with open(local_file, 'w') as f:
+				if content:
+					if isinstance(content, list):
+						nlines = len(content)
+						for lineno, line in enumerate(content):
+							f.write(asstr(line))
+							if lineno + 1 < nlines:
+								f.write('\n')
+					else:
+						f.write(asstr(content))
+			self._push(local_file, remote_file)
+		finally:
+			os.unlink(local_file)
+		#self.delTemporaryFile(local_file)
 
 	def unlink(self, remote_file):
-		trash = self.newTemporaryFile()
-		if isinstance(remote_file, list):
-			for file in remote_file:
-				self._pop(file, trash)
-		else:
-			self._pop(remote_file, trash)
-		self.delTemporaryFile(trash)
+		#trash = self.newTemporaryFile()
+		trash = tempfile.mkstemp()[1]
+		try:
+			if isinstance(remote_file, list):
+				for file in remote_file:
+					self._pop(file, trash)
+			else:
+				self._pop(remote_file, trash)
+		finally:
+			os.unlink(trash)
+		#self.delTemporaryFile(trash)
 
 	def hasPlaceholder(self, remote_file):
 		"""
@@ -714,6 +722,8 @@ class Relay(AbstractRelay):
 		if placeholder:
 			if has_placeholder:
 				self.markAsRead(remote_file, **kwargs)
+				if 1 < placeholder: # or similarly: if 'local_placeholder' in kwargs:
+					self.delTemporaryFile(local_placeholder)
 			else:
 				self.updatePlaceholder(remote_file)
 		self.releaseLock(remote_file)
@@ -776,6 +786,10 @@ class Relay(AbstractRelay):
 			if not self.exists(remote_file):
 						# delete the placeholder to request the file again
 						self.releasePlace(remote_file)
+		else: # old-style lock?
+			if self.exists(remote_file):
+				self.unlink(remote_file)
+			self.releasePlace(remote_file)
 		# release the lock
 		self.releaseLock(remote_file)
 

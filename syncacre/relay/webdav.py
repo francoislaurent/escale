@@ -318,10 +318,14 @@ class WebDAV(Relay):
 					raise
 				else:
 					self.logger.error("easywebdav.Client.ls('%s') failed", remote_dir)
-					self.logger.debug(traceback.format_exc())
+					if e.actual_code in [504]: # common errors
+						# 504 Gateway Timeout
+						self.logger.debug("%s", e)
+					else:
+						self.logger.debug(traceback.format_exc())
 			return []
 		else:
-			self._last_ls = ls
+			#self._last_ls = ls
 			return ls
 
 	def _list(self, remote_dir, recursive=True, begin=None, storage_space=False):

@@ -11,7 +11,6 @@ import syncacre
 install_requires = []
 extra_requires = {
 	'WebDAV':	['easywebdav'],
-# the SSH feature may not be introduced ever
 #	'SSH':		['paramiko'],
 	'Blowfish':	['cryptography'],
 	'Fernet':	['cryptography']}
@@ -19,13 +18,14 @@ extra_requires = {
 if sys.version_info[0] == 3: # Python 3
 	try:
 		import blowfish
+	except ImportError:
+		pass
+	else:
 		extra_requires['Blowfish'] = []
 		# Since `blowfish` is already available, the `cryptography` dependency is removed.
 		# However, if `cryptography` is eventually available and 'Blowfish' requested,
 		# `cryptography` may prevail instead of `blowfish` (or not).
 		# See `syncacre.cryptography.blowfish` for more information.
-	except ImportError:
-		pass
 
 
 #pwd = path.abspath(path.dirname(__file__))

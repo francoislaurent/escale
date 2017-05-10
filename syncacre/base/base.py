@@ -123,7 +123,7 @@ def syncacre(config, repository, log_handler=None, ui_connector=None):
 	if 'encryption' in args:
 		if isinstance(args['encryption'], bool):
 			if args['encryption']:
-				cipher = encryption.Fernet
+				cipher = encryption.by_cipher('fernet')
 			else:
 				cipher = None
 		else:
@@ -131,16 +131,16 @@ def syncacre(config, repository, log_handler=None, ui_connector=None):
 				cipher = encryption.by_cipher(args['encryption'])
 			except KeyError:
 				cipher = None
-				msg = ("unsupported encryption algorithm '%s'", args['encryption'])
-				logger.warning(*msg)
+				msg = "unsupported encryption algorithm '{}'".format(args['encryption'])
+				logger.warning(msg)
 				# do not let the user send plain data if she requested encryption:
-				raise ValueError(*msg)
+				raise ValueError(msg)
 		if cipher is not None and 'passphrase' not in args:
 			cipher = None
-			msg = ('missing passphrase; cannot encrypt',)
-			logger.warning(*msg)
+			msg = 'missing passphrase; cannot encrypt'
+			logger.warning(msg)
 			# again, do not let the user send plain data if she requested encryption:
-			raise ValueError(*msg)
+			raise ValueError(msg)
 		if cipher is None:
 			del args['encryption']
 		else:
@@ -219,7 +219,7 @@ def syncacre_launcher(cfg_file, msgs=[], verbosity=logging.NOTSET, daemon=None):
 		try:
 			for worker in workers:
 				worker.join()
-		except (KeyboardInterrupt, UnrecoverableError):
+		except KeyboardInterrupt:
 			for worker in workers:
 				worker.terminate()
 		ui_controller.abort()

@@ -1,6 +1,6 @@
 # Syncacre
 
-Syncacre is a client-to-client synchronization program based on external relay storage (French: SYNchronisation Client-À-Client par RElai)
+Syncacre is a fault-tolerant client-to-client synchronization program based on external relay storage (French: SYNchronisation Client-À-Client par RElai)
 
 Files can be transfered between nodes with no administration privileges. All nodes are clients. Consequently they can operate from behind restrictive firewalls.
 
@@ -17,6 +17,13 @@ Find the extended documentation at [syncacre.readthedocs.io](http://syncacre.rea
 
 
 ## Changelog:
+
+* `0.4.2`:
+
+  * new lock format with version and access mode information
+  * auto-repair for uncomplete transfers
+  * ``pattern``/``filter`` configuration option to filter filenames by regular expression
+  * ``-r`` command-line option for auto-restart when unrecoverable errors are hit
 
 * `0.4.1`:
 

@@ -3,20 +3,21 @@
 # Copyright (c) 2017, François Laurent
 
 backends = {}
+extra_backends = {}
 
 try:
 	from .blowfish import Blowfish
 except ImportError:
-	pass
+	extra_backends['blowfish'] = 'blowfish'
 else:
 	backends['blowfish'] = Blowfish
 
 try:
 	from .cryptography import Blowfish # last is default
 except ImportError:
-	pass
+	extra_backends['cryptography'] = 'cryptography'
 else:
 	backends['cryptography'] = Blowfish
 
-__all__ = ['Blowfish', 'backends']
+__all__ = ['Blowfish', 'backends', 'extra_backends']
 

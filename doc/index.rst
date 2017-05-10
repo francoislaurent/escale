@@ -1,7 +1,7 @@
 SynCÀCRe documentation
 ======================
 
-|syncacre| is a client-to-client synchronization program based on external relay storage (French: SYNchronisation Client-À-Client par RElai)
+|syncacre| is a fault-tolerant client-to-client synchronization program based on external relay storage (French: SYNchronisation Client-À-Client par RElai)
 
 Files can be transfered between nodes with no administration privileges. All nodes are clients. Consequently they can operate from behind restrictive firewalls.
 
@@ -95,6 +95,7 @@ Other parameters are:
 * ``verify ssl``: boolean that defines whether to check the remote host's certificate
 * ``ssl version``: either ``SSLv2``, ``SSLv3``, ``SSLv23``, ``TLS``, ``TLSv1``, ``TLSv1.1`` or ``TLSv1.2``
 * ``file extension`` (or ``file type``): a comma-separated list of file extensions (with or without the initial dot)
+* ``pattern`` or ``filter``: a regular expression to filter file by names
 * ``disk quota``: a decimal number with storage space units such as ``KB``, ``MB``, ``GB``, etc
 * ``maintainer``: an email address; if a client aborts and an SMTP server is available on the client machine, a notice email can be sent to this address
 

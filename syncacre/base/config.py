@@ -38,6 +38,7 @@ default_conf_files = [ os.path.join(d, default_filename) for d in default_cfg_di
 # 'maintainer' added in version 0.4.1a1
 # 'quota' added in version 0.4.1a2
 # 'certfile' and 'keyfile' added in version 0.4.1
+# 'pattern' added in version 0.4.2a4
 fields = dict(path=('path', ['local path', 'path']),
 	address=['host address', 'relay address', 'remote address', 'address'],
 	directory=['host directory', 'relay directory', 'remote directory',
@@ -57,6 +58,7 @@ fields = dict(path=('path', ['local path', 'path']),
 	ssl_version=['ssl version'],
 	verify_ssl=('bool', ['verify ssl']),
 	filetype=('list', ['file extension', 'file type']),
+	pattern=['pattern', 'filter'],
 	quota=('number_unit', ['disk quota']),
 	maintainer=['maintainer', 'email'],
 	certfile=('path', ['certfile', 'cert file', 'certificate']),

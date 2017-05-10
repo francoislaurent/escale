@@ -6,7 +6,7 @@
 #   Contributor: François Laurent
 #   Contributions:
 #     * `filetype` argument and attribute
-#     * `filter` method
+#     * initial `filter` method (without `pattern` support)
 #     * `UnrecoverableError` handling
 
 import time
@@ -15,6 +15,7 @@ import os
 import sys
 import traceback
 import itertools
+import re
 from syncacre.base import (PYTHON_VERSION,
 	UnrecoverableError,
 	join,
@@ -53,13 +54,15 @@ class Manager(Reporter):
 
 		filetype (list of str): list of file extensions.
 
+		pattern (str): regular expression to filter files by name.
+
 		pop_args (dict): extra keyword arguments for 
 			:meth:`~syncacre.relay.AbstractRelay.pop`.
 
 	"""
 	def __init__(self, relay, address=None, path=None, directory=None, mode=None, \
 		encryption=Plain(None), timestamp=True, refresh=True, clientname=None, \
-		filetype=[], quota=None, **relay_args):
+		filetype=[], pattern=None, quota=None, **relay_args):
 		Reporter.__init__(self, **relay_args)
 		if path[-1] != '/':
 			path += '/'
@@ -80,6 +83,13 @@ class Manager(Reporter):
 					for f in filetype ]
 		else:
 			self.filetype = []
+		self.pattern = None
+		if pattern:
+			try:
+				self.pattern = re.compile(pattern)
+			except:
+				self.logger.error("wrong filename pattern '%s'", pattern)
+				self.logger.debug(traceback.format_exc())
 		if isinstance(quota, tuple):
 			value, unit = quota
 			if unit:
@@ -151,6 +161,10 @@ class Manager(Reporter):
 			except KeyboardInterrupt as e:
 				_last_error = e
 				break
+			except UnrecoverableError as e:
+				_last_error = e
+				_last_trace = traceback.format_exc()
+				break
 			except Exception as e:
 				t = time.time()
 				if _last_error is None:
@@ -179,6 +193,7 @@ class Manager(Reporter):
 			if isinstance(_last_error, UnrecoverableError):
 				self.logger.critical("unrecoverable error:")
 				self.logger.critical(" %s", _last_error.args[0])
+				self.logger.critical(" %s", _last_trace)
 				self.logger.critical("the Python environment should be reset")
 				raise _last_error # so that syncacre main process can signal the other processes
 
@@ -197,6 +212,8 @@ class Manager(Reporter):
 		"""
 		if self.filetype:
 			files = [ f for f in files if os.path.splitext(f)[1] in self.filetype ]
+		if self.pattern:
+			files = [ f for f in files if self.pattern.match(os.path.basename(f)) ]
 		return files
 
 	def sanityCheck(self):
@@ -260,9 +277,9 @@ class Manager(Reporter):
 		new = False
 		for local_file in local:
 			filename = local_file[len(self.path):] # relative path
-			if PYTHON_VERSION == 2 and isinstance(filename, unicode) and \
-				remote and isinstance(remote[0], str):
-				filename = filename.encode('utf-8')
+			#if PYTHON_VERSION == 2 and isinstance(filename, unicode) and \
+			#	remote and isinstance(remote[0], str):
+			#	filename = filename.encode('utf-8')
 			modified = False # if no remote copy, this is ignored
 			if self.timestamp: # check file last modification time
 				local_mtime = floor(os.path.getmtime(local_file))

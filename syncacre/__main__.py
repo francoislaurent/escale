@@ -50,21 +50,32 @@ def main(**args):
 	launcher_args = (args['config'], msgs, not args['quiet'])
 	# spawn syncacre subprocess(es)
 	if args['daemon']:
+		# TODO: handle 'auto_restart'
 		with daemon.DaemonContext(working_directory=os.getcwd()):
 			syncacre_launcher(*launcher_args)
 	else:
-		start_or_restart = True
-		while start_or_restart:
-			syncacre_launcher(*launcher_args)
-			start_or_restart = args['auto_restart']
-			if start_or_restart:
-				print('syncacre is going to restart')
-				print(' please Ctrl+C now to prevent restart')
+		while True:
+			try:
+				syncacre_launcher(*launcher_args)
+			except KeyboardInterrupt:
+				# keyboard interrupts are actually handled in `syncacre_launcher`
+				break
+			except UnrecoverableError:
+				pass # already documented
+			except:
+				import traceback
+				print(traceback.format_exc())
+			else:
+				break
+			if args['auto_restart']:
+				print(' syncacre is going to restart in 60 seconds')
+				print('   hit Ctrl+C now to prevent restart')
 				try:
 					time.sleep(60)
+					continue
 				except KeyboardInterrupt:
-					print('shutting down')
-					start_or_restart = False
+					print(' shutting down')
+			break
 	return 0
 
 
