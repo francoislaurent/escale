@@ -277,9 +277,9 @@ class Manager(Reporter):
 		new = False
 		for local_file in local:
 			filename = local_file[len(self.path):] # relative path
-			#if PYTHON_VERSION == 2 and isinstance(filename, unicode) and \
-			#	remote and isinstance(remote[0], str):
-			#	filename = filename.encode('utf-8')
+			if PYTHON_VERSION == 2 and isinstance(filename, unicode) and \
+				remote and isinstance(remote[0], str):
+				filename = filename.encode('utf-8')
 			modified = False # if no remote copy, this is ignored
 			if self.timestamp: # check file last modification time
 				local_mtime = floor(os.path.getmtime(local_file))
