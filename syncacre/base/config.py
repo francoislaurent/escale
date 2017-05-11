@@ -318,3 +318,8 @@ def crawl_config(fun, config=None):
 	else:
 		return crawl
 
+
+def get_run_dir(config, section):
+	# not implemented
+	return None
+

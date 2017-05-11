@@ -57,7 +57,7 @@ def main(**args):
 		while True:
 			try:
 				syncacre_launcher(*launcher_args)
-			except KeyboardInterrupt:
+			except (KeyboardInterrupt, SystemExit):
 				# keyboard interrupts are actually handled in `syncacre_launcher`
 				break
 			except UnrecoverableError:

@@ -221,7 +221,7 @@ class AbstractRelay(Reporter):
 			lock (LockInfo): lock information for the corrupted file; the `target`
 				attribute refers to the file on the remote host.
 
-			local_file (str or None): absolute path to the local copy of the remote 
+			local_file (syncacre.manager.Accessor): absolute path to the local copy of the remote 
 				file, if any.
 		"""
 		raise NotImplementedError('abstract method')
@@ -561,7 +561,7 @@ class Relay(AbstractRelay):
 		local_lock = tempfile.mkstemp()[1]
 		try:
 			self._get(remote_lock, local_lock)
-		except KeyboardInterrupt:
+		except (KeyboardInterrupt, SystemExit):
 			raise
 		except:
 			info = LockInfo()
@@ -600,7 +600,13 @@ class Relay(AbstractRelay):
 		"""
 		This method treats placeholders as files.
 		"""
+		#try:
 		self.unlink(self.placeholder(remote_file))
+		#except (KeyboardInterrupt, SystemExit):
+		#	raise
+		#except Exception as e: # not found?
+		#	self.logger.warning("cannot not find placeholder for file: '%s'", remote_file)
+		#	self.logger.debug("%s", e)
 
 	def acquireLock(self, remote_file, mode=None, blocking=True):
 		"""
@@ -762,27 +768,27 @@ class Relay(AbstractRelay):
 	def repair(self, lock, local_file):
 		remote_file = lock.target
 		if lock.mode == 'w':
-			if local_file is None:
-				self.logger.error("could not find local file '%s'", local_file)
+			if not local_file.exists():
+				self.logger.error("could not find local file")# '%s'", local_file)
 				self.logger.debug("clearing related remote files")
 				# this is actually the default behavior
 			if self.exists(remote_file):
 				# do not take any risk; size is not a reliable indicator
 				#remote_size = self.size(remote_file)
-				#local_size = os.path.getsize(local_file)
+				#local_size = local_file.size()
 				#if remote_size != local_size:
 					self.unlink(remote_file)
 			# delete the placeholder to send the file again
 			self.releasePlace(remote_file)
 		elif lock.mode == 'r':
-			if local_file:
+			if local_file.exists():
 				# TODO: check modification time
 				# do not take any risk; size is not a reliable indicator
 				#remote_size = self.size(remote_file)
 				#if remote_size is not None:
-				#	local_size = os.path.getsize(local_file)
+				#	local_size = local_file.size()
 				#	if local_size != remote_size:
-						os.unlink(local_file)
+						local_file.delete()
 			if not self.exists(remote_file):
 						# delete the placeholder to request the file again
 						self.releasePlace(remote_file)

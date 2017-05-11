@@ -45,6 +45,8 @@ else:
 	basestring = basestring
 
 
+timeout_error_codes = [504]
+
 
 class WebDAVClient(easywebdav.Client):
 	"""
@@ -108,7 +110,9 @@ class WebDAVClient(easywebdav.Client):
 				while True:
 					try:
 						self._response = easywebdav.Client._send(self, *args, **kwargs)
-					except requests.exceptions.ConnectionError as e:
+					except requests.exceptions.Timeout as e:
+						# changed in 0.4.2: ConnectionError -> Timeout
+						_last_error = e
 						info = e.args
 						# extract information from (a certain type of) ConnectionErrors
 						try:
@@ -122,14 +126,20 @@ class WebDAVClient(easywebdav.Client):
 								except IndexError:
 									pass
 						self.logger.warn("%s", info)
-						# wait
-						try:
-							clock.wait(self.logger)
-						except StopIteration:
-							self.logger.error('too many connection attempts')
-							raise e
+					except easywebdav.OperationFailed as e:
+						_last_error = e
+						if e.actual_code in timeout_error_codes:
+							self.logger.debug("%s", e)
+						else:
+							raise
 					else:
 						break
+					# wait
+					try:
+						clock.wait(self.logger)
+					except StopIteration:
+						self.logger.error('too many connection attempts')
+						raise _last_error
 		except requests.exceptions.SSLError as e:
 			try:
 				errno = e.args[0].args[0].args[0]
@@ -141,6 +151,12 @@ class WebDAVClient(easywebdav.Client):
 					raise UnrecoverableError(e.args[0])
 			raise e
 		except easywebdav.OperationFailed as e:
+			# log timeout errors (if not already done)
+			if self.max_retry is None:
+				if e.actual_code in timeout_error_codes:
+					self.logger.debug("%s", e)
+					raise
+			# log 403 and 423 errors
 			try:
 				path = e.args[1]
 			except:
@@ -149,7 +165,7 @@ class WebDAVClient(easywebdav.Client):
 				if e.actual_code == 403:
 					self.logger.error("access to '%s%s' forbidden", self.url, path)
 				elif e.actual_code == 423: # 423 Locked
-					self.logger.error("resource '%s%s' locked", self.url, path)
+					self.logger.debug("resource '%s%s' locked", self.url, path)
 			raise e
 		return self._response
 
@@ -174,7 +190,8 @@ class WebDAVClient(easywebdav.Client):
 		except easywebdav.OperationFailed as e:
 			if e.actual_code == 404:
 				self.logger.warning("the file is no longer available")
-				self.logger.debug(traceback.format_exc())
+				#self.logger.debug(traceback.format_exc()) # traceback will be logged by manager
+			raise
 		else:
 			with open(local_path, 'wb') as f:
 				self._download(f, response)
@@ -184,7 +201,7 @@ class WebDAVClient(easywebdav.Client):
 		try:
 			return easywebdav.Client.exists(self, quote(asstr(remote_file)))
 		except easywebdav.OperationFailed as e:
-			if e.actual_code == 423: # '423 Locked', therefore it exists!
+			if e.actual_code == 423: # '423 Locked', therefore it exists
 				return True
 			else:
 				raise
@@ -317,11 +334,8 @@ class WebDAV(Relay):
 				if e.actual_code == 403:
 					raise
 				else:
-					self.logger.error("easywebdav.Client.ls('%s') failed", remote_dir)
-					if e.actual_code in [504]: # common errors
-						# 504 Gateway Timeout
-						self.logger.debug("%s", e)
-					else:
+					self.logger.warning("easywebdav.Client.ls('%s') failed", remote_dir)
+					if e.actual_code not in timeout_error_codes:
 						self.logger.debug(traceback.format_exc())
 			return []
 		else:

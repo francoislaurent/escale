@@ -10,6 +10,16 @@ This package defines an interface to a remote host as called by :class:`~syncacr
     :show-inheritance:
 
 
+syncacre.relay.info module
+--------------------------
+
+.. automodule:: syncacre.relay.info
+    :members:
+    :private-members:
+    :undoc-members:
+    :show-inheritance:
+
+
 syncacre.relay.relay module
 ---------------------------
 

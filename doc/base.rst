@@ -19,6 +19,15 @@ syncacre.base.essential module
     :show-inheritance:
 
 
+syncacre.base.exceptions module
+-------------------------------
+
+.. automodule:: syncacre.base.exceptions
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+
 syncacre.base.timer module
 --------------------------
 

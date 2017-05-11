@@ -10,6 +10,7 @@ SYNCACRE_NAME = 'syncacre'
 PYTHON_VERSION = sys.version_info[0]
 
 
+# this symbols are deprecated since the introduction of `asstr`
 if PYTHON_VERSION == 2:
 	binary_type = str
 	text_type = unicode
@@ -22,8 +23,8 @@ def asstr(s):
 	'''
 	Coerce string to ``str`` type.
 
-	In Python 2, `s` can be of type `str` or `unicode`.
-	In Python 3, `s` can be of type `bytes` or `str`.
+	In Python 2, `s` can be of type ``str`` or ``unicode``.
+	In Python 3, `s` can be of type ``bytes`` or ``str``.
 
 	Arguments:
 
@@ -42,22 +43,27 @@ def asstr(s):
 
 
 
-def join(dirname, *args):
+def join(dirname, *extranames):
 	'''
-	Call :func:`os.path.join` on properly coerced arguments.
+	Combine path elements similarly to :func:`os.path.join`.
+	
+	Arguments are properly coerced and the extra path elements are
+	considered relative even if they begin with a file separator.
+
+	Only slashes (``/``) are considered as valid file separators.
 
 	Arguments:
 
 		dirname (str-like): directory name.
 
-		basename (str-like): file name.
+		extraname (str-like): subdirectory or file name.
 
 	Returns:
 
-		str: full path as expected from ``os.path.join(dirname, basename)``.
+		str: full path.
 	'''
-	args = [ s[1:] if s and s[0] == '/' else s for s in args ]
-	return os.path.join(asstr(dirname), *[ asstr(s) for s in args ])
+	extranames = [ s[1:] if s and s[0] in '/' else s for s in extranames ]
+	return os.path.join(asstr(dirname), *[ asstr(s) for s in extranames ])
 
 
 

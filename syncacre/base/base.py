@@ -6,6 +6,7 @@
 #   Contributor: François Laurent
 #   Contribution: UnrecoverableError
 
+
 import logging, logging.handlers, logging.config
 from multiprocessing import Process, Queue
 import threading
@@ -19,7 +20,7 @@ from .essential import *
 from .config import *
 from syncacre.log import *
 import syncacre.relay as relay
-from syncacre.manager import Manager
+from syncacre.manager import Manager, PermissionController
 import syncacre.encryption as encryption
 from syncacre.cli.controller import DirectController, UIController
 
@@ -54,10 +55,11 @@ def syncacre(config, repository, log_handler=None, ui_connector=None):
 		ui_controller.logger = logger
 	# parse config
 	args = parse_fields(config, repository, fields, logger)
-	if 'path' not in args:
-		msg = 'no local repository defined'
-		logging.error(msg)
-		raise KeyError(msg)
+	# local repository
+	lr_controller = PermissionController(repository,
+			rundir=get_run_dir(config, repository),
+			ui_controller=ui_controller, **args)
+	# remote repository
 	try:
 		_protocol, args['address'], _port, _directory = parse_address(args['address'])
 	except KeyError:
@@ -107,15 +109,6 @@ def syncacre(config, repository, log_handler=None, ui_connector=None):
 			except ValueError:
 				logger.error("cannot read login information from credential file '%s'", args['password'])
 				del args['password']
-	# set operating mode
-	if args.pop('push_only', False):
-		if args.pop('pull_only', False):
-			logger.warning('both read only and write only; cannot determine mode')
-			return
-		else:
-			args['mode'] = 'upload'
-	elif args.pop('pull_only', False):
-		args['mode'] = 'download'
 	# parse encryption algorithm and passphrase
 	if 'passphrase' in args and os.path.isfile(args['passphrase']):
 		with open(args['passphrase'], 'rb') as f:
@@ -153,7 +146,7 @@ def syncacre(config, repository, log_handler=None, ui_connector=None):
 	elif PYTHON_VERSION == 2:
 		args['config'] = (config, repository)
 	manager = Manager(relay.by_protocol(protocol), protocol=protocol,
-			ui_controller=ui_controller, **args)
+			ui_controller=ui_controller, repository=lr_controller, **args)
 	manager.run()
 
 
@@ -219,7 +212,7 @@ def syncacre_launcher(cfg_file, msgs=[], verbosity=logging.NOTSET, daemon=None):
 		try:
 			for worker in workers:
 				worker.join()
-		except KeyboardInterrupt:
+		except (KeyboardInterrupt, SystemExit):
 			for worker in workers:
 				worker.terminate()
 		ui_controller.abort()

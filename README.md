@@ -6,7 +6,7 @@ Files can be transfered between nodes with no administration privileges. All nod
 
 All what Syncacre needs is an external storage space such as an account on a FTP or WebDAV server. The nodes running Syncacre can upload their respective files and download from the remote account the files they don't have locally.
 
-The external passive storage can have limited storage space and files are deleted from the server one every client got a copy.
+The external passive storage can have limited storage space and files are deleted from the server once every client got a copy.
 
 The server itself may not be trusted and files can be encrypted before they are uploaded.
 
@@ -28,7 +28,7 @@ Find the extended documentation at [syncacre.readthedocs.io](http://syncacre.rea
 * `0.4.1`:
 
   * ask for username and password at runtime
-  * FTP backend now supports vsftpd, MLSD-deficient FTP servers and FTP TLS connections
+  * FTP backend now supports vsftpd and proftpd, MLSD-deficient FTP servers and FTP TLS connections
   * ``disk quota`` configuration option
   * ``certificate``, ``certfile`` and ``keyfile`` configuration options
   * ``maintainer`` configuration option
@@ -63,7 +63,6 @@ Find the extended documentation at [syncacre.readthedocs.io](http://syncacre.rea
 Coming features are:
 
 * resume interrupted upload/download
-* auto-clear locks on restart
 * file auto-destruction when several pullers have been defined and one takes too much time to get its copy of the file
 * actually support multiple pullers
 * split and recombine big files

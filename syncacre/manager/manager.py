@@ -14,7 +14,6 @@ import calendar
 import os
 import sys
 import traceback
-import itertools
 import re
 from syncacre.base import (PYTHON_VERSION,
 	UnrecoverableError,
@@ -35,12 +34,11 @@ class Manager(Reporter):
 
 	Attributes:
 
-		path (str): path to the local repository.
+		repository (syncacre.manager.PermissionController): local file access controller.
 
-		dir (str): relative path to the repository on the remote host.
+		address (str): remote host address.
 
-		mode (None or str): either ``'download'`` or ``'upload'`` or ``None`` 
-			(both download and upload).
+		directory (str): relative path to the repository on the remote host.
 
 		encryption (syncacre.encryption.Cipher): encryption layer.
 
@@ -60,17 +58,14 @@ class Manager(Reporter):
 			:meth:`~syncacre.relay.AbstractRelay.pop`.
 
 	"""
-	def __init__(self, relay, address=None, path=None, directory=None, mode=None, \
+	def __init__(self, relay, repository=None, address=None, directory=None, \
 		encryption=Plain(None), timestamp=True, refresh=True, clientname=None, \
 		filetype=[], pattern=None, quota=None, **relay_args):
 		Reporter.__init__(self, **relay_args)
-		if path[-1] != '/':
-			path += '/'
+		self.repository = repository
 		if not directory or directory[0] != '/':
 			directory = '/' + directory
-		self.path = path
-		self.dir = directory
-		self.mode = mode
+		self.directory = directory
 		self.encryption = encryption
 		if timestamp is True:
 			timestamp = '%y%m%d_%H%M%S'
@@ -103,10 +98,29 @@ class Manager(Reporter):
 			else:
 				quota = value
 		self.quota = quota
+		self._quota_read_time = 0
+		self.quota_read_interval = 300
+		#self._max_space = None # attribute will be dynamically created
+		self._used_space = None
 		self.pop_args = {}
 		if clientname:
 			relay_args['client'] = clientname
 		self.relay = relay(address, **relay_args)
+
+
+	# transitional alias properties
+	@property
+	def path(self):
+		return self.repository.path
+	@property
+	def mode(self):
+		return self.repository.mode
+	@property
+	def address(self):
+		return self.relay.address
+	@property
+	def dir(self):
+		return self.directory
 
 
 	def run(self):
@@ -158,7 +172,7 @@ class Manager(Reporter):
 					clock.wait(self.logger)
 				else:
 					break
-			except KeyboardInterrupt as e:
+			except (KeyboardInterrupt, SystemExit) as e:
 				_last_error = e
 				break
 			except UnrecoverableError as e:
@@ -186,7 +200,7 @@ class Manager(Reporter):
 		del self.relay # delete temporary files
 		del self.encryption # delete temporary files
 		# notify
-		if not isinstance(_last_error, KeyboardInterrupt):
+		if not isinstance(_last_error, (KeyboardInterrupt, SystemExit)):
 			# if last exception is not a keyboard interrupt
 			if self.ui_controller is not None:
 				self.ui_controller.notifyShutdown(_last_trace)
@@ -222,10 +236,8 @@ class Manager(Reporter):
 		"""
 		for lock in self.relay.listCorrupted(self.dir):
 			remote_file = os.path.relpath(lock.target, self.dir)
-			local_file = join(self.path, remote_file)
-			if not os.path.isfile(local_file):
-				local_file = None
-			self.logger.info("fixing uncomplete transfer: '%s'", remote_file)
+			local_file = self.repository.accessor(remote_file)
+			self.logger.info("fixing uncompleted transfer: '%s'", remote_file)
 			self.relay.repair(lock, local_file)
 
 	def download(self):
@@ -233,10 +245,12 @@ class Manager(Reporter):
 		Finds out which files are to be downloaded and download them.
 		"""
 		remote = self.filter(self.relay.listReady(self.dir))
-		#print(('Manager.download: remote', remote))
 		new = False
 		for filename in remote:
-			local_file = join(self.path, filename)
+			local_file = self.repository.writable(filename)
+			if not local_file:
+				# update not allowed
+				continue
 			remote_file = join(self.dir, filename)
 			last_modified = None
 			if self.timestamp:
@@ -273,7 +287,6 @@ class Manager(Reporter):
 		"""
 		local = self.filter(self.localFiles())
 		remote = self.relay.listTransfered(self.dir, end2end=False)
-		#print(('Manager.upload: local, remote', local, remote))
 		new = False
 		for local_file in local:
 			filename = local_file[len(self.path):] # relative path
@@ -307,19 +320,29 @@ class Manager(Reporter):
 				new = True
 				temp_file = self.encryption.encrypt(local_file)
 				# check disk usage
+				read_storage_space = True
+				if self.quota_read_interval:
+					t = time.time()
+					read_storage_space = self.quota_read_interval < t - self._quota_read_time
+					if read_storage_space:
+						self._quota_read_time = t
+				if read_storage_space:
+					# update
+					self._used_space, self._max_space = self.relay.storageSpace()
 				ok = True
-				used, quota = self.relay.storageSpace()
-				if used is not None:
+				if self._used_space is not None:
 					if self.quota:
-						if quota:
-							quota = min(quota, self.quota)
+						if self._max_space:
+							quota = min(self._max_space, self.quota)
 						else:
 							quota = self.quota
 					if quota:
 						additional_space = float(os.stat(temp_file).st_size)
 						additional_space /= 1048576 # in MB
-						expected = used + additional_space
+						expected = self._used_space + additional_space
 						ok = expected < quota
+						if ok:
+							self._used_space = expected
 				if ok:
 					self.logger.info("uploading file '%s'", filename)
 					ok = self.relay.push(temp_file, self.dir, \
@@ -336,15 +359,9 @@ class Manager(Reporter):
 
 	def localFiles(self, path=None):
 		"""
-		Lists all files in the local repository.
+		Transitional method.
 
-		Files which name begins with "." are ignored.
+		Use ``self.repository.readableFiles`` instead.
 		"""
-		if path is None:
-			path = self.path
-		ls = [ os.path.join(path, f) for f in os.listdir(path) if f[0] != '.' ]
-		local = itertools.chain([ f for f in ls if os.path.isfile(f) ], \
-			*[ self.localFiles(f) for f in ls if os.path.isdir(f) ])
-		return list(local)
-
+		return self.repository.readableFiles(path)
 

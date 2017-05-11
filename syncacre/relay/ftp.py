@@ -152,7 +152,7 @@ class FTP(Relay):
 		while True:
 			try:
 				self.ftp.login(_user, _pass, self.account)
-			except KeyboardInterrupt:
+			except (KeyboardInterrupt, SystemExit):
 				raise
 			except ssl.SSLError as e:
 				self.logger.error("%s", e)
@@ -382,7 +382,9 @@ class FTP(Relay):
 		if self._size_support:
 			if dirname:
 				remote_file = join(dirname, remote_file)
-			return 0 <= self.size(remote_file)
+			size = self.size(remote_file)
+			# Py3 does not compare `int` and `None`
+			return size is not None and 0 <= size
 		else:
 			return Relay.exists(self, remote_file, dirname=dirname)
 
@@ -426,7 +428,7 @@ class FTP(Relay):
 	def close(self):
 		try:
 			self.ftp.quit()
-		except KeyboardInterrupt:
+		except (KeyboardInterrupt, SystemExit):
 			# an interrupt may happen anytime
 			self.ftp.close()
 			raise

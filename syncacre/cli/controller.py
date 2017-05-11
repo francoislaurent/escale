@@ -88,7 +88,7 @@ class UIController(Listener, DirectController):
 		fun = cli_switch[request]
 		try:
 			response = fun(*args)
-		except KeyboardInterrupt as e:
+		except (KeyboardInterrupt, SystemExit) as e:
 			self.queue.put_nowait(e)
 		else:
 			self.queue.put(response)
