@@ -147,11 +147,12 @@ def syncacre(config, repository, log_handler=None, ui_connector=None):
 		args['config'] = (config, repository)
 	manager = Manager(relay.by_protocol(protocol), protocol=protocol,
 			ui_controller=ui_controller, repository=lr_controller, **args)
+	raise UnrecoverableError
 	manager.run()
 
 
 
-def syncacre_launcher(cfg_file, msgs=[], verbosity=logging.NOTSET, daemon=None):
+def syncacre_launcher(cfg_file, msgs=[], verbosity=logging.NOTSET, keep_alive=None, daemon=None):
 	"""
 	Parses a configuration file, sets the logger and launches the clients in separate subprocesses.
 
@@ -162,6 +163,9 @@ def syncacre_launcher(cfg_file, msgs=[], verbosity=logging.NOTSET, daemon=None):
 		msgs (list): list of pending messages (`str` or `tuple`).
 
 		verbosity (bool or int): verbosity level.
+
+		keep_alive (bool): if ``True``, clients are ran again when they terminate; 
+			multiple threads and subprocesses are started even if a single client is defined.
 
 		daemon (bool): default value should not be changed.
 
@@ -181,7 +185,7 @@ def syncacre_launcher(cfg_file, msgs=[], verbosity=logging.NOTSET, daemon=None):
 			logger.warning(msg)
 	# launch each client
 	sections = config.sections()
-	if sections[1:]: # if multiple sections
+	if sections[1:] or keep_alive: # if multiple sections
 		if PYTHON_VERSION == 3:
 			log_queue = Queue()
 			log_listener = QueueListener(log_queue)
@@ -215,6 +219,9 @@ def syncacre_launcher(cfg_file, msgs=[], verbosity=logging.NOTSET, daemon=None):
 		except (KeyboardInterrupt, SystemExit):
 			for worker in workers:
 				worker.terminate()
+		except UnrecoverableError:
+			# TODO: handle unrecoverable errors and restart crashed workers
+			pass
 		ui_controller.abort()
 		log_listener.abort()
 		ui_thread.join()

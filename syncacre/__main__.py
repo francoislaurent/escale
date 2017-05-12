@@ -4,7 +4,9 @@
 
 # Copyright (c) 2017, Institut Pasteur
 #   Contributor: François Laurent
-#   Contribution: -p option (initial support, without `try` block)
+#   Contribution:
+#     * -p option (initial support, without `try` block)
+#     * -r option and `keepalive` function
 
 import argparse
 import sys
@@ -22,6 +24,19 @@ def main(**args):
 	"""
 	Delegates to `syncacre_launcher` in a daemon process or in the mean thread.
 	"""
+	# reverse the changes introduced by ``argument_default=argparse.SUPPRESS`` addition
+	if 'config' not in args:
+		args['config'] = None
+	if 'interactive' not in args:
+		args['interactive'] = False
+	if 'disable_proxy' not in args:
+		args['disable_proxy'] = False
+	if 'daemon' not in args:
+		args['daemon'] = False
+	if 'quiet' not in args:
+		args['quiet'] = False
+	if 'auto_restart' not in args:
+		args['auto_restart'] = False
 	# initialize the pending logs
 	# they will be flushed by `syncacre_launcher` once the logger will be set
 	msgs = []
@@ -31,10 +46,11 @@ def main(**args):
 	# welcome message
 	msgs.append((logging.INFO, "running version %s", __version__))
 	# proxy disabling is deprecated; it was introduced as a possible fix for issue #14
-	if args['disable_proxy'] and 'HTTPS_PROXY' in os.environ:
+	if args['disable_proxy']:
 		msgs.append((logging.WARNING, "'-p' option is deprecated; support will be dropped soon"))
-		msgs.append((logging.DEBUG, "'HTTPS_PROXY' environment variable was set to '%s'; unsetting it", os.environ['HTTPS_PROXY']))
-		del os.environ['HTTPS_PROXY']
+		if 'HTTPS_PROXY' in os.environ: # never tested
+			msgs.append((logging.DEBUG, "'HTTPS_PROXY' environment variable was set to '%s'; unsetting it", os.environ['HTTPS_PROXY']))
+			del os.environ['HTTPS_PROXY']
 	# handle -d option
 	if args['daemon']:
 		try:
@@ -47,34 +63,55 @@ def main(**args):
 			msgs.append((logging.INFO, '     nohup python -m syncacre &'))
 			args['daemon'] = False
 	# handle the other commandline options
-	launcher_args = (args['config'], msgs, not args['quiet'])
+	launcher_args = (args['config'], msgs, not args['quiet'], args['auto_restart'])
 	# spawn syncacre subprocess(es)
 	if args['daemon']:
-		# TODO: handle 'auto_restart'
 		with daemon.DaemonContext(working_directory=os.getcwd()):
 			syncacre_launcher(*launcher_args)
 	else:
-		while True:
-			try:
-				syncacre_launcher(*launcher_args)
-			except (KeyboardInterrupt, SystemExit):
-				# keyboard interrupts are actually handled in `syncacre_launcher`
-				break
-			except UnrecoverableError:
-				pass # already documented
-			except:
-				import traceback
-				print(traceback.format_exc())
-			else:
-				break
-			if args['auto_restart']:
-				print(' syncacre is going to restart in 60 seconds')
-				print('   hit Ctrl+C now to prevent restart')
-				try:
-					time.sleep(60)
-					continue
-				except KeyboardInterrupt:
-					print(' shutting down')
+		syncacre_launcher(*launcher_args)
+	return 0
+
+
+
+def keepalive(syncacre, interval, *argv):
+	"""
+	Run syncacre in another Python environment.
+	"""
+	import subprocess
+	if interval is None:
+		interval = 60
+	argv = list(argv)
+	python = sys.executable
+	if python is None:
+		if PYTHON_VERSION == 3:
+			python = 'python3'
+		else:
+			python = 'python'
+	try:
+		i = argv.index('-r')
+	except ValueError:
+		pass
+	else:
+		try:
+			int(argv[i+1])
+		except (IndexError, ValueError):
+			pass
+		else:
+			del argv[i+1]
+		del argv[i]
+	cmd = '{} -m syncacre' + ' {}' * len(argv)
+	cmd = cmd.format(python, *argv)
+	while True:
+		print("running '{}'".format(cmd))
+		subprocess.call([python, '-m', 'syncacre'] + argv)
+		print('syncacre is going to restart in {} seconds'.format(interval))
+		print('   hit Ctrl+C now to prevent restart')
+		try:
+			time.sleep(interval)
+			continue
+		except KeyboardInterrupt:
+			print(' shutting down') # ^C may appear on the command-line, hence the initial space
 			break
 	return 0
 
@@ -82,7 +119,7 @@ def main(**args):
 
 if __name__ == '__main__':
 
-	parser = argparse.ArgumentParser(prog=SYNCACRE_NAME, \
+	parser = argparse.ArgumentParser(prog=SYNCACRE_NAME, argument_default=argparse.SUPPRESS, \
 		description='SynCÀCRe - Client-to-client synchronization based on external relay storage', \
 		epilog='See also https://github.com/francoislaurent/syncacre')
 	parser.add_argument('-c', '--config', type=str, help='path to config file')
@@ -90,9 +127,12 @@ if __name__ == '__main__':
 	parser.add_argument('-i', '--interactive', action='store_true', help='asks questions to fill in an extra section in the configuration file')
 	parser.add_argument('-q', '--quiet', action='store_true', help='runs silently')
 	parser.add_argument('-p', '--disable-proxy', action='store_true', help='disables proxies [deprecated]')
-	parser.add_argument('-r', '--auto-restart', action='store_true', help='restart syncacre when it crashed [only in non-daemon mode]')
+	parser.add_argument('-r', '--auto-restart', type=int, nargs='?', help='restart {} when it crashed; can specify a time interval in seconds before restart'.format(SYNCACRE_NAME))
 
 	args = parser.parse_args()
-	exit_code = main(**args.__dict__)
+	if hasattr(args, 'auto_restart') and not hasattr(args, 'daemon'):
+		exit_code = keepalive(sys.argv[0], args.auto_restart, *sys.argv[1:])
+	else:
+		exit_code = main(**args.__dict__)
 	sys.exit(exit_code)
 
