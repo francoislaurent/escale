@@ -147,7 +147,6 @@ def syncacre(config, repository, log_handler=None, ui_connector=None):
 		args['config'] = (config, repository)
 	manager = Manager(relay.by_protocol(protocol), protocol=protocol,
 			ui_controller=ui_controller, repository=lr_controller, **args)
-	raise UnrecoverableError
 	manager.run()
 
 
@@ -221,7 +220,7 @@ def syncacre_launcher(cfg_file, msgs=[], verbosity=logging.NOTSET, keep_alive=No
 				worker.terminate()
 		except UnrecoverableError:
 			# TODO: handle unrecoverable errors and restart crashed workers
-			pass
+			logger.warning('restart of daemonized clients is not implemented yet')
 		ui_controller.abort()
 		log_listener.abort()
 		ui_thread.join()
