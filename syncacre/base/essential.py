@@ -5,7 +5,7 @@
 import os
 import sys
 
-SYNCACRE_NAME = 'syncacre'
+PROGRAM_NAME = 'syncacre'
 
 PYTHON_VERSION = sys.version_info[0]
 

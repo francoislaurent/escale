@@ -19,6 +19,7 @@ from syncacre.base import *
 from syncacre.cli.config import *
 from syncacre import __version__
 
+auto_restart_default = 60
 
 def main(**args):
 	"""
@@ -37,6 +38,8 @@ def main(**args):
 		args['quiet'] = False
 	if 'auto_restart' not in args:
 		args['auto_restart'] = False
+	elif args['auto_restart'] is None:
+		args['auto_restart'] = auto_restart_default
 	# initialize the pending logs
 	# they will be flushed by `syncacre_launcher` once the logger will be set
 	msgs = []
@@ -59,7 +62,7 @@ def main(**args):
 			msgs.append((logging.WARNING, "the 'python-daemon' library is not installed; cannot daemonize"))
 			msgs.append((logging.INFO, 'you can add it to your Python distribution with:'))
 			msgs.append((logging.INFO, '     pip install python-daemon'))
-			msgs.append((logging.INFO, 'alternatively, you can run %S with `nohup` and `&`:', SYNCACRE_NAME))
+			msgs.append((logging.INFO, 'alternatively, you can run %s with `nohup` and `&`:', PROGRAM_NAME))
 			msgs.append((logging.INFO, '     nohup python -m syncacre &'))
 			args['daemon'] = False
 	# handle the other commandline options
@@ -80,7 +83,7 @@ def keepalive(syncacre, interval, *argv):
 	"""
 	import subprocess
 	if interval is None:
-		interval = 60
+		interval = auto_restart_default
 	argv = list(argv)
 	python = sys.executable
 	if python is None:
@@ -119,7 +122,7 @@ def keepalive(syncacre, interval, *argv):
 
 if __name__ == '__main__':
 
-	parser = argparse.ArgumentParser(prog=SYNCACRE_NAME, argument_default=argparse.SUPPRESS, \
+	parser = argparse.ArgumentParser(prog=PROGRAM_NAME, argument_default=argparse.SUPPRESS, \
 		description='SynCÀCRe - Client-to-client synchronization based on external relay storage', \
 		epilog='See also https://github.com/francoislaurent/syncacre')
 	parser.add_argument('-c', '--config', type=str, help='path to config file')
@@ -127,7 +130,7 @@ if __name__ == '__main__':
 	parser.add_argument('-i', '--interactive', action='store_true', help='asks questions to fill in an extra section in the configuration file')
 	parser.add_argument('-q', '--quiet', action='store_true', help='runs silently')
 	parser.add_argument('-p', '--disable-proxy', action='store_true', help='disables proxies [deprecated]')
-	parser.add_argument('-r', '--auto-restart', type=int, nargs='?', help='restart {} when it crashed; can specify a time interval in seconds before restart'.format(SYNCACRE_NAME))
+	parser.add_argument('-r', '--auto-restart', type=int, nargs='?', help='restart {} when it crashed; can specify a time interval in seconds before restart [default {}]'.format(PROGRAM_NAME, auto_restart_default))
 
 	args = parser.parse_args()
 	if hasattr(args, 'auto_restart') and not hasattr(args, 'daemon'):

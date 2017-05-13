@@ -8,7 +8,7 @@ from .timer import *
 from .config import *
 from .base import *
 
-__all__ = ['SYNCACRE_NAME', 'PYTHON_VERSION', 'binary_type', 'text_type', 'asstr', 'join',
+__all__ = ['PROGRAM_NAME', 'PYTHON_VERSION', 'binary_type', 'text_type', 'asstr', 'join',
 	'UnrecoverableError',
 	'Reporter',
 	'Clock',

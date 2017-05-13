@@ -596,17 +596,21 @@ class Relay(AbstractRelay):
 		"""
 		self.touch(self.placeholder(remote_file), last_modified)
 
-	def releasePlace(self, remote_file):
+	def releasePlace(self, remote_file, handle_missing=False):
 		"""
 		This method treats placeholders as files.
 		"""
-		#try:
-		self.unlink(self.placeholder(remote_file))
-		#except (KeyboardInterrupt, SystemExit):
-		#	raise
-		#except Exception as e: # not found?
-		#	self.logger.warning("cannot not find placeholder for file: '%s'", remote_file)
-		#	self.logger.debug("%s", e)
+		try:
+			self.unlink(self.placeholder(remote_file))
+		except (KeyboardInterrupt, SystemExit):
+			raise
+		except Exception: # not found?
+			msg = ("cannot not find placeholder for file: '%s'", remote_file)
+			if handle_missing:
+				self.logger.debug(*msg)
+			else:
+				self.logger.warning(*msg)
+				raise
 
 	def acquireLock(self, remote_file, mode=None, blocking=True):
 		"""
@@ -779,7 +783,7 @@ class Relay(AbstractRelay):
 				#if remote_size != local_size:
 					self.unlink(remote_file)
 			# delete the placeholder to send the file again
-			self.releasePlace(remote_file)
+			self.releasePlace(remote_file, True)
 		elif lock.mode == 'r':
 			if local_file.exists():
 				# TODO: check modification time
@@ -791,11 +795,11 @@ class Relay(AbstractRelay):
 						local_file.delete()
 			if not self.exists(remote_file):
 						# delete the placeholder to request the file again
-						self.releasePlace(remote_file)
+						self.releasePlace(remote_file, True)
 		else: # old-style lock?
 			if self.exists(remote_file):
 				self.unlink(remote_file)
-			self.releasePlace(remote_file)
+			self.releasePlace(remote_file, True)
 		# release the lock
 		self.releaseLock(remote_file)
 

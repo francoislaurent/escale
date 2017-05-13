@@ -152,7 +152,7 @@ class Manager(Reporter):
 		# initial state
 		_check_sanity = True
 		_fresh_start = True
-		_last_error = None
+		_last_error_time = 0
 		new = False
 		while True:
 			try:
@@ -172,24 +172,18 @@ class Manager(Reporter):
 					clock.wait(self.logger)
 				else:
 					break
-			except (KeyboardInterrupt, SystemExit) as e:
-				_last_error = e
-				break
-			except UnrecoverableError as e:
-				_last_error = e
-				_last_trace = traceback.format_exc()
+			except (KeyboardInterrupt, SystemExit, UnrecoverableError) as e:
+				last_error = e
 				break
 			except Exception as e:
 				t = time.time()
-				if _last_error is None:
-					_last_error = e
-				elif type(e) == type(_last_error):
-					if t - _last_error_time < 1: # the error is self-repeating too fast; abort
+				if t - _last_error_time < 1: # the error repeats too fast; abort
+					# last_error is defined
+					if type(e) == type(last_error):
 						break
-				_last_error = e
+				last_error = e
 				_last_error_time = t
-				_last_trace = traceback.format_exc()
-				self.logger.critical(_last_trace)
+				self.logger.critical(traceback.format_exc())
 				_check_sanity = True # check again for corrupted files
 		# close and clear everything
 		try:
@@ -199,17 +193,7 @@ class Manager(Reporter):
 			self.logger.debug(traceback.format_exc())
 		del self.relay # delete temporary files
 		del self.encryption # delete temporary files
-		# notify
-		if not isinstance(_last_error, (KeyboardInterrupt, SystemExit)):
-			# if last exception is not a keyboard interrupt
-			if self.ui_controller is not None:
-				self.ui_controller.notifyShutdown(_last_trace)
-			if isinstance(_last_error, UnrecoverableError):
-				self.logger.critical("unrecoverable error:")
-				self.logger.critical(" %s", _last_error.args[0])
-				self.logger.critical(" %s", _last_trace)
-				self.logger.critical("the Python environment should be reset")
-				raise _last_error # so that syncacre main process can signal the other processes
+		raise last_error
 
 
 	def filter(self, files):

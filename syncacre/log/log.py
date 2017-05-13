@@ -9,11 +9,12 @@ try:
 except ImportError:
 	from ConfigParser import NoOptionError
 
+from syncacre.base.essential import PROGRAM_NAME
 from syncacre.base.config import default_section
 
 
 
-log_root = 'syncacre'
+log_root = PROGRAM_NAME
 
 
 

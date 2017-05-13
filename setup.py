@@ -9,7 +9,7 @@ import sys
 import syncacre
 
 install_requires = []
-extra_requires = {
+extras_require = {
 	'WebDAV':	['easywebdav'],
 #	'SSH':		['paramiko'],
 	'Blowfish':	['cryptography'],
@@ -53,6 +53,6 @@ setup(
 	],
 	packages = ['syncacre'],
 	install_requires = install_requires,
-	extra_requires = extra_requires,
+	extras_require = extras_require,
 )
 

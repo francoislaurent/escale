@@ -8,7 +8,7 @@
 
 
 import logging, logging.handlers, logging.config
-from multiprocessing import Process, Queue
+from multiprocessing import Process, Queue, Pipe
 import threading
 try:
 	from configparser import NoOptionError
@@ -147,11 +147,19 @@ def syncacre(config, repository, log_handler=None, ui_connector=None):
 		args['config'] = (config, repository)
 	manager = Manager(relay.by_protocol(protocol), protocol=protocol,
 			ui_controller=ui_controller, repository=lr_controller, **args)
-	manager.run()
+	try:
+		result = manager.run()
+	except (KeyboardInterrupt, SystemExit):
+		raise
+	except Exception as exc:
+		if not ui_controller.failure(repository, exc):
+			raise
+	else:
+		ui_controller.success(repository, result)
 
 
 
-def syncacre_launcher(cfg_file, msgs=[], verbosity=logging.NOTSET, keep_alive=None, daemon=None):
+def syncacre_launcher(cfg_file, msgs=[], verbosity=logging.NOTSET, keep_alive=False):
 	"""
 	Parses a configuration file, sets the logger and launches the clients in separate subprocesses.
 
@@ -163,12 +171,18 @@ def syncacre_launcher(cfg_file, msgs=[], verbosity=logging.NOTSET, keep_alive=No
 
 		verbosity (bool or int): verbosity level.
 
-		keep_alive (bool): if ``True``, clients are ran again when they terminate; 
-			multiple threads and subprocesses are started even if a single client is defined.
-
-		daemon (bool): default value should not be changed.
+		keep_alive (bool or int): if ``True`` or non-negative `int`, clients are ran again 
+			after they hit an unrecoverable error; 
+			multiple threads and subprocesses are started even if a single client is defined;
+			if `int`, specifies default sleep time after a subprocess crashed.
 
 	"""
+	if isinstance(keep_alive, bool):
+		if keep_alive:
+			restart_delay = 0
+	elif isinstance(keep_alive, int):
+		restart_delay = keep_alive
+		keep_alive = True
 	# parse the config file
 	config, cfg_file, msgs = parse_cfg(cfg_file, msgs)
 	# configure logger
@@ -197,30 +211,49 @@ def syncacre_launcher(cfg_file, msgs=[], verbosity=logging.NOTSET, keep_alive=No
 		# logger
 		logger_thread = threading.Thread(target=log_listener.listen)
 		logger_thread.start()
+		# result handling
+		result_queue = Queue()
 		# user interface
-		ui_controller = UIController(logger=logger)
+		ui_controller = UIController(logger=logger, parent=result_queue)
 		ui_thread = threading.Thread(target=ui_controller.listen)
 		ui_thread.start()
 		# syncacre subprocesses
-		workers = []
+		workers = {}
 		for section in config.sections():
 			worker = Process(target=syncacre,
 				name='{}.{}'.format(log_root, section),
 				args=(config, section, log_handler, ui_controller.conn))
-			if daemon is not None:
-				worker.daemon = daemon
-			workers.append(worker)
+			workers[section] = worker
 			worker.start()
 		# wait for everyone to terminate
 		try:
-			for worker in workers:
-				worker.join()
+			if keep_alive:
+				active_workers = len(workers)
+				while 0 < active_workers:
+					section, result = result_queue.get()
+					if isinstance(result, Exception) and keep_alive:
+						workers[section].terminate()
+						# restart worker
+						worker = Process(target=syncacre,
+							name='{}.{}'.format(log_root, section),
+							args=(config, section, log_handler,
+								ui_controller.conn))
+						workers[section] = worker
+						ui_controller.restartWorker(section, restart_delay)
+						worker.start()
+					else:
+						active_workers -= 1
+			else:
+				for worker in workers.values():
+					worker.join()
 		except (KeyboardInterrupt, SystemExit):
-			for worker in workers:
-				worker.terminate()
-		except UnrecoverableError:
-			# TODO: handle unrecoverable errors and restart crashed workers
-			logger.warning('restart of daemonized clients is not implemented yet')
+			for section, worker in workers.items():
+				try:
+					worker.terminate()
+				except Exception as e:
+					# 'NoneType' object has no attribute 'terminate'
+					logger.warning("[%s]: %s", section, e)
+					logger.debug("%s", workers)
 		ui_controller.abort()
 		log_listener.abort()
 		ui_thread.join()

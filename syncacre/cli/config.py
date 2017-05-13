@@ -103,7 +103,7 @@ def add_section(cfg_file, msgs=[]):
 	config, cfg_file, msgs = parse_cfg(cfg_file, msgs, True)
 	cfg_dir = os.path.dirname(cfg_file)
 	if cfg_dir == global_cfg_dir: # superuser mode
-		cfg_dir = os.path.join(global_cfg_dir, SYNCACRE_NAME) # /etc/syncacre
+		cfg_dir = os.path.join(global_cfg_dir, PROGRAM_NAME) # /etc/syncacre
 		if not os.path.isdir(cfg_dir):
 			if os.path.exists(cfg_dir):
 				raise RuntimeError("'{}' should be a directory".format(cfg_dir))
@@ -121,7 +121,7 @@ def add_section(cfg_file, msgs=[]):
 				print(msg)
 				log_file = None
 		if not log_file:
-			log_file = '/var/log/{}.log'.format(SYNCACRE_NAME)
+			log_file = '/var/log/{}.log'.format(PROGRAM_NAME)
 			config.set(default_section, _log_file_, log_file)
 	msg = "editing configuration file '{}'".format(cfg_file)
 	msgs.append((logging.DEBUG, msg))
@@ -230,7 +230,7 @@ def add_section(cfg_file, msgs=[]):
 				else:
 					secret_file = os.path.join(cfg_dir, secret_file)
 			if not os.path.isfile(secret_file):
-				msg = "'{}' file does not exist yet; create it before running {}".format(secret_file, SYNCACRE_NAME)
+				msg = "'{}' file does not exist yet; create it before running {}".format(secret_file, PROGRAM_NAME)
 				msgs.append((logging.DEBUG, msg))
 				print(msg)
 			config.set(section, _secret_, secret_file)
@@ -268,7 +268,7 @@ def add_section(cfg_file, msgs=[]):
 						print(e)
 						print(msg)
 				else:
-					msg = "create '{}' file before running {}".format(passphrase, SYNCACRE_NAME)
+					msg = "create '{}' file before running {}".format(passphrase, PROGRAM_NAME)
 					msgs.append((logging.DEBUG, msg))
 					print(msg)
 			config.set(section, _pass_, passphrase)

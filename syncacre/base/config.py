@@ -23,10 +23,10 @@ import re # moved from syncacre.cli.config together with parse_address
 # configparser
 default_section = 'DEFAULT' # Python2 cannot modify it
 
-default_filename = SYNCACRE_NAME + '.conf'
+default_filename = PROGRAM_NAME + '.conf'
 global_cfg_dir = '/etc'
-default_cfg_dirs = [os.path.join(os.path.expanduser('~/.config'), SYNCACRE_NAME),
-	os.path.expanduser('~/.' + SYNCACRE_NAME),
+default_cfg_dirs = [os.path.join(os.path.expanduser('~/.config'), PROGRAM_NAME),
+	os.path.expanduser('~/.' + PROGRAM_NAME),
 	global_cfg_dir]
 default_conf_files = [ os.path.join(d, default_filename) for d in default_cfg_dirs ]
 
