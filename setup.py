@@ -21,7 +21,7 @@ if sys.version_info[0] == 3: # Python 3
 	except ImportError:
 		pass
 	else:
-		extra_requires['Blowfish'] = []
+		extras_require['Blowfish'] = []
 		# Since `blowfish` is already available, the `cryptography` dependency is removed.
 		# However, if `cryptography` is eventually available and 'Blowfish' requested,
 		# `cryptography` may prevail instead of `blowfish` (or not).
@@ -52,6 +52,8 @@ setup(
 		'Programming Language :: Python :: 3.5',
 	],
 	packages = ['syncacre'],
+#	package_dir = {'syncacrectl': 'utils'},
+	scripts = ['utils/syncacre', 'utils/syncacrectl'],
 	install_requires = install_requires,
 	extras_require = extras_require,
 )
