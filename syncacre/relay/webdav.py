@@ -110,8 +110,12 @@ class WebDAVClient(easywebdav.Client):
 				while True:
 					try:
 						self._response = easywebdav.Client._send(self, *args, **kwargs)
-					except requests.exceptions.Timeout as e:
+					except requests.exceptions.SSLError:
+						raise # SSLError is a ConnectionError and failure is quite definite
+					except requests.exceptions.ConnectionError as e:
 						# changed in 0.4.2: ConnectionError -> Timeout
+						# changed back to ConnectionError to handle the following exception:
+						# ConnectionError: ('Connection aborted.', error(107, 'Transport endpoint is not connected'))
 						_last_error = e
 						info = e.args
 						# extract information from (a certain type of) ConnectionErrors
