@@ -207,6 +207,7 @@ def syncacre_launcher(cfg_file, msgs=[], verbosity=logging.NOTSET, keep_alive=Fa
 			import syncacre.log.socket as socket
 			log_conn = ('localhost', logging.handlers.DEFAULT_TCP_LOGGING_PORT)
 			log_listener = socket.SocketListener(*log_conn)
+			log_conn = (log_conn[0], log_listener.port)
 			log_handler = logging.handlers.SocketHandler(*log_conn)
 		# logger
 		logger_thread = threading.Thread(target=log_listener.listen)

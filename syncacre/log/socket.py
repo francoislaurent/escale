@@ -58,7 +58,23 @@ class SocketListener(Listener, SocketServer.ThreadingTCPServer):
     def __init__(self, host='localhost',
                  port=logging.handlers.DEFAULT_TCP_LOGGING_PORT,
                  handler=LogRecordStreamHandler):
-        SocketServer.ThreadingTCPServer.__init__(self, (host, port), handler)
+	self.port = port
+	while True:
+		try:
+        		SocketServer.ThreadingTCPServer.__init__(self, (host, self.port), handler)
+		except Exception as e: # cannot catch socket.error
+			try:
+				error_code = e.errno
+			except:
+				raise e
+			else:
+				if error_code == 98:
+					# socket.error: [Errno 98] Address already in use
+					self.port += 1
+				else:
+					raise e
+		else:
+			break
         self.timeout = 1
 
     def _listen(self):

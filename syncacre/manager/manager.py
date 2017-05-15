@@ -333,7 +333,7 @@ class Manager(Reporter):
 						relative_path=filename, blocking=False, \
 						last_modified=last_modified)
 				else:
-					self.logger.info("quota exceeded (used: %sMB of %sMB); no more files can be sent", round(used), round(quota))
+					self.logger.info("quota exceeded (used: %sMB of %sMB); no more files can be sent", round(self._used_space), round(quota))
 				if ok:
 					self.logger.debug("file '%s' successfully uploaded", filename)
 				elif ok is not None:
