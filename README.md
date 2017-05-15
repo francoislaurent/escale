@@ -18,6 +18,11 @@ Find the extended documentation at [syncacre.readthedocs.io](http://syncacre.rea
 
 ## Changelog:
 
+* `0.4.3`:
+
+  * various bugfixes
+  * `syncacre` script
+
 * `0.4.2`:
 
   * new lock format with version and access mode information
