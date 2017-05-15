@@ -77,7 +77,7 @@ class PermissionController(Reporter):
 			path = self.path
 		ls = [ os.path.join(path, f) for f in os.listdir(path) if f[0] != '.' ]
 		local = itertools.chain([ f for f in ls if os.path.isfile(f) ], \
-			*[ self.localFiles(f) for f in ls if os.path.isdir(f) ])
+			*[ self.readableFiles(f) for f in ls if os.path.isdir(f) ])
 		return list(local)
 
 	def writable(self, filename):
