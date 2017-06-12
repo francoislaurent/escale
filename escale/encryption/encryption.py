@@ -135,7 +135,7 @@ class Cipher(object):
 			# `temp_file` is no longer available
 		"""
 		fd, f = tempfile.mkstemp()
-		fd.close()
+		os.close(fd)
 		self._temporary_files.append(f)
 		return f
 
