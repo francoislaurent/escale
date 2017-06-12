@@ -117,7 +117,7 @@ class DriveGoogle(Relay):
 		.. warning:: reads used and total spaces of the entire cloud space!
 		"""
 		# TODO: use `du` on repository instead of `quota`
-		output = with_subprocess(self.drive_bin, 'quota', output=True)
+		output = with_subprocess(self.drive_bin, 'quota', self.mount_point, error=IOError)
 		used = None
 		total = None
 		_used_label = 'Bytes Used:'
@@ -136,7 +136,10 @@ class DriveGoogle(Relay):
 	def _list(self, remote_dir='', recursive=True, stats=[]):
 		"""
 		"""
-		relay_dir = os.path.join(self.repository, asstr(remote_dir))
+		if remote_dir:
+			relay_dir = os.path.join(self.repository, asstr(remote_dir))
+		else:
+			relay_dir = self.repository
 		args = []
 		if recursive:
 			args.append('-recursive')
@@ -217,14 +220,23 @@ class DriveGoogle(Relay):
 
 	def _get(self, remote_file, local_file, makedirs=True):
 		relay_file = os.path.join(self.repository, asstr(remote_file))
-		dirname = os.path.dirname(local_file)
-		if not os.path.isdir(dirname):
-			os.makedirs(dirname)
+		if makedirs:
+			dirname = os.path.dirname(local_file)
+			if not os.path.isdir(dirname):
+				os.makedirs(dirname)
 		args = self.pull_extra_arguments + \
-				('-quiet', '-hidden', '-ignore-conflict', '-desktop-links=false',
-						relay_file)
+				('-quiet', '-hidden', '-desktop-links=false', relay_file)
 		kwargs = dict(cwd=self.mount_point, error=IOError)
-		with_subprocess(self.drive_bin, 'pull', *args, **kwargs)
+		try:
+			with_subprocess(self.drive_bin, 'pull', *args, **kwargs)
+		except IOError as e:
+			# drive:
+			# "These 1 file(s) would be overwritten. Use -ignore-conflict to override this behaviour"
+			# to deal with this issue, we can delete the drivedb file
+			self.logger.debug(e.args[0])
+			self.logger.warning("drive might have detected a conflict; deleting the 'drivedb' file")
+			os.unlink(os.path.join(self.mount_point, '.gd', 'drivedb'))
+			with_subprocess(self.drive_bin, 'pull', *args, **kwargs)
 		#with_subprocess(self.drive_bin, 'pull', '-hidden', '-quiet',
 		#		'-desktop-links=false', relay_file,
 		#		cwd=self.mount_point, error=IOError)

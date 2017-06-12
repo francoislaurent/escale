@@ -344,9 +344,10 @@ class FTP(Relay):
 		remote_dir = asstr(remote_dir)
 		if remote_dir:
 			def _join(f): return os.path.join(remote_dir, f)
+			fullpath = os.path.join(self.repository, remote_dir)
 		else:
 			def _join(f): return f
-		fullpath = os.path.join(self.repository, remote_dir)
+			fullpath = self.repository
 		files, dirs = [], []
 		if self._mlsd_support:
 			try:

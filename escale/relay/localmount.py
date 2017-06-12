@@ -36,7 +36,10 @@ class LocalMount(Relay):
 
 	def _list(self, relay_dir='', recursive=True, stats=[]):
 		_listdir = not stats
-		dirname = os.path.join(self.repository, relay_dir)
+		if relay_dir:
+			dirname = os.path.join(self.repository, relay_dir)
+		else:
+			dirname = self.repository
 		if stats:
 			files = []
 			dirs = []

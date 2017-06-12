@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
 
-# Copyright (c) 2017, Institut Pasteur
+# Copyright © 2017, Institut Pasteur
 #   Contributor: François Laurent
 
-# Copyright (c) 2017, François Laurent
+# Copyright © 2017, François Laurent
 #   new certificate verification feature
 #   WebDAV.__send
 
@@ -307,6 +307,7 @@ class WebDAV(Relay):
 		self.ssl_version = ssl_version
 		self.verify_ssl = verify_ssl
 		self._used_space = None
+		self._infinity_depth = None
 
 	def open(self):
 		kwargs = {}
@@ -367,11 +368,27 @@ class WebDAV(Relay):
 		#	ls = self._last_ls
 		#	self._last_ls = None
 		#	return ls
+		if recursive and self._infinity_depth is False:
+			# infinite depth not allowed by WebDAV server
+			ls = self.webdav.ls(remote_dir, False)
+			remote_dir = os.path.join('/', remote_dir)
+			ls = itertools.chain(ls,
+					*[self.ls(unquote(entry.name), True) for entry in ls
+						if not entry.contenttype \
+						and os.path.relpath(entry.name, remote_dir) != '.' ])
+			return ls
+		first_recursive_call = recursive and \
+				self._infinity_depth is None and \
+				remote_dir == self.repository
 		try:
 			ls = self.webdav.ls(remote_dir, recursive)
 		except easywebdav.OperationFailed as e:
 			if e.actual_code != 404:
 				if e.actual_code == 403:
+					if first_recursive_call:
+						# infinite depth may not be allowed by WebDAV server
+						self._infinity_depth = False
+						return self.ls(remote_dir, recursive)
 					raise
 				else:
 					self.logger.warning("easywebdav.Client.ls('%s') failed", remote_dir)
@@ -379,11 +396,16 @@ class WebDAV(Relay):
 						self.logger.debug(traceback.format_exc())
 			return []
 		else:
+			if first_recursive_call:
+				self._infinity_depth = True
 			#self._last_ls = ls
 			return ls
 
 	def _list(self, remote_dir='', recursive=True, stats=[], storage_space=False):
-		relay_dir = join(self.repository, remote_dir)
+		if remote_dir:
+			relay_dir = join(self.repository, remote_dir)
+		else:
+			relay_dir = self.repository
 		ls = self.ls(relay_dir, recursive)
 		# list names (not paths) of files (no directory)
 		files = [ (os.path.relpath(unquote(file.name[1:]), self.repository), file.size, file.mtime)
