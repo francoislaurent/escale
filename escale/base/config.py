@@ -594,3 +594,20 @@ def write_config(cfg_file, config):
 			for line in raw_cfg:
 				f.write(line)
 
+
+def actual_option(config, section, options):
+	# largely borrowed from :func:`escale.cli.config.config.query_field`
+	option = None
+	if isinstance(options, tuple):
+		_type, _options = _options
+		if isinstance(_type, tuple):
+			_type = _type[0] # not used
+	if isinstance(options, list):
+		for _option in options:
+			if config.has_option(section, _option):
+				option = _option
+				break
+	elif config.has_option(section, options):
+		option = options
+	return option
+

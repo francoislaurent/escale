@@ -176,7 +176,9 @@ class FTP(Relay):
 					raise
 			except ftplib.error_perm as e:
 				err_code = e.args[0][:3]
-				if err_code == '530': # [vsftpd] 530 Login incorrect.
+				if err_code == '530':
+					# [vsftpd] 530 Login incorrect.
+					# [pure-ftpd] 530 Login authentication failed
 					print('wrong username or password; try again')
 					_user, _pass = self.ui_controller.requestCredential(self.address)
 					#continue # try again

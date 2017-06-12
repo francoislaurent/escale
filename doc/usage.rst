@@ -78,6 +78,18 @@ More options are listed in:
 
         escalectl migrate --help
 
+|escalectl| also features repository backup and restoration. For example:
+::
+
+	# back-up 'my-repository' repository into 'my-backup.tar.bz2' archive
+	escalectl backup my-repository my-backup.tar.bz2 --fast
+	# restore 'my-repository' repository from 'my-backup.tar.bz2' archive
+	escalectl restore my-repository my-backup.tar.bz2 --fast
+
+The ``--fast`` option is recommended only if the repository will not undergo changes during backup or restoration.
+
+Even if called with this option, the process may take a while.
+You are advised to copy yourself the remote repository with a native client (FTP, web, etc).
 
 Configuration file
 ------------------

@@ -18,8 +18,6 @@ from escale import *
 from escale.cli.ctl import *
 from escale.cli.license import *
 from escale.base.exceptions import LicenseError, ExpressInterrupt
-from escale.manager.migration import *
-from escale.manager.backup import *
 
 
 def chmod(modifiers=None, resource=None, repository=None):
@@ -35,49 +33,6 @@ def chmod(modifiers=None, resource=None, repository=None):
 	else:
 		if not modifiers:
 			print(result)
-
-
-def migrate(repository=None, destination=None):
-	kwargs = {}
-	if os.path.isfile(destination):
-		changes = parse_cfg(destination)
-		repositories = changes.sections()
-		if repository:
-			if repository in repositories:
-				for r in repositories:
-					if r != repository:
-						changes.remove_section(r)
-			else:
-				raise ValueError('cannot change repository name')
-	else:
-		protocol, address, port, path = parse_address(destination)
-		if not protocol:
-			raise ValueError('relay host address should include protocol')
-		if not repository:
-			config, _, _ = parse_cfg()
-			repository = config.sections()
-			if repository[1:]:
-				raise ValueError("several repositories defined; please specify with '--repository'")
-			repository = repository[0]
-			kwargs['config'] = config
-		changes = ConfigParser()
-		changes.add_section(repository)
-		changes.set(repository, default_option('protocol'), protocol)
-		if address:
-			changes.set(repository, default_option('address'), address)
-		if port:
-			changes.set(repository, default_option('port'), port)
-		if path:
-			changes.set(repository, default_option('dir'), path)
-	migrate_repositories_and_update_config(changes, **kwargs)
-
-
-def backup(repository=None, archive=None):
-	backup_manager(archive, repository, 'backup')
-
-
-def restore(repository=None, archive=None):
-	backup_manager(archive, repository, 'restore')
 
 
 if __name__ == '__main__':
@@ -96,16 +51,19 @@ if __name__ == '__main__':
 	_chmod.add_argument('modifiers', type=str, nargs='*', help="any combination of 'r', 'r-', 'r?', 'w', 'w-', 'w?'")
 	_chmod.set_defaults(func=chmod)
 	_migrate = parsers.add_parser('migrate', help='migrate a relay repository from a host to another')
+	_migrate.add_argument('-f', '--fast', action='store_true', help='unsafe copy; use this only if repository is inactive')
 	_migrate.add_argument('-r', '--repository', type=str, metavar='NAME', help='source repository')
 	_migrate.add_argument('destination', type=str, help='path to configuration file or address of the destination relay')
 	_migrate.set_defaults(func=migrate)
 	_backup = parsers.add_parser('backup', help='backup a relay repository to an archive')
 	_backup.add_argument('repository', type=str, help='relay repository')
 	_backup.add_argument('archive', type=str, help='path to archive (.tar, .tar.gz or .tar.bz2)')
+	_backup.add_argument('-f', '--fast', action='store_true', help='unsafe copy; use this only if repository is inactive')
 	_backup.set_defaults(func=backup)
 	_restore = parsers.add_parser('restore', help='restore a relay repository from a backup archive')
 	_restore.add_argument('repository', type=str, help='relay repository')
 	_restore.add_argument('archive', type=str, help='path to archive (.tar, .tar.gz or .tar.bz2)')
+	_restore.add_argument('-f', '--fast', action='store_true', help='unsafe copy; use this only if repository is inactive')
 	_restore.set_defaults(func=restore)
 	args = parser.parse_args()
 	ret = 0

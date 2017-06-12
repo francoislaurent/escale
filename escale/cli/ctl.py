@@ -19,7 +19,9 @@ from escale import *
 from escale.base.essential import *
 from escale.base.config import *
 from escale.manager.access import *
-from escale.base.base import escale_launcher
+from escale.base.launcher import escale_launcher
+from escale.manager.migration import *
+from escale.manager.backup import *
 
 
 def start(pidfile=None):
@@ -133,4 +135,54 @@ def access(modifiers=None, resource=None, repository=None):
 		elif get_modifiers:
 			raise ValueError("'{}' found in multiple repositories".format(resource))
 
+
+def migrate(repository=None, destination=None, fast=None):
+	kwargs = {}
+	if os.path.isfile(destination):
+		changes = parse_cfg(destination)
+		repositories = changes.sections()
+		if repository:
+			if repository in repositories:
+				for r in repositories:
+					if r != repository:
+						changes.remove_section(r)
+			else:
+				raise ValueError('cannot change repository name')
+	else:
+		protocol, address, port, path = parse_address(destination)
+		if not protocol:
+			raise ValueError('relay host address should include protocol')
+		if not repository:
+			config, _, _ = parse_cfg()
+			repository = config.sections()
+			if repository[1:]:
+				raise ValueError("several repositories defined; please specify with '--repository'")
+			repository = repository[0]
+			kwargs['config'] = config
+		changes = ConfigParser()
+		changes.add_section(repository)
+		changes.set(repository, default_option('protocol'), protocol)
+		if address:
+			changes.set(repository, default_option('address'), address)
+		if port:
+			changes.set(repository, default_option('port'), port)
+		if path:
+			changes.set(repository, default_option('dir'), path)
+	if fast:
+		kwargs['safe'] = False
+	migrate_repositories_and_update_config(changes, **kwargs)
+
+
+def backup(repository=None, archive=None, fast=None):
+	kwargs = {}
+	if fast:
+		kwargs['safe'] = False
+	backup_manager(archive, repository, 'backup', **kwargs)
+
+
+def restore(repository=None, archive=None, fast=None):
+	kwargs = {}
+	if fast:
+		kwargs['safe'] = False
+	backup_manager(archive, repository, 'restore', **kwargs)
 

@@ -26,7 +26,7 @@ except ImportError:
 import tempfile
 
 
-def migrate_repositories_and_update_config(changes, config=None, logger=None):
+def migrate_repositories_and_update_config(changes, config=None, safe=True, logger=None):
 	"""
 	Migrate relay repositories and update configuration file.
 
@@ -35,6 +35,8 @@ def migrate_repositories_and_update_config(changes, config=None, logger=None):
 		changes (ConfigParser): changes to apply to relays.
 
 		config (str or ConfigParser): configuration for active relays.
+
+		safe (bool): whether to lock all the resources or not.
 
 		logger (Logger): logger.
 
@@ -54,13 +56,13 @@ def migrate_repositories_and_update_config(changes, config=None, logger=None):
 	for repository in changes.sections():
 		repository_logger = logger.getChild(repository)
 		repository_logger.setLevel(logging.DEBUG)
-		config = migrate_repository(repository, changes, config,
+		config = migrate_repository(repository, changes, config, safe,
 				logger=repository_logger)
 	# update configuration file
 	write_config(cfg_file, config)
 
 
-def migrate_repository(repository, changes, config=None, logger=None):
+def migrate_repository(repository, changes, config=None, safe=True, logger=None):
 	"""
 	Parse the configuration sections for the source and destination relays and transfer
 	the entire repository from the source relay to the destination relay.
@@ -78,6 +80,9 @@ def migrate_repository(repository, changes, config=None, logger=None):
 			`repository`.
 
 		config (str or ConfigParser): configuration file or object for the source relay.
+
+		safe (bool or (bool, bool)): whether to lock all the resources before transfer;
+			the argument is passed directly to `inter_relay_copy`.
 
 		logger (Logger): logger.
 
@@ -108,7 +113,7 @@ def migrate_repository(repository, changes, config=None, logger=None):
 	# clear a few unrelevant extra fields
 	client = base_args.pop('clientname')
 	remove_fields = [ 'passphrase', 'encryption', 'path', 'mode', 'refresh', 'quota', 'maintainer' ]
-	for field in remove_args:
+	for field in remove_fields:
 		try:
 			del base_args[field]
 		except KeyError:
@@ -137,7 +142,7 @@ def migrate_repository(repository, changes, config=None, logger=None):
 	# connect
 	relay_src.open(), relay_dest.open()
 	# copy
-	to_fix = inter_relay_copy(relay_src, relay_dest)
+	to_fix = inter_relay_copy(relay_src, relay_dest, safe=safe)
 	if to_fix:
 		logger.info('\n\t'.join(['the following files could not be transfered: ']+to_fix))
 	# update and return config
@@ -146,12 +151,52 @@ def migrate_repository(repository, changes, config=None, logger=None):
 		if field not in changes:
 			changes[field] = extra[field]
 	for field in changes:
-		option = default_option(field)
+		try:
+			option = actual_option(config, repository, fields[field])
+		except KeyError:
+			option = field
 		config.set(repository, option, changes[field])
 	return config
 
 
-def inter_relay_copy(src_relay, dest_relay, overwrite=False, files=[]):
+def _acquire_lock(relay, resource, blocking=True):
+	try:
+		return relay.acquireLock(resource, blocking=blocking)
+	except ExpressInterrupt:
+		raise
+	except:
+		return False
+
+def _release_lock(relay, resource):
+	try:
+		relay.releaseLock(resource)
+	except ExpressInterrupt:
+		raise
+	except:
+		return False
+	else:
+		return True
+
+def _get(relay, src, dest):
+	try:
+		return relay._get(src, dest) is not False
+	except ExpressInterrupt:
+		raise
+	except:
+		relay.logger.info("read failed: '%s'", src)
+		return False
+
+def _push(relay, src, dest):
+	try:
+		return relay._push(src, dest) is not False
+	except ExpressInterrupt:
+		raise
+	except:
+		relay.logger.info("write failed: '%s'", dest)
+		return False
+
+
+def inter_relay_copy(src_relay, dest_relay, safe=True, overwrite=False, files=[]):
 	"""
 	Transfer files from a source relay to a destination relay.
 
@@ -175,6 +220,10 @@ def inter_relay_copy(src_relay, dest_relay, overwrite=False, files=[]):
 
 		dest_relay (escale.relay.Relay): destination opened relay.
 
+		safe (bool or (bool, bool)): if ``True``, lock the regular files before operating;
+			if a tuple, the first boolean applies to the source relay and the second
+			one applies to the destination relay.
+
 		overwrite (bool): overwrite existing locks on destination relay;
 			you should ensure yourself that the destination repository is inactive.
 
@@ -188,6 +237,18 @@ def inter_relay_copy(src_relay, dest_relay, overwrite=False, files=[]):
 	.. note:: instead of setting `overwrite` to `True`, it would preferable to purge
 		the destination repository.
 	"""
+	if isinstance(safe, tuple):
+		try:
+			src_safe = safe[0]
+		except IndexError:
+			src_safe = True
+		try:
+			dest_safe = safe[1]
+		except IndexError:
+			dest_safe = src_safe
+	else:
+		src_safe = safe
+		dest_safe = safe
 	new_placeholders = not (src_relay._placeholder_prefix == dest_relay._placeholder_prefix \
 			and src_relay._placeholder_suffix == dest_relay._placeholder_suffix)
 	new_locks = not (src_relay._lock_prefix == dest_relay._lock_prefix \
@@ -196,8 +257,8 @@ def inter_relay_copy(src_relay, dest_relay, overwrite=False, files=[]):
 			and src_relay._message_suffix == dest_relay._message_suffix)
 	if not (src_relay._message_hash is None and dest_relay._message_hash is None):
 		fd, filename = tempfile.mkstemp(text=True)
-		fd.write('test content')
-		fd.close()
+		os.write(fd, 'test content')
+		os.close(fd)
 		try:
 			new_messages |= src_relay._message_hash(filename) != dest_relay._message_hash(filename)
 		finally:
@@ -212,7 +273,15 @@ def inter_relay_copy(src_relay, dest_relay, overwrite=False, files=[]):
 	# list files in source repository
 	if not files:
 		files = src_relay._list()
-		if dest_relay._list():
+		ls = dest_relay._list()
+		# `ls` is either a list or an iterator
+		if isinstance(ls, list):
+			ls = iter(ls)
+		try:
+			ls.next()
+		except StopIteration:
+			pass
+		else:
 			dest_relay.logger.warning('repository is not empty')
 	# group them by regular file
 	for f in files:
@@ -229,77 +298,58 @@ def inter_relay_copy(src_relay, dest_relay, overwrite=False, files=[]):
 	try:
 		# lock all the resources both on the source relay and on the destination relay
 		for f in groups:
-			if status.get(f, True): # or equivalently: if f not in status
-				status[f] = src_relay.acquireLock(f, blocking=False)
-			if not dest_relay.acquireLock(f, blocking=False):
-				if overwrite:
-					# this is unsafe
-					dest_relay.unlink(dest_relay.lock(f))
-					dest_relay.acquireLock(f, blocking=True)
-				else:
-					# destination relay should be inactive
-					raise RuntimeError('cannot lock resource on destination relay')
+			if status.get(f, src_safe): # status contains only Falses
+				src_relay.logger.debug("locking '%s'", f)
+				status[f] = _acquire_lock(src_relay, f, blocking=False)
+			if dest_safe:
+				dest_relay.logger.debug("locking '%s'", f)
+				if not _acquire_lock(dest_relay, f, blocking=False):
+					if overwrite:
+						# this is unsafe
+						dest_relay.unlink(dest_relay.lock(f))
+						_acquire_lock(dest_relay, f, blocking=True)
+					else:
+						# destination relay should be inactive
+						raise RuntimeError('cannot lock resource on destination relay')
 		# transfer files
 		cache = src_relay.newTemporaryFile()
 		# begin with secured resources
 		for g in groups:
-			if status[g] is True:
+			if status.get(g, True) is True:
 				for f in groups[g]:
-					try:
-						src_relay._get(f, cache)
-					except ExpressInterrupt:
-						raise
-					except:
-						src_relay.logger.info("read failed: '%s'", f)
+					src_relay.logger.debug("transferring '%s'", f)
+					if not (_get(src_relay, f, cache) and _push(dest_relay, cache, f)):
 						files_to_fix.append(f)
-					else:
-						try:
-							dest_relay._push(cache, f)
-						except ExpressInterrupt:
-							raise
-						except:
-							dest_relay.logger.info("write failed: '%s'", f)
-							files_to_fix.append(f)
 		# try now with unsecured resources
 		for g in groups:
-			if status[g] is True:
+			if status.get(g, True) is True:
 				continue # skip secured
 			elif status[g] is False:
 				# locking failed; try again
-				status[g] = src_relay.acquireLock(f, blocking=True)
+				src_relay.logger.debug("locking '%s'", g)
+				status[g] = _acquire_lock(src_relay, f, blocking=True)
 			for f in groups[g]:
-				try:
-					src_relay._get(f, cache)
-				except ExpressInterrupt:
-					raise
-				except:
-					src_relay.logger.info("read failed: '%s'", f)
+				src_relay.logger.debug("transferring '%s'", f)
+				if not (_get(src_relay, f, cache) and _push(dest_relay, cache, f)):
 					files_to_fix.append(f)
-				else:
-					try:
-						dest_relay._push(cache, f)
-					except ExpressInterrupt:
-						raise
-					except:
-						dest_relay.logger.info("write failed: '%s'", f)
-						files_to_fix.append(f)
 	finally:
+		msg = "reverting changes; please do not interrupt now"
+		if src_safe:
+			src_relay.logger.info(msg)
+		if dest_safe:
+			dest_relay.logger.info(msg)
 		# release locks on destination relay
-		for f in groups:
-			try:
-				dest_relay.releaseLock(f)
-			except ExpressInterrupt:
-				raise
-			except:
-				dest_relay.logger.error("lock for '%s' might not have been released", f)
+		if dest_safe:
+			for f in groups:
+				if not _release_lock(dest_relay, f):
+					dest_relay.logger.error("lock for '%s' might not have been released", f)
+			dest_relay.logger.info("done")
 		# release locks in source relay
-		for f in groups:
-			if status[f] is not INITIALLY_LOCKED:
-				try:
-					src_relay.releaseLock(f)
-				except ExpressInterrupt:
-					raise
-				except:
-					src_relay.logger.error("lock for '%s' might not have been released", f)
+		if src_safe:
+			for f in groups:
+				if status.get(f, INITIALLY_LOCKED) is not INITIALLY_LOCKED:
+					if not _release_lock(src_relay, f):
+						src_relay.logger.error("lock for '%s' might not have been released", f)
+			src_relay.logger.info("done")
 	return files_to_fix
 

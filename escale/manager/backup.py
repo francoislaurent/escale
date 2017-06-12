@@ -19,13 +19,13 @@ import tempfile
 import tarfile
 
 
-backup_logger = 'backup'
+backup_logname = 'backup'
 
 
 class Backup(LocalMount):
 
 	def __init__(self, directory, **super_args):
-		LocalMount.__init__(self, backup_logger, 'localhost', directory, **super_args)
+		LocalMount.__init__(self, backup_logname, 'localhost', directory, **super_args)
 
 	def acquireLock(*args, **kwargs):
 		return True
@@ -35,7 +35,7 @@ class Backup(LocalMount):
 
 
 
-def backup_manager(archive, repository, backup_or_restore='backup', config=None, logger=None):
+def backup_manager(archive, repository, backup_or_restore='backup', safe=True, config=None, logger=None):
 	# load configuration file
 	if config:
 		msgs = []
@@ -52,13 +52,14 @@ def backup_manager(archive, repository, backup_or_restore='backup', config=None,
 	directory = relay_config.pop('directory')
 	relay_logger = logger.getChild(repository)
 	relay_logger.setLevel(logging.DEBUG)
-	backup_logger = logger.getChild(backup_logger)
+	backup_logger = logger.getChild(backup_logname)
 	backup_logger.setLevel(logging.DEBUG)
 	relay = relay_class(client, address, directory, logger=relay_logger, **relay_config)
+	relay.open()
 	if backup_or_restore == 'backup':
-		errors = backup_relay_repository(relay, archive, logger=backup_logger)
+		errors = backup_relay_repository(relay, archive, safe=safe, logger=backup_logger)
 	elif backup_or_restore == 'restore':
-		errors = restore_relay_repository(relay, archive, logger=backup_logger)
+		errors = restore_relay_repository(relay, archive, safe=safe, logger=backup_logger)
 	else:
 		msg = "unsupported value '{}'".format(backup_or_restore)
 		logger.error(msg)
@@ -69,8 +70,8 @@ def backup_manager(archive, repository, backup_or_restore='backup', config=None,
 		raise RuntimeError(msg)
 
 
-def backup_relay_repository(relay, archive, logger=None):
-	ext = os.path.splitext(archive)
+def backup_relay_repository(relay, archive, safe=True, logger=None):
+	_, ext = os.path.splitext(archive)
 	if ext:
 		compression = ext[1:]
 		if compression == 'tar':
@@ -80,14 +81,8 @@ def backup_relay_repository(relay, archive, logger=None):
 	else:
 		compression = 'bz2'
 		archive += '.tar.bz2'
-	if ext == '.tar':
-		compression = ''
-	elif ext == '.gz':
-		compression = ':gz'
-	elif ext == '.bz2':
-		compression = ':bz2'
 	if not logger:
-		logger = logging.getLogger(log_root).getChild(backup_logger)
+		logger = logging.getLogger(log_root).getChild(backup_logname)
 		logger.setLevel(logging.DEBUG)
 	copy_attributes = ['_placeholder_prefix', '_placeholder_suffix',
 			'_lock_prefix', '_lock_suffix',
@@ -98,10 +93,12 @@ def backup_relay_repository(relay, archive, logger=None):
 	try:
 		for a in copy_attributes:
 			setattr(backup, a, getattr(relay, a))
-		errors = inter_relay_copy(relay, backup)
+		backup.open()
+		errors = inter_relay_copy(relay, backup, safe=(safe, False))
 		with tarfile.open(archive, mode='w:'+compression) as tar:
 			for member in os.listdir(directory):
-				tar.add(os.path.join(directory, member), recursive=True)
+				tar.add(os.path.join(directory, member), arcname=member,
+					recursive=True)
 	finally:
 		# delete directory
 		backup.purge()
@@ -109,9 +106,9 @@ def backup_relay_repository(relay, archive, logger=None):
 	return errors
 
 
-def restore_relay_repository(relay, archive, logger=None):
+def restore_relay_repository(relay, archive, safe=True, logger=None):
 	if not logger:
-		logger = logging.getLogger(log_root).getChild(backup_logger)
+		logger = logging.getLogger(log_root).getChild(backup_logname)
 		logger.setLevel(logging.DEBUG)
 	directory = tempfile.mkdtemp()
 	backup = Backup(directory, logger=logger)
@@ -122,9 +119,10 @@ def restore_relay_repository(relay, archive, logger=None):
 	try:
 		for a in copy_attributes:
 			setattr(backup, a, getattr(relay, a))
+		backup.open()
 		with tarfile.open(archive, mode='r') as tar:
 			tar.extractall(directory)
-		errors = inter_relay_copy(backup, relay)
+		errors = inter_relay_copy(backup, relay, safe=(False, safe))
 	finally:
 		# delete directory
 		backup.purge()
