@@ -102,6 +102,13 @@ def parse_section(config, repository, logger):
 				cipher = encryption.by_cipher('fernet')
 			else:
 				cipher = None
+		elif args['encryption'].startswith('native'):
+			try:
+				# pass the `passphrase` option to the relay backend
+				args['config']['passphrase'] = args.pop('passphrase')
+			except KeyError:
+				pass
+			cipher = None
 		else:
 			try:
 				cipher = encryption.by_cipher(args['encryption'])
@@ -119,12 +126,6 @@ def parse_section(config, repository, logger):
 			# again, do not let the user send plain data if she requested encryption:
 			raise ValueError(msg)
 		if cipher is None:
-			if args['encryption'].startswith('native'):
-				try:
-					# pass the `passphrase` option to the relay backend
-					args['config']['passphrase'] = args.pop('passphrase')
-				except KeyError:
-					pass
 			del args['encryption']
 		else:
 			args['encryption'] = cipher(args['passphrase'])

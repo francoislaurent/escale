@@ -66,55 +66,58 @@ class Cipher(object):
 		raise NotImplementedError('abstract method')
 
 	def encrypt(self, plain, cipher=None):
+		__open__ = open
 		auto = not cipher
 		if auto:
 			fo, cipher = tempfile.mkstemp()
+			# `fo` has to be converted into a file object with `open` (Py3)
+			# or `os.fdopen` (Py2, Py3)
+			__open__ = os.fdopen
 			self._temporary_files.append(cipher)
 		else:
-			fo = open(cipher, 'wb')
+			fo = cipher # to be opened with `open`
 		try:
-			with open(plain, 'rb') as fi:
-				fo.write(self._encrypt(fi.read()))
+			with __open__(fo, 'wb') as fo:
+				with open(plain, 'rb') as fi:
+					fo.write(self._encrypt(fi.read()))
 		except ExpressInterrupt:
-			fo.close()
 			raise
 		except Exception as e:
-			fo.close()
 			if auto:
 				os.unlink(cipher)
 				self._temporary_files.remove(cipher)
 			cipher = None
 			print(e)
-		else:
-			fo.close()
 		return cipher
 
 	def decrypt(self, cipher, plain=None, consume=True, makedirs=True):
+		__open__ = open
 		auto = not plain
 		if auto:
 			fo, plain = tempfile.mkstemp()
+			# `fo` has to be converted into a file object with `open` (Py3)
+			# or `os.fdopen` (Py2, Py3)
+			__open__ = os.fdopen
 			self._temporary_files.append(plain)
 		else:
 			if makedirs:
 				dirname = os.path.dirname(plain)
 				if not os.path.isdir(dirname):
 					os.makedirs(dirname)
-			fo = open(plain, 'wb')
+			fo = plain
 		try:
-			with open(cipher, 'rb') as fi:
-				fo.write(self._decrypt(fi.read()))
+			with __open__(fo, 'wb') as fo:
+				with open(cipher, 'rb') as fi:
+					fo.write(self._decrypt(fi.read()))
 		except ExpressInterrupt:
-			fo.close()
 			raise
 		except Exception as e:
-			fo.close()
 			if auto:
 				os.unlink(plain)
 				self._temporary_files.remove(plain)
 			plain = None
 			print(e)
 		else:
-			fo.close()
 			if consume:
 				os.unlink(cipher)
 		return plain

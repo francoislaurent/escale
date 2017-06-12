@@ -203,9 +203,9 @@ class WebDAVClient(easywebdav.Client):
 
 	def ls(self, remote_path, recursive=False):
 		if recursive:
-			headers = {'Depth': '1'}
+			headers = {'Depth': 'infinity'}
 		else:
-			headers = {}
+			headers = {'Depth': '1'}
 		response = self._send('PROPFIND', remote_path, (207, 301), headers=headers)
 
 		# Redirect
@@ -356,7 +356,8 @@ class WebDAV(Relay):
 
 	def exists(self, remote_file, dirname=None):
 		if dirname:
-			self.webdav.cd(join(self.repository, dirname))
+			#self.webdav.cd(join(self.repository, dirname))
+			remote_file = join(self.repository, dirname, remote_file)
 		else:
 			remote_file = join(self.repository, remote_file)
 		return self.webdav.exists(remote_file)
@@ -416,7 +417,7 @@ class WebDAV(Relay):
 	def unlink(self, remote_file):
 		#print('deleting {}'.format(remote_file)) # debug
 		remote_file = join(self.repository, remote_file)
-		self.webdav.delete(remote_file, safe=True)
+		self.webdav.delete(remote_file)
 
 	def purge(self, remote_dir=''):
 		remote_dir = join(self.repository, remote_dir)

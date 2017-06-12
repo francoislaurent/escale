@@ -379,7 +379,7 @@ class Relay(AbstractRelay):
 			str: path to temporary file.
 		'''
 		fd, name = tempfile.mkstemp()
-		fd.close()
+		os.close(fd)
 		self._temporary_files.append(name)
 		return name
 
@@ -668,20 +668,21 @@ class Relay(AbstractRelay):
 		"""
 		#local_file = self.newTemporaryFile()
 		f, local_file = self._safe(tempfile.mkstemp, text=True)
+		# f is an open file descriptor in 'w' mode and can be manipulated 
+		# with os.write/os.close functions
 		try:
-			if content:
-				if isinstance(content, list):
-					nlines = len(content)
-					for lineno, line in enumerate(content):
-						f.write(asstr(line))
-						if lineno + 1 < nlines:
-							f.write('\n')
-				else:
-					f.write(asstr(content))
-			f.close()
+			with os.fdopen(f, 'w') as f: # convert f into a file object
+				if content:
+					if isinstance(content, list):
+						nlines = len(content)
+						for lineno, line in enumerate(content):
+							f.write(asstr(line))
+							if lineno + 1 < nlines:
+								f.write('\n')
+					else:
+						f.write(asstr(content))
 			self._safe(self._push, local_file, remote_file)
 		finally:
-			f.close()
 			os.unlink(local_file)
 		#self.delTemporaryFile(local_file)
 
@@ -694,7 +695,7 @@ class Relay(AbstractRelay):
 		"""
 		#trash = self.newTemporaryFile()
 		fd, trash = tempfile.mkstemp()
-		fd.close()
+		os.close(fd)
 		try:
 			if isinstance(remote_file, list):
 				for file in remote_file:
@@ -749,7 +750,7 @@ class Relay(AbstractRelay):
 		"""
 		remote_lock = self.lock(remote_file)
 		fd, local_lock = self._safe(tempfile.mkstemp)
-		fd.close()
+		os.close(fd)
 		try:
 			self._safe(self._get, remote_lock, local_lock)
 		except ExpressInterrupt+(UnrecoverableError,):

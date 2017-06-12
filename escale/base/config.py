@@ -140,7 +140,7 @@ def getpath(config, section, attr):
 	if os.path.isdir(os.path.dirname(path)):
 		return path
 	else:
-		raise ValueError
+		raise ValueError("cannot find directory '{}'".format(path))
 
 
 _item_separator = ','
@@ -205,6 +205,7 @@ def getter(_type='str'):
 def parse_field(config, section, attrs, getters=None, logger=None):
 	if not getters:
 		getters = [ ConfigParser.get ]
+	last_err_msg = ''
 	for attr in attrs:
 		option = True
 		for get in getters:
@@ -213,13 +214,20 @@ def parse_field(config, section, attrs, getters=None, logger=None):
 			except NoOptionError:
 				option = False
 				break
-			except ValueError:
-				pass
+			except ValueError as e:
+				if e.args and e.args[0]:
+					last_err_msg = e.args[0]
 		if option:
+			msg = "wrong format for attribute '{}'".format(attr)
 			if logger is None:
-				print("warning: wrong format for attribute '{}'".format(attr))
+				print("warning: "+msg)
+				if last_err_msg:
+					print(last_err_msg)
 			else:
-				logger.warning("wrong format for attribute '%s'", attr)
+				logger.warning(msg)
+				if last_err_msg:
+					logger.warning(last_err_msg)
+			return config.get(section, attr)
 	return None
 
 

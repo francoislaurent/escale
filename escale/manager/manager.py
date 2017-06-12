@@ -170,7 +170,7 @@ class Manager(Reporter):
 					_fresh_start = False
 				if not self.tq_controller.wait():
 					break
-			except (KeyboardInterrupt, SystemExit, UnrecoverableError) as e:
+			except ExpressInterrupt+(UnrecoverableError,) as e:
 				last_error = e
 				break
 			except Exception as e:
@@ -244,6 +244,7 @@ class Manager(Reporter):
 				meta = self.relay.getMetaInfo(remote_file)
 				if meta:
 					with open(meta, 'r') as f:
+						# meta information is assumed to be ascii
 						last_modified = f.readline().rstrip()
 					os.unlink(meta)
 					if last_modified:
@@ -259,9 +260,8 @@ class Manager(Reporter):
 						# on the relay; delete it
 						# this fixes the consequences of a bug introduced somewhere in the 0.4
 						# family
-						self.logger.info("deleting duplicate file '%s'", remote_file)
+						self.logger.info("deleting duplicate or outdated file '%s'", remote_file)
 						self.relay.delete(remote_file)
-					# local_mtime = os.path.getmtime(local_file)
 					continue
 				msg = "updating local file '%s'"
 			else:
