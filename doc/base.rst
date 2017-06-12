@@ -1,63 +1,72 @@
 
-syncacre.base package
-=====================
+escale.base package
+===================
 
 This package implements the high-level logic of the project.
 
 
-.. automodule:: syncacre.base
+.. automodule:: escale.base
     :members:
     :show-inheritance:
 
 
-syncacre.base.essential module
-------------------------------
+escale.base.essential module
+----------------------------
 
-.. automodule:: syncacre.base.essential
-    :members:
-    :undoc-members:
-    :show-inheritance:
-
-
-syncacre.base.exceptions module
--------------------------------
-
-.. automodule:: syncacre.base.exceptions
+.. automodule:: escale.base.essential
     :members:
     :undoc-members:
     :show-inheritance:
 
 
-syncacre.base.timer module
---------------------------
+escale.base.exceptions module
+-----------------------------
 
-.. automodule:: syncacre.base.timer
+.. automodule:: escale.base.exceptions
     :members:
+    :undoc-members:
     :show-inheritance:
 
 
-syncacre.base.ssl module
+escale.base.timer module
 ------------------------
 
-.. automodule:: syncacre.base.ssl
+.. automodule:: escale.base.timer
+    :members:
+    :show-inheritance:
+
+
+escale.base.ssl module
+----------------------
+
+.. automodule:: escale.base.ssl
     :members:
     :undoc-members:
     :show-inheritance:
 
 
-syncacre.base.config module
----------------------------
-
-.. automodule:: syncacre.base.config
-    :members:
-    :undoc-members:
-    :show-inheritance:
-
-
-syncacre.base.base module
+escale.base.config module
 -------------------------
 
-.. automodule:: syncacre.base.base
+.. automodule:: escale.base.config
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+
+escale.base.subprocess module
+-----------------------------
+
+.. automodule:: escale.base.subprocess
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+
+escale.base.launcher module
+---------------------------
+
+.. automodule:: escale.base.launcher
     :members:
     :undoc-members:
     :show-inheritance:

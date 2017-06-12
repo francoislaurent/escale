@@ -1,6 +1,6 @@
 
-syncacre.log package
-====================
+escale.log package
+==================
 
 This package provides helpers and default configuration on top of the :mod:`logging` standard library.
 
@@ -9,24 +9,24 @@ Logs are concealed in a file which name can be defined in the configuration file
 Logs with priority ``INFO`` or higher are also dumped to the standard output.
 
 
-.. automodule:: syncacre.log
+.. automodule:: escale.log
     :members:
     :show-inheritance:
 
 
-syncacre.log.log module
------------------------
+escale.log.log module
+---------------------
 
-.. automodule:: syncacre.log.log
+.. automodule:: escale.log.log
     :members:
     :undoc-members:
     :show-inheritance:
 
 
-syncacre.log.socket module
---------------------------
+escale.log.socket module
+------------------------
 
-.. automodule:: syncacre.log.socket
+.. automodule:: escale.log.socket
     :members:
     :undoc-members:
     :show-inheritance:

@@ -1,57 +1,84 @@
 
-syncacre.relay package
-======================
+escale.relay package
+====================
 
-This package defines an interface to a remote host as called by :class:`~syncacre.manager.Manager` and a few implementations.
+This package defines an interface to a remote host as called by :class:`~escale.manager.Manager` and a few implementations.
 
-.. automodule:: syncacre.relay
+.. automodule:: escale.relay
     :members:
     :private-members:
     :show-inheritance:
 
 
-syncacre.relay.info module
+escale.relay.info module
+------------------------
+
+.. automodule:: escale.relay.info
+    :members:
+    :private-members:
+    :undoc-members:
+    :show-inheritance:
+
+
+escale.relay.relay module
+-------------------------
+
+.. automodule:: escale.relay.relay
+    :members:
+    :private-members:
+    :undoc-members:
+    :show-inheritance:
+
+
+escale.relay.localmount module
+------------------------------
+
+.. automodule:: escale.relay.localmount
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+
+escale.relay.ftp module
+-----------------------
+
+.. automodule:: escale.relay.ftp
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+
+escale.relay.webdav module
 --------------------------
 
-.. automodule:: syncacre.relay.info
-    :members:
-    :private-members:
-    :undoc-members:
-    :show-inheritance:
-
-
-syncacre.relay.relay module
----------------------------
-
-.. automodule:: syncacre.relay.relay
-    :members:
-    :private-members:
-    :undoc-members:
-    :show-inheritance:
-
-
-syncacre.relay.webdav module
-----------------------------
-
-.. automodule:: syncacre.relay.webdav
+.. automodule:: escale.relay.webdav
     :members:
     :undoc-members:
     :show-inheritance:
 
 
-syncacre.relay.ftp module
--------------------------
+.. escale.relay.ssh module
+.. -----------------------
 
-.. automodule:: syncacre.relay.ftp
+.. .. automodule:: escale.relay.ssh
+..     :members:
+..     :undoc-members:
+..     :show-inheritance:
+
+
+escale.relay.google module
+--------------------------
+
+.. automodule:: escale.relay.google
     :members:
     :undoc-members:
     :show-inheritance:
 
 
-syncacre.relay.ssh module
--------------------------
+escale.relay.google.drive module
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-.. automodule:: syncacre.relay.ssh
+.. automodule:: escale.relay.google.drive
     :members:
     :undoc-members:
     :show-inheritance:

@@ -1,34 +1,70 @@
 
-syncacre.cli package
-====================
+escale.cli package
+==================
 
-.. automodule:: syncacre.cli
+.. automodule:: escale.cli
     :members:
     :show-inheritance:
 
 
-syncacre.cli.config module
---------------------------
+escale.cli.auth module
+----------------------
 
-.. automodule:: syncacre.cli.config
+.. automodule:: escale.cli.auth
     :members:
     :undoc-members:
     :show-inheritance:
 
 
-syncacre.cli.auth module
+escale.cli.license module
+-------------------------
+
+.. automodule:: escale.cli.license
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+
+escale.cli.controller module
+----------------------------
+
+.. automodule:: escale.cli.controller
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+
+escale.cli.ctl module
+---------------------
+
+.. automodule:: escale.cli.ctl
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+
+escale.cli.config module
 ------------------------
 
-.. automodule:: syncacre.cli.auth
+.. automodule:: escale.cli.config
     :members:
     :undoc-members:
     :show-inheritance:
 
 
-syncacre.cli.controller module
-------------------------------
+escale.cli.config.config module
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-.. automodule:: syncacre.cli.controller
+.. automodule:: escale.cli.config.config
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+
+escale.cli.config.googledrive module
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. automodule:: escale.cli.config.googledrive
     :members:
     :undoc-members:
     :show-inheritance:
