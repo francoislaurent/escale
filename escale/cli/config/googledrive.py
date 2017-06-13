@@ -13,7 +13,7 @@
 
 
 from escale.base.config import parse_field
-from escale.cli.config import query_field
+from escale.cli.config import *
 from escale.relay.google.drive import *
 from escale.base.subprocess import *
 import os
@@ -32,7 +32,7 @@ suggested_go_path = '~/golang'
 def setup(config, section):
 	drive_bin = drive_binary(parse_field(config, section, drive_option))
 	if not drive_bin:
-		print("if you don't have 'drive' installed, leave it empty")
+		multiline_print("if you don't have 'drive' installed, leave it empty:")
 		drive_bin = drive_binary(query_field(config, section, drive_option)[1])
 	if drive_bin:
 		config.set(section, drive_option, drive_bin)
@@ -46,15 +46,15 @@ def setup(config, section):
 		else:
 			go_available = v.startswith('go ')
 		if go_available:
-			print("the 'drive' Go package is going to be installed")
-			answer = input("do you want to continue? [Y/n] ")
+			multiline_print("the 'drive' Go package is going to be installed")
+			answer = input(decorate_line("do you want to continue? [Y/n] "))
 			if answer and answer[0] not in 'yY':
 				raise ValueError # abort
 			try:
 				go_path = os.environ['GOPATH']
 			except KeyError:
-				print("cannot find the 'GOPATH' environment variable")
-				go_path = input("where do you want Go packages to be installed? [{}] ".format(suggested_go_path))
+				multiline_print("cannot find the 'GOPATH' environment variable")
+				go_path = input(decorate_line("where do you want Go packages to be installed? [{}] ".format(suggested_go_path)))
 				if not go_path:
 					go_path = suggested_go_path
 				go_path = os.path.expanduser(go_path)

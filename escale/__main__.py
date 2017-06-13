@@ -42,7 +42,13 @@ def main():
 		epilog='See also escalectl')
 	parser.add_argument('-c', '--config', type=str, metavar='FILE', help='path to config file')
 	parser.add_argument('-d', '--daemon', action='store_true', help='runs in background as a daemon')
-	parser.add_argument('-i', '--interactive', action='store_true', help='asks questions to fill in an extra section in the configuration file')
+	import_metavar = 'FILE'
+	parser.add_argument('--interactive', action='store_true',
+			help='assists with configuring escale')
+	parser.add_argument('--import', type=str, metavar=import_metavar,
+			help='imports a configuration file')
+	parser.add_argument('-i', type=str, nargs='?', metavar=import_metavar,
+			help='shorthand for --import if followed by {}, or --interactive otherwise'.format(import_metavar))
 	parser.add_argument('-q', '--quiet', action='store_true', help='runs silently [deprecated]')
 	parser.add_argument('-r', '--auto-restart', type=int, nargs='?', metavar='TIME', help='restart {} when it crashed; can specify a time interval in seconds before restart [default {}]'.format(PROGRAM_NAME, auto_restart_default))
 	parser.add_argument('-y', '--accept-license', action='store_true', help='skip the license acceptance step at first startup and agree with the terms of the license')
@@ -61,6 +67,20 @@ def main():
 	# reverse the changes introduced by ``argument_default=argparse.SUPPRESS``
 	if 'config' not in args:
 		args['config'] = None
+	if 'i' in args:
+		if args['i']:
+			# -i FILE means --import FILE
+			translation = 'import'
+			value = args['i']
+		else:
+			translation = 'interactive'
+			value = True
+		if translation in args:
+			print("'-i' and '--{}' conflict".format(translation))
+			return
+		else:
+			args[translation] = value
+		del args['i']
 	if 'interactive' not in args:
 		args['interactive'] = False
 	if 'disable_proxy' not in args:
@@ -81,10 +101,11 @@ def main():
 	# assist the user in configuring escale
 	if args['interactive']:
 		try:
-			msgs = add_section(args['config'], msgs)
+			msgs = edit_config(args['config'], msgs)
 		except ExpressInterrupt:
 			# suppress output
 			pass
+		return # new in 0.5rc2
 	# welcome message
 	msgs.append((logging.INFO, "running version %s", __version__))
 	# handle -d option
