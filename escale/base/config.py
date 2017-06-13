@@ -493,6 +493,8 @@ def get_dist_file(default_dirs={}, filename=None,
 		config = None
 	undefined = True
 	dist_dir, cfg_basename = os.path.split(cfg_file)
+	if not dist_dir:
+		dist_dir = os.getcwd()
 	if option and config is not None:
 		if section is None:
 			section = default_section
