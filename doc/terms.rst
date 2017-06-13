@@ -24,10 +24,10 @@ same conditions as regards security.
 The fact that you are presently reading this means that you have had
 knowledge of the CeCILL-C license and that you accept its terms.
 
-Note to developers
-~~~~~~~~~~~~~~~~~~
+.. Note to developers
+.. ~~~~~~~~~~~~~~~~~~
 
-The CeCILL licenses are compatible with the GPL.
-You can distribute your modified version of the software under the GPL.
+.. The CeCILL licenses are compatible with the GPL.
+.. You can distribute your modified version of the software under the GPL.
 
 .. |escale| replace:: **Escale**

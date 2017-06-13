@@ -62,7 +62,9 @@ default_cache_dirs = { user_cfg_dir: user_cache_dir,
 # 'quota' added in version 0.4.1a2
 # 'certfile' and 'keyfile' added in version 0.4.1
 # 'pattern' added in version 0.4.2a4
-# 'locktimeout', 'mode' and 'count' added in version 0.5
+# 'locktimeout', 'mode' and 'count' added in version 0.5-?
+# 'pattern' becomes 'include' in version 0.5rc2
+# 'exclude' added in version 0.5rc2
 fields = dict(path=('path', ['local path', 'path']),
 	address=['host address', 'relay address', 'remote address', 'address'],
 	directory=['host directory', 'relay directory', 'remote directory',
@@ -82,7 +84,8 @@ fields = dict(path=('path', ['local path', 'path']),
 	ssl_version=['ssl version'],
 	verify_ssl=('bool', ['verify ssl']),
 	filetype=('list', ['file extension', 'file type']),
-	pattern=['pattern', 'filter'],
+	include=['pattern', 'filter', 'include', 'include files'],
+	exclude=['exclude', 'exclude files'],
 	quota=('number_unit', ['disk quota']),
 	maintainer=['maintainer', 'email'],
 	certfile=('path', ['certfile', 'cert file', 'certificate']),

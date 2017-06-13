@@ -18,19 +18,24 @@ Below follows a list of solutions classified as whether they are or may be suppo
 
 The information below may not be up-to-date and is very far from being exhaustive.
 
-+--------------+----------------+----------------+------------------------------------+
-| Service      | Native support | Escale backend | More information                   |
-+==============+================+================+====================================+
-| Box          |       Yes(*)   |     WebDAV     |                                    |
-+--------------+----------------+----------------+------------------------------------+
-| Dropbox      |       No       |   LocalMount   | `Dropbox <Dropbox.html>`_          |
-+--------------+----------------+----------------+------------------------------------+
-| Google Drive |       No       |   LocalMount   | `Google Drive <GoogleDrive.html>`_ |
-+--------------+----------------+----------------+------------------------------------+
-| Yandex.Disk  |       Yes      |     WebDAV     | `Yandex.Disk <YandexDisk.html>`_   |
-+--------------+----------------+----------------+------------------------------------+
++---------------+-----------------+-----------------+------------------+
+| Service       | Native support  | Escale backend  | More information |
++===============+=================+=================+==================+
+| Box           |       Yes(*)    |     WebDAV      |                  |
++---------------+-----------------+-----------------+------------------+
+| Dropbox       |       No        |   LocalMount    | `Dropbox`_       |
++---------------+-----------------+-----------------+------------------+
+| Google Drive  |       Yes(**)   |   GoogleDrive   | `Google Drive`_  |
++---------------+-----------------+-----------------+------------------+
+| Yandex.Disk   |       Yes       |     WebDAV      | `Yandex.Disk`_   |
++---------------+-----------------+-----------------+------------------+
 
 \* not verified
 
+\*\* on top of the *drive* utility
+
 
 .. |escale| replace:: **Escale**
+.. _Dropbox: Dropbox.html
+.. _Google Drive: GoogleDrive.html
+.. _Yandex.Disk: YandexDisk.html

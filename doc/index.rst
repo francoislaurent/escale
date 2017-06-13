@@ -2,15 +2,17 @@ Escale documentation
 ====================
 
      
-|escale| (French: stop, halt, stopover) is a fault-tolerant client-to-client file synchronization program based on external relay storage.
+|escale| (French: stop, halt, stopover) synchronizes files between clients that operate behind restrictive firewalls.
 
-Files can be transfered between nodes with no administration privileges. All nodes are clients. Consequently they can operate from behind restrictive firewalls.
+It makes use of common file transfer solutions (FTP) and popular cloud solutions such as Dropbox, Google Drive and WebDAV servers including Yandex Disk.
 
-All what |escale| needs is an external storage space such as an account on a FTP or WebDAV server. The nodes running |escale| can upload their respective files and download from the remote account the files they don't have locally.
+|escale| maintains a relay repository in a folder inside the remote or cloud storage space and frees memory as soon as copies of a shared file have been propagated to all the clients. File modifications are also propagated.
 
-The external passive storage can have limited storage space and files are deleted from the server once every client got a copy.
+It features end-to-end encryption, quota management, filename filters, access control and adaptive transmission latencies. 
+It also features useful management routines such as migration, backup and restoration of relay repositories.
 
-The server itself may not be trusted and files can be encrypted before they are uploaded.
+It can run as a daemon and simultaneously synchronize several repositories between multiple clients.
+
 
 |escale|'s project page is on `github.com <https://github.com/francoislaurent/escale>`_.
 

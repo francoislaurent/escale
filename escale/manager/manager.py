@@ -6,7 +6,7 @@
 #   Contributor: François Laurent
 #   Contributions:
 #     * `filetype` argument and attribute
-#     * initial `filter` method (without `pattern` support)
+#     * initial `filter` method (without `include` and `exclude` support)
 #     * initial `UnrecoverableError` handling (symbol added in a single except statement)
 
 # This file is part of the Escale software available at
@@ -56,7 +56,9 @@ class Manager(Reporter):
 
 		filetype (list of str): list of file extensions.
 
-		pattern (str): regular expression to filter files by name.
+		include (str): regular expression to include files by name.
+
+		exclude (str): regular expression to exclude files by name.
 
 		tq_controller (escale.manager.TimeQuotaController): time and quota controller.
 
@@ -68,7 +70,8 @@ class Manager(Reporter):
 	"""
 	def __init__(self, relay, repository=None, address=None, directory=None, \
 		encryption=Plain(None), timestamp=True, refresh=True, clientname=None, \
-		filetype=[], pattern=None, tq_controller=None, count=None, **relay_args):
+		filetype=[], include=None, exclude=None, tq_controller=None, count=None, \
+		**relay_args):
 		Reporter.__init__(self, **relay_args)
 		self.repository = repository
 		if directory:
@@ -86,12 +89,19 @@ class Manager(Reporter):
 					for f in filetype ]
 		else:
 			self.filetype = []
-		self.pattern = None
-		if pattern:
+		self.include = None
+		if include:
 			try:
-				self.pattern = re.compile(pattern)
+				self.include = re.compile(include)
 			except:
-				self.logger.error("wrong filename pattern '%s'", pattern)
+				self.logger.error("wrong filename pattern '%s'", include)
+				self.logger.debug(traceback.format_exc())
+		self.exclude = None
+		if exclude:
+			try:
+				self.exclude = re.compile(exclude)
+			except:
+				self.logger.error("wrong filename pattern '%s'", exclude)
 				self.logger.debug(traceback.format_exc())
 		self.pop_args = {}
 		arg_map = [('locktimeout', 'lock_timeout')]
@@ -214,8 +224,10 @@ class Manager(Reporter):
 		"""
 		if self.filetype:
 			files = [ f for f in files if os.path.splitext(f)[1] in self.filetype ]
-		if self.pattern:
-			files = [ f for f in files if self.pattern.match(os.path.basename(f)) ]
+		if self.include:
+			files = [ f for f in files if self.include.match(os.path.basename(f)) ]
+		if self.exclude:
+			files = [ f for f in files if not self.exclude.match(os.path.basename(f)) ]
 		return files
 
 	def sanityCheck(self):

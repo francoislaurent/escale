@@ -1,14 +1,16 @@
 # Escale
 
-*Escale* (French: stop, halt, stopover) is a fault-tolerant client-to-client file synchronization program based on external relay storage.
+*Escale* (French: stop, halt, stopover) synchronizes files between clients that operate behind restrictive firewalls.
 
-Files can be transfered between nodes with no administration privileges. All nodes are clients. Consequently they can operate from behind restrictive firewalls.
+It makes use of common file transfer solutions (FTP) and popular cloud solutions such as Dropbox, Google Drive and WebDAV servers including Yandex Disk.
 
-All what *Escale* needs is an external storage space such as an account on a FTP or WebDAV server. The nodes running *Escale* can upload their respective files and download from the remote account the files they don't have locally.
+*Escale* maintains a relay repository in a folder inside the remote or cloud storage space and frees memory as soon as copies of the shared files have been propagated to all the clients.
+File modifications are also propagated.
 
-The external passive storage can have limited storage space and files are deleted from the server once every client got a copy.
+It features end-to-end encryption, quota management, filename filters, access control and adaptive transmission latencies. 
+It also features useful management routines such as migration, backup and restoration of relay repositories.
 
-The server itself may not be trusted and files can be encrypted before they are uploaded.
+It can run as a daemon and simultaneously synchronize several repositories between multiple clients.
 
 
 ## License
@@ -44,6 +46,8 @@ Please find the extended documentation at [escale.readthedocs.io](http://escale.
   * ``lock timeout`` configuration option
   * ``puller count``/``pullers`` configuration option
   * if *puller count* is ``1``, regular files on the relay space are auto-deleted if the puller's local copies are up-to-date
+  * ``include``/``include files`` as synonyms for ``filter``
+  * ``exclude``/``exclude files`` configuration option
   * relay backend for directories in the local file system; the ``protocol`` configuration option admits value ``file``
   * relay backend for Google Drive; the ``protocol`` configuration option admits value ``google`` and ``googledrive``
   * the ``encryption`` configuration option admits value ``native`` for ``google``/``googledrive`` repositories
@@ -107,7 +111,8 @@ Coming features are:
 * actually support multiple pullers (not tested yet)
 * split and recombine big files
 * more (symmetric) cryptographic algorithms and more cryptographic options
-* SSH support
+* SSH backend
+* auth2client backend for Google Drive
 
 
 ## Alternative solutions

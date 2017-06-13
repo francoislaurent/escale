@@ -7,6 +7,15 @@ escale.cli package
     :show-inheritance:
 
 
+escale.cli.format module
+------------------------
+
+.. automodule:: escale.cli.format
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+
 escale.cli.auth module
 ----------------------
 

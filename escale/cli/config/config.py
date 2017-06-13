@@ -6,8 +6,7 @@
 #    Contributor: François Laurent
 #    Contribution: query_local_repository, query_relay_address,
 #                  add_section rewrite, edit_section, edit_config,
-#                  section_common, decorate_line,
-#                  multiline_print, debug_print
+#                  section_common
 
 # This file is part of the Escale software available at
 # "https://github.com/francoislaurent/escale" and is distributed under
@@ -18,6 +17,7 @@
 # knowledge of the CeCILL-C license and that you accept its terms.
 
 
+from ..format import *
 from escale.base.config import *
 from escale.relay import __multi_path_protocols__
 import os
@@ -42,51 +42,7 @@ path_only_protocols = [ 'file' ] + multi_path_protocols
 standard_protocols = [ 'ftp', 'ftps', 'http', 'https', 'webdav' ]
 
 def show_protocols(ps):
-	p = ["'{}'"]
-	for _ in ps[1:-1]:
-		p.append(", '{}'")
-	if p[1:]:
-		p.append(" or '{}'")
-	return ''.join(p).format(*ps)
-
-
-def decorate_line(line):
-	"""
-	Capitalize the first letter.
-	"""
-	if line:
-		return line[0].upper()+line[1:]
-	else:
-		return line
-
-def multiline_print(*lines):
-	"""
-	Decorate and print a sentence.
-
-	The first letter of the first line is capitalized and
-	a final dot is appended under some conditions.
-	"""
-	if not lines:
-		return
-	line = decorate_line(lines[0])
-	if not lines[1:]:
-		if line and line[0].isalpha() and line[-1].isalnum():
-			line += '.'
-		print(line)
-		return
-	print(line)
-	for line in lines[1:-1]:
-		print(line)
-	line = lines[-1]
-	if line and line[0].isalpha() and line[-1].isalnum():
-		line += '.'
-	print(line)
-
-def debug_print(msg):
-	"""
-	Print a status message.
-	"""
-	print(decorate_line(msg))
+	return quote_join(ps, final=' or ')
 
 
 def query_field(config, section, field, description=None, suggestion='', required=False, echo=True):

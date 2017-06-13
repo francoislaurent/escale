@@ -13,7 +13,8 @@
 
 
 from escale.base.config import parse_field
-from escale.cli.config import *
+from escale.cli.config import query_field
+from escale.cli.format import *
 from escale.relay.google.drive import *
 from escale.base.subprocess import *
 import os

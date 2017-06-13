@@ -15,6 +15,7 @@ import os
 from escale import *
 from escale.base.config import *
 from escale.base.exceptions import LicenseError
+from .format import *
 
 try:
 	# convert Py2 `raw_input` to `input` (Py3)
@@ -82,12 +83,12 @@ def check_license_acceptance(accept=False):
 		print(terms)
 		license = os.path.join(os.path.dirname(__file__), os.pardir, os.pardir, 'LICENSE')
 		if os.path.isfile(license):
-			answer = input('Do you want to read the license full text now? [YES/no] ')
+			answer = input(decorate_line('do you want to read the license full text now? [YES/no] '))
 			if not answer or answer[0] in 'yY':
 				with open(license, 'r') as f:
 					content = f.read()
 				print(content)
-		answer = input('Do you have knowledge of the CeCILL-C license and accept its terms? [NO/yes] ')
+		answer = input(decorate_line('do you have knowledge of the CeCILL-C license and accept its terms? [NO/yes] '))
 		accept = answer and answer.lower() == 'yes' # require exact 'yes' answer
 	if accept:
 		for file in acceptance_files:
@@ -101,7 +102,7 @@ def check_license_acceptance(accept=False):
 				accept = False
 			else:
 				accept = True
-				print("acceptance written in file: '{}'".format(file))
+				multiline_print("acceptance stored in file: '{}'".format(file))
 				break
 	if not accept:
 		raise LicenseError

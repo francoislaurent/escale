@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 
-# Copyright © 2017, François Laurent
+# Copyright © 2017, Institut Pasteur
+#   Contributor: François Laurent
 
 # This file is part of the Escale software available at
 # "https://github.com/francoislaurent/escale" and is distributed under
@@ -12,4 +13,7 @@
 
 
 from .config import *
+
+#__all__ = ['query_field', 'query_local_repository', 'query_relay_address',
+#		'edit_config', 'add_section', 'edit_section', 'section_common']
 

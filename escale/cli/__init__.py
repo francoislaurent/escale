@@ -11,9 +11,12 @@
 # knowledge of the CeCILL-C license and that you accept its terms.
 
 
-from .config.config import *
+from .format import *
+from .config import *
 from .auth import *
 from .controller import *
 
-__all__ = ['add_section', 'query_field', 'request_credential', 'DirectController', 'UIController']
+__all__ = ['quote_join', 'debug_print', 'multiline_print', 'decorate_line',
+		'edit_config', 'query_local_repository', 'query_relay_address',
+		'request_credential', 'DirectController', 'UIController']
 
