@@ -16,12 +16,18 @@ Local mount
 Mounting Google Drive locally
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Several solutions:
+
+* https://github.com/astrada/google-drive-ocamlfuse
+
 .. todo:: write this section
 
 Configuring Escale
 ^^^^^^^^^^^^^^^^^^
 
 .. todo:: write this section
+
+.. include:: wizard-common.rst
 
 
 Synchronizing with drive
@@ -30,6 +36,8 @@ Synchronizing with drive
 .. todo:: write this section
 
 
-.. |escale| replace:: **Escale**
+.. include:: wizard-common.rst
+
+
 .. |googledrive| replace:: **Google Drive**
 

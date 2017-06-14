@@ -127,30 +127,10 @@ class WebDAVClient(easywebdav.Client):
 			if self.max_retry is None:
 				self._response = self.__send(*args, **kwargs)
 			else:
-				clock = Clock(self.retry_after, timeout=self.timeout, max_count=self.max_count)
+				clock = Clock(self.retry_after, timeout=self.timeout, max_count=self.max_retry)
 				while True:
 					try:
 						self._response = self.__send(*args, **kwargs)
-					except requests.exceptions.SSLError:
-						raise # SSLError is a ConnectionError and failure is quite definite
-					except requests.exceptions.ConnectionError as e:
-						# changed in 0.4.2: ConnectionError -> Timeout
-						# changed back to ConnectionError to handle the following exception:
-						# ConnectionError: ('Connection aborted.', error(107, 'Transport endpoint is not connected'))
-						_last_error = e
-						info = e.args
-						# extract information from (a certain type of) ConnectionErrors
-						try:
-							info = info[0]
-						except IndexError:
-							pass
-						else:
-							if isinstance(info, tuple):
-								try:
-									info = info[1]
-								except IndexError:
-									pass
-						self.logger.warn("%s", info)
 					except easywebdav.OperationFailed as e:
 						_last_error = e
 						if e.actual_code in timeout_error_codes:
@@ -162,6 +142,7 @@ class WebDAVClient(easywebdav.Client):
 					# wait
 					try:
 						clock.wait(self.logger)
+						self.logger.debug('retrying')
 					except StopIteration:
 						self.logger.error('too many connection attempts')
 						raise _last_error
@@ -281,8 +262,8 @@ class WebDAV(Relay):
 
 	def __init__(self, client, address, repository, username=None, password=None,
 		protocol=None, certificate=None, certfile=None, keyfile=None, \
-		ssl_version=None, verify_ssl=None, max_retry=True, retry_after=None, \
-		**super_args):
+		ssl_version=None, verify_ssl=None, max_retry=None, retry_after=None, \
+		config={}, **super_args):
 		Relay.__init__(self, client, address, repository, **super_args)
 		if PYTHON_VERSION == 3: # deal with encoding issues with requests
 			username = username.encode('utf-8').decode('unicode-escape')
@@ -302,6 +283,8 @@ class WebDAV(Relay):
 		if keyfile and not certfile:
 			self.logger.warning('`keyfile` requires `certfile` to be defined as well')
 		#
+		if max_retry is None:
+			max_retry = config.get('max retries', None)
 		self.max_retry = max_retry
 		self.retry_after = retry_after
 		self.ssl_version = ssl_version

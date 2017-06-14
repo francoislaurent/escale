@@ -35,6 +35,7 @@ Run the |escale| configuration wizard in a terminal:
 
         $ :strong:`escale -i`
 
+
 You may run into a license acceptance step that requires to answer two yes-no questions. 
 You must accept the terms of the license if you want to use |escale|.
 
@@ -47,13 +48,16 @@ You must accept the terms of the license if you want to use |escale|.
 
 	Carriage returns are indicated by |enter|.
 
+
 If you set-up |escale| for the first time, you will be requested the path of the folder you want to synchronize:
 
 .. parsed-literal::
 
 	Editing configuration file '$HOME/.config/escale/escale.conf'
-	Path of your local repository (required): :strong:`test/dropbox` |enter|
-	Making directory '$HOME/github/escale/test/dropbox'
+	Path of your local repository (required): :strong:`~/Documents` |enter|
+
+where ``~/Documents`` is the folder which content will be synchronized in this example.
+
 
 Respectivelly answer ``y`` and ``~/Dropbox`` to the next two questions:
 
@@ -67,9 +71,11 @@ Respectivelly answer ``y`` and ``~/Dropbox`` to the next two questions:
 	where '/mountpoint' is the absolute path to a local
 	mount and 'path' is the path of the relay directory
 	relative to the mount point.
-	Path of the locally accessible relay repository (required): :strong:`~/Dropbox` |enter|
+	Path of the locally accessible relay repository (required): :strong:`~/Dropbox/Escale Repository` |enter|
+
 
 .. include:: wizard-common.rst
 
 
 .. |dropbox| replace:: **Dropbox**
+

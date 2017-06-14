@@ -112,7 +112,7 @@ Coming features are:
 * split and recombine big files
 * more (symmetric) cryptographic algorithms and more cryptographic options
 * SSH backend
-* auth2client backend for Google Drive
+* google-api-python-client backend for Google Drive
 
 
 ## Alternative solutions
