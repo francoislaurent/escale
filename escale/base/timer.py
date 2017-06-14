@@ -69,7 +69,11 @@ class Clock(object):
 		self.timeout = timeout
 		b = 1.0
 		self.factor = max_delay / self.initial_delay - b
-		self.bias = self.factor / (initial_factor - b) - 1
+		if 0 < self.factor:
+			self.bias = self.factor / (initial_factor - b) - 1
+		else:
+			# any value other than 0
+			self.bias = 1.0
 		self.__iter__()
 
 	def __iter__(self):

@@ -103,7 +103,7 @@ class WebDAVClient(easywebdav.Client):
 		status_code = response.status_code
 		if isinstance(expected_code, easywebdav.Number) and status_code != expected_code \
 				or not isinstance(expected_code, easywebdav.Number) and status_code not in expected_code:
-			response.close() # fix for SSLError [Errno 24] Too many open files
+			#response.close() # fix for SSLError [Errno 24] Too many open files
 			raise easywebdav.OperationFailed(method, path, expected_code, status_code)
 		return response
 
@@ -122,25 +122,24 @@ class WebDAVClient(easywebdav.Client):
 				_last_error = e
 				if e.actual_code in timeout_error_codes:
 					self.logger.debug("%s", e)
-					if not retry:
-						raise
 				else:
 					try:
 						path = e.args[1]
 					except:
-						pass
+						self.logger.error("%s", e)
 					else:
 						if e.actual_code == 403:
 							self.logger.error("access to '%s%s' forbidden", self.url, path)
 						elif e.actual_code == 423: # 423 Locked
 							self.logger.debug("resource '%s%s' locked", self.url, path)
-						raise
+				if not retry:
+					raise e
 			else:
 				break
 			# wait
 			try:
 				clock.wait(self.logger)
-				self.logger.debug('retrying')
+				#self.logger.debug('retrying')
 			except StopIteration:
 				self.logger.error('too many connection attempts')
 				raise _last_error
@@ -254,8 +253,8 @@ class WebDAV(Relay):
 		if keyfile and not certfile:
 			self.logger.warning('`keyfile` requires `certfile` to be defined as well')
 		#
-		if max_retry is None:
-			max_retry = config.get('max retries', None)
+		if max_retry is None and 'max retries' in config:
+			max_retry = int(config['max retries'])
 		self.max_retry = max_retry
 		self.retry_after = retry_after
 		self.ssl_version = ssl_version
@@ -374,10 +373,12 @@ class WebDAV(Relay):
 
 	def _push(self, local_file, remote_file, makedirs=True):
 		# webdav destination should be a path to file
-		remote_file = join(self.repository, remote_file)
 		if makedirs:
-			remote_dir, _ = os.path.split(remote_file)
+			remote_dir = os.path.dirname(remote_file)
+			self.webdav.cd(self.repository)
 			self.webdav.mkdirs(remote_dir)
+			self.webdav.cd('/')
+		remote_file = join(self.repository, remote_file)
 		self.webdav.upload(local_file, remote_file)
 
 	def _get(self, remote_file, local_file, makedirs=True):
