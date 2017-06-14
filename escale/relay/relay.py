@@ -21,7 +21,7 @@ import logging
 from escale.base.essential import *
 from .info import *
 from escale.log import log_root
-from escale.base.exceptions import UnrecoverableError
+from escale.base.exceptions import *
 
 
 

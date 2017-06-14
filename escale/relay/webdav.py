@@ -36,17 +36,6 @@ import itertools
 import traceback
 
 
-## trying SO_REUSEADDR fix - doesn't work
-#import socket
-#try:
-#	from urllib3.connection import HTTPConnection
-#except ImportError:
-#	pass
-#else:
-#	# modify globally :/
-#	HTTPConnection.default_socket_options + [(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)]
-
-
 # the following fix has been suggested in
 # http://www.rfk.id.au/blog/entry/preparing-pyenchant-for-python-3/
 if PYTHON_VERSION == 3:
@@ -123,56 +112,38 @@ class WebDAVClient(easywebdav.Client):
 			# not sure easywebdav fully consumes every response
 			# see also http://docs.python-requests.org/en/master/user/advanced/#body-content-workflow
 			self._response.close()
-		try:
-			if self.max_retry is None:
-				self._response = self.__send(*args, **kwargs)
-			else:
-				clock = Clock(self.retry_after, timeout=self.timeout, max_count=self.max_retry)
-				while True:
-					try:
-						self._response = self.__send(*args, **kwargs)
-					except easywebdav.OperationFailed as e:
-						_last_error = e
-						if e.actual_code in timeout_error_codes:
-							self.logger.debug("%s", e)
-						else:
-							raise
-					else:
-						break
-					# wait
-					try:
-						clock.wait(self.logger)
-						self.logger.debug('retrying')
-					except StopIteration:
-						self.logger.error('too many connection attempts')
-						raise _last_error
-		except requests.exceptions.SSLError as e:
+		retry = self.max_retry is not None
+		if retry:
+			clock = Clock(self.retry_after, timeout=self.timeout, max_count=self.max_retry)
+		while True:
 			try:
-				errno = e.args[0].args[0].args[0]
-			except:
-				pass
-			else:
-				if errno == 24:
-					# SSLError: [Errno 24] Too many open files
-					raise UnrecoverableError(e.args[0])
-			raise e
-		except easywebdav.OperationFailed as e:
-			# log timeout errors (if not already done)
-			if self.max_retry is None:
+				self._response = self.__send(*args, **kwargs)
+			except easywebdav.OperationFailed as e:
+				_last_error = e
 				if e.actual_code in timeout_error_codes:
 					self.logger.debug("%s", e)
-					raise
-			# log 403 and 423 errors
-			try:
-				path = e.args[1]
-			except:
-				pass
+					if not retry:
+						raise
+				else:
+					try:
+						path = e.args[1]
+					except:
+						pass
+					else:
+						if e.actual_code == 403:
+							self.logger.error("access to '%s%s' forbidden", self.url, path)
+						elif e.actual_code == 423: # 423 Locked
+							self.logger.debug("resource '%s%s' locked", self.url, path)
+						raise
 			else:
-				if e.actual_code == 403:
-					self.logger.error("access to '%s%s' forbidden", self.url, path)
-				elif e.actual_code == 423: # 423 Locked
-					self.logger.debug("resource '%s%s' locked", self.url, path)
-			raise e
+				break
+			# wait
+			try:
+				clock.wait(self.logger)
+				self.logger.debug('retrying')
+			except StopIteration:
+				self.logger.error('too many connection attempts')
+				raise _last_error
 		return self._response
 
 
