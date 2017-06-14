@@ -58,7 +58,7 @@ class DriveGoogle(Relay):
 	"""
 	Implements `Relay` for Google Drive with `drive <https://github.com/odeke-em/drive>`_.
 
-	This backend is shiped together with the :mod:`escale.cli.config.googledrive' 
+	This backend is shiped together with the :mod:`escale.cli.config.googledrive`
 	configuration helper.
 	"""
 

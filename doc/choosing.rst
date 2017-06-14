@@ -21,18 +21,17 @@ The information below may not be up-to-date and is very far from being exhaustiv
 +---------------+-----------------+-----------------+------------------+
 | Service       | Native support  | Escale backend  | More information |
 +===============+=================+=================+==================+
-| Box           |       Yes(*)    |     WebDAV      |                  |
+| Box           |     Yes[#nv]_   |     WebDAV      |                  |
 +---------------+-----------------+-----------------+------------------+
 | Dropbox       |       No        |   LocalMount    | `Dropbox`_       |
 +---------------+-----------------+-----------------+------------------+
-| Google Drive  |       Yes(**)   |   GoogleDrive   | `Google Drive`_  |
+| Google Drive  |   Yes[#drive]_  |   GoogleDrive   | `Google Drive`_  |
 +---------------+-----------------+-----------------+------------------+
 | Yandex.Disk   |       Yes       |     WebDAV      | `Yandex.Disk`_   |
 +---------------+-----------------+-----------------+------------------+
 
-\* not verified
-
-\*\* on top of the *drive* utility
+.. [#nv] not verified
+.. [#drive] on top of the *drive* utility
 
 
 .. |escale| replace:: **Escale**

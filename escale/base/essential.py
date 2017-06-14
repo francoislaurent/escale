@@ -71,10 +71,14 @@ def join(dirname, *extranames):
 
 		str: full path.
 	'''
-	if not extranames:
-		raise ValueError("'join' expects two input arguments; one was given")
-	extranames = [ s[1:] if s and s[0] in '/' else s for s in extranames ]
-	return os.path.join(asstr(dirname), *[ asstr(s) for s in extranames ])
+	# remove empty elements
+	extranames = [ asstr(s) for s in extranames if s ]
+	if extranames:
+		# remove beginning slashes
+		extranames = [ s[1:] if s[0] in '/' else s for s in extranames ]
+		return os.path.join(asstr(dirname), *extranames)
+	else:
+		return asstr(dirname)
 
 
 def copyfile(from_file, to_file):

@@ -1,23 +1,31 @@
 
 Google Drive
-------------
+============
 
 To synchronize your data using |googledrive| as a relay storage, you should first make a new directory to accommodate the relay repository.
 
 To synchronize using this remote directory, you have two options:
 
-* if you can mount your |googledrive| storage space in your local file system, you may prefer use this local mount
-* or you can use the |googledrive| backend
+* you can either mount your |googledrive| storage space in your local file system with an external tool (see the `Local mount`_ section)
+* or you can use the |googledrive| backend provided in |escale| (see the `Synchronizing with drive`_)
 
+
+Local mount
+-----------
 
 Mounting Google Drive locally
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. todo:: write this section
+
+Configuring Escale
+^^^^^^^^^^^^^^^^^^
 
 .. todo:: write this section
 
 
-Using the drive utility
-~~~~~~~~~~~~~~~~~~~~~~~
+Synchronizing with drive
+------------------------
 
 .. todo:: write this section
 

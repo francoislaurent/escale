@@ -18,6 +18,7 @@
 
 
 from ..format import *
+from escale.base.essential import copyfile
 from escale.base.config import *
 from escale.relay import __multi_path_protocols__
 import os
@@ -110,7 +111,11 @@ def query_field(config, section, field, description=None, suggestion='', require
 	else:
 		if suggestion is None:
 			suggestion = ''
-		answer = _input(decorate_line('{}: [{}] '.format(description, suggestion)))
+		if description[-1] in '.:!?,;=':
+			colon = ''
+		else:
+			colon = ':'
+		answer = _input(decorate_line('{}{} [{}] '.format(description, colon, suggestion)))
 		if not answer and existing:
 				answer = existing
 		# an empty answer represents `suggestion`, do not return `suggestion`
@@ -281,7 +286,7 @@ def edit_config(cfg_file, msgs=[]):
 			multiline_print("existing section{}:".format(plural))
 			for _section in sections:
 				print("{}. '{}'".format(tab, _section))
-			multiline_print('please prefer ascii names')
+			multiline_print('prefer ascii names')
 			while not section:
 				section = input(decorate_line('section name (required): '))
 		if section in sections:
@@ -376,7 +381,7 @@ def section_common(config, cfg_dir, section, protocol, msgs):
 		multiline_print(
 			'the client name should uniquely identify the client among all the nodes',
 			'that operate on the same relay repository')
-		multiline_print('please prefer ascii name')
+		multiline_print('prefer ascii name')
 		#print('')
 	_client_, client = query_field(config, section, 'clientname', suggestion=section)
 	if client:
@@ -460,13 +465,24 @@ def section_common(config, cfg_dir, section, protocol, msgs):
 	config.set(section, _enc_, encryption)
 	# encryption passphrase
 	if encryption not in [ '0', 'off', 'no', 'false' ]:
-		_pass_, passphrase = query_field(config, section, 'passphrase', required=True)
+		_pass_, passphrase = query_field(config, section, 'passphrase filename', required=True)
 		if not os.path.isabs(passphrase):
 			if os.path.isfile(passphrase):
 				passphrase = os.path.join(os.getcwd(), passphrase)
 			else:
 				passphrase = os.path.join(cfg_dir, passphrase)
-		if not os.path.isfile(passphrase):
+		if os.path.isfile(passphrase):
+			# check whether the file is in the configuration directory
+			basename, filename = os.path.split(passphrase)
+			if basename != cfg_dir:
+				# if not, check whether a file with the same name already exists
+				new_location = os.path.join(cfg_dir, filename)
+				if not os.path.exists(new_location):
+					# if not, copy passphrase file into configuration directory
+					multiline_print("copying file into configuration directory")
+					copyfile(passphrase, new_location)
+					passphrase = new_location
+		else:
 			multiline_print("'{}' file does not exist yet".format(passphrase))
 			gen = input(decorate_line('generate a new key? [Y/n] ')).lower()
 			if not gen or gen[0] == 'y':
@@ -474,7 +490,7 @@ def section_common(config, cfg_dir, section, protocol, msgs):
 				print('{}key: {}'.format(tab, key))
 				msg = "writing new passphrase file '{}'".format(passphrase)
 				msgs.append((logging.DEBUG, msg))
-				with open(passphrase, 'w') as f:
+				with open(passphrase, 'wb') as f:
 					f.write(key)
 				try:
 					os.chmod(passphrase, stat.S_IRUSR | stat.S_IWUSR)

@@ -400,7 +400,7 @@ def parse_address(addr, multi_path_protocols=[]):
 	Addresses can have multiple formats:
 
 	* ``file://absolutepath``
-	* ``protocol://servername[:port][/relativepath]
+	* ``protocol://servername[:port][/relativepath]``
 
 	Note that ``absolutepath`` must start with *'/'* or *'~/'* to be identified
 	as an absolute path.

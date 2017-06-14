@@ -1,0 +1,119 @@
+
+You will have to choose a name for the current configuration and a client name.
+They can be identical. 
+However care should be taken in specifying a different name on each of the clients
+that synchronize together over the same relay repository.
+
+For example, if you want to synchronize a folder between two computers, one computer
+could choose ``client-1`` as a name below and the other ``client-2``:
+
+.. parsed-literal::
+
+	Choose a name for this configuration section.
+	Prefer ascii names.
+	Section name (required): :strong:`client-1` |enter|
+	Choose a client name.
+	The client name should uniquely identify the client among all the nodes
+	that operate on the same relay repository.
+	Prefer ascii names.
+	Client name: [client-1] |enter|
+
+If you want to encrypt the data before they are sent to the relay storage, you will
+need to share a same encryption key between all the clients that synchronize over
+the same relay repository.
+
+The first client to be set-up can generate a key. 
+This key will be available in a file that can be copied into the other clients.
+
+The first client would perform the following steps:
+
+.. parsed-literal::
+
+	Encryption: [on] |enter|
+	Passphrase filename (required): :strong:`my-passphrase.txt` |enter|
+	'$HOME/.config/escale/my-passphrase.txt' file does not exist yet
+	Generate a new key? [Y/n] |enter|
+		key: b'_0Uozrh6S6RJ0ybOlJvZWreGFl6NffMUbU8xGvZ5QJw='
+
+while the others would get a copy of the generated file - here called ``my-passphrase.txt`` - 
+and perform the following steps:
+
+.. parsed-literal::
+
+        Encryption: [on] |enter|
+        Passphrase filename (required): :strong:`my-passphrase.txt` |enter|
+
+In the above example, the file is expected to be in the current directory or the configuration directory. 
+You can alternatively specify the path of the file.
+
+.. note:: A passphrase file is actually not a text file. 
+
+	Especially, the passphrase stored in it should not be followed by a newline or carriage return character, 
+	otherwise these trailing characters would be included in the passphrase. 
+
+	The *.txt* extension is used here to make clear that the answer above is indeed a filename as requested.
+
+.. important:: Passphrases are private and should not be sent in plain emails. 
+	Consider encrypted emails or services like `onetimesecret.com`_. 
+
+	Pay special attention not to introduce newline or carriage return while editing a passphrase file.
+
+You are then requested to specify in which mode synchronize should operate:
+
+.. parsed-literal::
+
+	Synchronization mode can be 'upload', 'download', 'shared' or 'conservative' 
+		. 'upload': your local files will be sent to the relay repository
+		            your local files will not be modified
+		. 'download': you will get files from the relay repository
+		              your local files will not be sent over the internet
+	        	      but they can be modified
+		. 'shared': your files will be fully synchronized
+		. 'conservative': your local files will be sent to the relay repository
+	        	          but will not be modified
+	                	  you will get only new files from the relay repository
+	Which mode for this client?: [shared] |enter|
+
+More information about synchronization modes can be found in `this page <usage.html#synchronization-modes>`_.
+
+Especially, if you want to implement a simple backup setup, you may have two clients: 
+
+* the one that accommodates the active data will be set in *upload* mode, 
+* the other one that accommodates the backup copy will be set in *download* mode.
+
+
+The last few steps are straightforward:
+
+.. parsed-literal::
+
+	Refresh interval (in seconds): [10] |enter|
+	Quotas on the amount of sent data are recommended for pushers
+	 examples:  2GB  4.5G  1To  (default unit is gigabyte)
+	Disk quota: [] :strong:`1` |enter|
+	Do you want to add/edit another section? [N/y] |enter|
+	$> 
+
+Setting disk quota to ``1`` will make |escale| use no more than one gigabyte in your Dropbox space.
+
+Your client is ready and can be launched with:
+
+.. parsed-literal::
+
+	$ :strong:`escale`
+
+or as a daemon:
+
+.. parsed-literal::
+
+	$ :strong:`escale -d`
+
+You can make your terminal continuously flush the logs with:
+
+.. parsed-literal::
+
+	$ :strong:`tail -f ~/.config/escale/escale.log`
+
+
+.. |escale| replace:: **Escale**
+.. |enter| replace:: *<enter>*
+.. _onetimesecret.com: https://onetimesecret.com
