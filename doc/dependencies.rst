@@ -22,11 +22,6 @@ In Python3, the `blowfish`_ library offers an alternative. You will need to inst
 
 Indeed the *cryptography* and *blowfish* backends for Blowfish encryption are not compatible and cannot interoperate.
 
-.. |escale| replace:: **Escale**
 .. |escalecmd| replace:: *escale*
 .. |escalectl| replace:: *escalectl*
-.. _python-daemon: https://pypi.python.org/pypi/python-daemon/
-.. _lockfile: https://pypi.python.org/pypi/lockfile/
-.. _cryptography: https://cryptography.io/en/latest/
-.. _blowfish: https://pypi.python.org/pypi/blowfish/
 

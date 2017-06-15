@@ -169,10 +169,6 @@ Both algorithms require a passphrase that follow a specific format. It is advise
 
 .. note:: never send credentials or passphrases by unencrypted email. Consider services like `onetimesecret.com <https://onetimesecret.com>`_ instead.
 
-.. |escale| replace:: **Escale**
 .. |escalecmd| replace:: *escale*
 .. |escalectl| replace:: *escalectl*
-.. _cryptography: https://cryptography.io/en/latest/
-.. _blowfish: https://pypi.python.org/pypi/blowfish/
-.. _drive: https://github.com/odeke-em/drive
 

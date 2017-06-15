@@ -47,4 +47,3 @@ The generated documentation will be available at ``_build/html/index.html`` from
 
 .. note:: you may need to delete the ``_build`` directory before compiling the documentation again.
 
-.. |escale| replace:: **Escale**

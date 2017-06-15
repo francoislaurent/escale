@@ -148,6 +148,11 @@ pygments_style = 'sphinx'
 # If true, `todo` and `todoList` produce output, else they produce nothing.
 todo_include_todos = True
 
+try:
+	with open('epilog.txt', 'r') as f:
+		rst_epilog = f.read()
+except:
+	pass
 
 # -- Options for HTML output ----------------------------------------------
 

@@ -62,5 +62,4 @@ Developer guide
 .. * :ref:`modindex`
 .. * :ref:`search`
 
-.. |escale| replace:: **Escale**
 

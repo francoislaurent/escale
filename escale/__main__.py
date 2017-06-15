@@ -59,10 +59,6 @@ def main():
 	except LicenseError as e:
 		print(str(e))
 		return
-	# if auto-restart, delegate to `keepalive`
-	if hasattr(args, 'auto_restart') and not hasattr(args, 'daemon'):
-		keep_alive(sys.argv[0], args.auto_restart, *sys.argv[1:])
-		return
 	args = args.__dict__
 	# reverse the changes introduced by ``argument_default=argparse.SUPPRESS``
 	if 'config' not in args:
@@ -98,6 +94,39 @@ def main():
 	# initialize the pending logs
 	# they will be flushed by `escale_launcher` once the logger will be set
 	msgs = []
+	# import configuration file
+	if 'import' in args:
+		cfg_file = os.path.expanduser(args['import'])
+		if not os.path.isfile(cfg_file):
+			print("cannot find file '{}'".format(cfg_file))
+			return
+		try:
+			extra_config, _, _ = parse_cfg(cfg_file)
+		except Exception as e:
+			print("corrupted file '{}':".format(cfg_file))
+			print(e)
+			return
+		if not extra_config.sections():
+			print("not any section in '{}'".format(cfg_file))
+			return
+		dirname, basename = os.path.split(cfg_file)
+		try:
+			existing_config, destination, _ = parse_cfg()
+		except IOError: # cannot find a valid configuration file
+			destination = default_conf_files[0]
+			copyfile(cfg_file, destination)
+		else:
+			# merge extra configuration into existing one
+			existing_sections = [ s for s in extra_config.sections()
+					if existing_config.has_section(s) ]
+			if existing_sections:
+				raise NotImplementedError("section '{}' already exists".format(existing_sections[0]))
+			if extra_config.defaults(): # has defaults?
+				raise NotImplementedError("file '{}' has global settings".format(cfg_file))
+			with open(cfg_file, 'r') as fi:
+				with open(destination, 'a') as fo:
+					fo.write(fi.read())
+		return
 	# assist the user in configuring escale
 	if args['interactive']:
 		try:
@@ -106,6 +135,10 @@ def main():
 			# suppress output
 			pass
 		return # new in 0.5rc2
+	# if auto-restart, delegate to `keepalive`
+	if args['auto_restart'] and not args['daemon']:
+		keep_alive(sys.argv[0], args['auto_restart'], *sys.argv[1:])
+		return
 	# welcome message
 	msgs.append((logging.INFO, "running version %s", __version__))
 	# handle -d option

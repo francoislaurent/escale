@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-# Copyright (c) 2017, François Laurent
+# Copyright © 2017, François Laurent
 
 # This file is part of the Escale software available at
 # "https://github.com/francoislaurent/escale" and is distributed under
@@ -540,28 +540,6 @@ class Relay(AbstractRelay):
 		# TODO: default implementation with `size`
 		return (None, None)
 
-	def _safe(self, callback, *args, **kwargs):
-		"""
-		Wrap any of the following (top) calls:
-
-		* `open`
-		* `_list`
-		* `_push`
-		* `_pop`
-		* `_get`
-		* `parse_lock_file`
-
-		"""
-		try:
-			return callback(*args, **kwargs)
-		except EnvironmentError as e:
-			try:
-				if e.errno == 24:
-					raise UnrecoverableError(e)
-			except AttributeError:
-				pass
-			raise e
-
 	def _list(self, remote_dir='', recursive=True, stats=[]):
 		"""
 		List all files, including hidden files, relative to `remote_dir`.
@@ -586,7 +564,7 @@ class Relay(AbstractRelay):
 		"""
 		The default implementation manipulates placeholders and locks as individual files.
 		"""
-		ls = list(self._safe(self._list, remote_dir, recursive=recursive))
+		ls = list(self._list(remote_dir, recursive=recursive))
 		ready = []
 		for file in ls:
 			filedir, filename = os.path.split(file)
@@ -602,7 +580,7 @@ class Relay(AbstractRelay):
 		"""
 		if not (self.client or self.lock_timeout):
 			return []
-		ls = self._safe(self._list, remote_dir, recursive=recursive, stats=['mtime'])
+		ls = self._list(remote_dir, recursive=recursive, stats=['mtime'])
 		locks = []
 		for file, mtime in ls:
 			if self.isLock(file):
@@ -621,7 +599,7 @@ class Relay(AbstractRelay):
 		"""
 		The default implementation manipulates placeholders and locks as individual files.
 		"""
-		ls = self._safe(self._list, remote_dir, recursive=recursive)
+		ls = self._list(remote_dir, recursive=recursive)
 		placeholders = []
 		others = []
 		for file in ls:
@@ -667,7 +645,7 @@ class Relay(AbstractRelay):
 			existing files instead of updating the last access time attribute.
 		"""
 		#local_file = self.newTemporaryFile()
-		f, local_file = self._safe(tempfile.mkstemp, text=True)
+		f, local_file = tempfile.mkstemp(text=True)
 		# f is an open file descriptor in 'w' mode and can be manipulated 
 		# with os.write/os.close functions
 		try:
@@ -681,7 +659,7 @@ class Relay(AbstractRelay):
 								f.write('\n')
 					else:
 						f.write(asstr(content))
-			self._safe(self._push, local_file, remote_file)
+			self._push(local_file, remote_file)
 		finally:
 			os.unlink(local_file)
 		#self.delTemporaryFile(local_file)
@@ -699,9 +677,9 @@ class Relay(AbstractRelay):
 		try:
 			if isinstance(remote_file, list):
 				for file in remote_file:
-					self._safe(self._pop, file, trash)
+					self._pop(file, trash)
 			else:
-				self._safe(self._pop, remote_file, trash)
+				self._pop(remote_file, trash)
 		finally:
 			os.unlink(trash)
 		#self.delTemporaryFile(trash)
@@ -749,16 +727,16 @@ class Relay(AbstractRelay):
 		This method treats locks as files.
 		"""
 		remote_lock = self.lock(remote_file)
-		fd, local_lock = self._safe(tempfile.mkstemp)
+		fd, local_lock = tempfile.mkstemp
 		os.close(fd)
 		try:
-			self._safe(self._get, remote_lock, local_lock)
-		except ExpressInterrupt+(UnrecoverableError,):
+			self._get(remote_lock, local_lock)
+		except ExpressInterrupt:
 			raise
 		except:
 			info = LockInfo()
 		else:
-			info = self._safe(parse_lock_file, local_lock, target=remote_file)
+			info = parse_lock_file(local_lock, target=remote_file)
 		finally:
 			os.unlink(local_lock)
 		return info
@@ -773,7 +751,7 @@ class Relay(AbstractRelay):
 				local_placeholder = output_file
 			else:
 				local_placeholder = self.newTemporaryFile()
-			self._safe(self._get, remote_placeholder, local_placeholder)
+			self._get(remote_placeholder, local_placeholder)
 			return local_placeholder
 		else:
 			return None
@@ -794,12 +772,10 @@ class Relay(AbstractRelay):
 		"""
 		try:
 			self.unlink(self.placeholder(remote_file))
-		except (KeyboardInterrupt, SystemExit, UnrecoverableError):
+		except ExpressInterrupt:
 			raise
-		except Exception as e: # not found?
-			if isinstance(e, EnvironmentError) and e.errno == 24:
-				raise UnrecoverableError(e)
-			msg = ("cannot not find placeholder for file: '%s'", remote_file)
+		except: # not found?
+			msg = ("error while releasing place for file: '%s'", remote_file)
 			if handle_missing:
 				self.logger.debug(*msg)
 			else:
@@ -850,7 +826,7 @@ class Relay(AbstractRelay):
 			return False
 		if last_modified:
 			self.updatePlaceholder(remote_dest, last_modified=last_modified)
-		self._safe(self._push, local_file, remote_dest)
+		self._push(local_file, remote_dest)
 		self.releaseLock(remote_dest)
 		return True
 
@@ -878,7 +854,6 @@ class Relay(AbstractRelay):
 			bool or nothing: ``True`` if transfer was successful, ``False`` otherwise.
 
 		"""
-		# no `_safe` wrapping as `_pop` should be wrapped wherever it is called
 		self._get(remote_file, local_dest, makedirs)
 		self.unlink(remote_file)
 
@@ -899,7 +874,6 @@ class Relay(AbstractRelay):
 			bool or nothing: ``True`` if transfer was successful, ``False`` otherwise.
 
 		"""
-		# no `_safe` wrapping as `_get` should be wrapped wherever it is called
 		self._pop(remote_file, local_dest, makedirs=makedirs, _unlink=False)
 
 	def pop(self, remote_file, local_dest, placeholder=True, blocking=True, **kwargs):
@@ -913,14 +887,14 @@ class Relay(AbstractRelay):
 				remote_placeholder = self.placeholder(remote_file)
 				local_placeholder = self.newTemporaryFile()
 				kwargs['local_placeholder'] = local_placeholder
-				self._safe(self._get, remote_placeholder, local_placeholder)
-				with self._safe(open, local_placeholder, 'r') as f:
+				self._get(remote_placeholder, local_placeholder)
+				with open(local_placeholder, 'r') as f:
 					nreads = len(f.readlines()) - 1
 				let = nreads < placeholder - 1
 		if let:
-			self._safe(self._get, remote_file, local_dest)
+			self._get(remote_file, local_dest)
 		else:
-			self._safe(self._pop, remote_file, local_dest)
+			self._pop(remote_file, local_dest)
 		if placeholder:
 			if has_placeholder:
 				self.markAsRead(remote_file, **kwargs)
@@ -935,7 +909,7 @@ class Relay(AbstractRelay):
 		# TODO: ensure that local_dest is a path to a file and not a directory
 		if not self.acquireLock(remote_file, mode='r', blocking=blocking):
 			return False
-		self._safe(self._get, remote_file, local_dest)
+		self._get(remote_file, local_dest)
 		if placeholder and self.hasPlaceholder(remote_file):
 			self.markAsRead(remote_file, **kwargs)
 		self.releaseLock(remote_file)
@@ -949,17 +923,17 @@ class Relay(AbstractRelay):
 		get = not local_placeholder
 		if get:
 			local_placeholder = self.newTemporaryFile()
-			self._safe(self._get, remote_placeholder, local_placeholder)
-			with self._safe(open, local_placeholder, 'a') as f:
+			self._get(remote_placeholder, local_placeholder)
+			with open(local_placeholder, 'a') as f:
 				f.write('\n{}'.format(self.client))
-		self._safe(self._push, local_placeholder, remote_placeholder)
+		self._push(local_placeholder, remote_placeholder)
 		if get:
 			self.delTemporaryFile(local_placeholder)
 
 	def exists(self, filename, dirname=None):
 		if not dirname:
 			dirname, filename = os.path.split(filename)
-		return filename in self._safe(self._list, dirname, recursive=False)
+		return filename in self._list(dirname, recursive=False)
 
 	def delete(self, remote_file, blocking=True, **kwargs):
 		if not self.acquireLock(remote_file, mode='r', blocking=blocking):

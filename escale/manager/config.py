@@ -14,11 +14,29 @@
 from escale.base.config import *
 import escale.relay as relay
 import escale.encryption as encryption
+import socket
 
 try:
 	from configparser import NoOptionError # Py3
 except ImportError:
 	from ConfigParser import NoOptionError # Py2
+
+
+def get_client_name(repository, config={}):
+	try:
+		return config.pop('clientname')
+	except KeyError:
+		try:
+			hostname = socket.gethostname()
+		except:
+			hostname = None
+		else:
+			if hostname in ['localhost']:
+				hostname = None
+		if hostname:
+			return hostname
+		else:
+			return repository
 
 
 def parse_section(config, repository, logger):
@@ -27,8 +45,7 @@ def parse_section(config, repository, logger):
 	args = parse_fields(config, repository, fields, logger)
 	args['config'] = parse_others(config, repository, exclude=fields)
 	# client name
-	if 'clientname' not in args:
-		args['clientname'] = repository
+	args['clientname'] = get_client_name(repository, args)
 	# remote repository
 	if 'address' not in args:
 		# filepath-based protocols can define the relay path in the 'directory' field

@@ -34,7 +34,7 @@ escale.encryption.blowfish module
 The :mod:`~escale.encryption.blowfish` module is actually a package that accomodates several implementations refered to as backends.
 
 The :mod:`~escale.encryption.blowfish.cryptography` backend prevails if the `cryptography <https://cryptography.io/en/latest/hazmat/primitives/symmetric-encryption/?highlight=blowfish#weak-ciphers>`_ library is available. 
-Otherwise, :class:`~escale.encryption.blowfish.Blowfish` is implemented with :mod:`~escale.encryption.blowfish.blowfish` as a backend (`blowfish <https://pypi.python.org/pypi/blowfish>`_ library).
+Otherwise, :class:`~escale.encryption.blowfish.Blowfish` is implemented with :mod:`~escale.encryption.blowfish.blowfish` as a backend (`blowfish`_ library).
 
 .. automodule:: escale.encryption.blowfish
     :members:

@@ -113,7 +113,3 @@ You can make your terminal continuously flush the logs with:
 
 	$ :strong:`tail -f ~/.config/escale/escale.log`
 
-
-.. |escale| replace:: **Escale**
-.. |enter| replace:: *<enter>*
-.. _onetimesecret.com: https://onetimesecret.com

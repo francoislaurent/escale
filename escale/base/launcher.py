@@ -115,7 +115,8 @@ def escale_launcher(cfg_file, msgs=[], verbosity=logging.NOTSET, keep_alive=Fals
 
 	"""
 	restart_delay = 0
-	if isinstance(keep_alive, (int, float)):
+	# `bool`s are also `int`s
+	if keep_alive not in [False, True] and isinstance(keep_alive, (int, float)):
 		restart_delay = keep_alive
 		keep_alive = True
 	# parse the config file
@@ -155,12 +156,11 @@ def escale_launcher(cfg_file, msgs=[], verbosity=logging.NOTSET, keep_alive=Fals
 			worker.start()
 		# wait for everyone to terminate
 		try:
-			if True:#keep_alive:
+			if keep_alive:
 				active_workers = len(workers)
 				while 0 < active_workers:
 					section, result = result_queue.get()
-					if isinstance(result, Exception) and \
-							(keep_alive or isinstance(result, UnrecoverableError)):
+					if isinstance(result, Exception):
 						workers[section].join() # should have already returned
 						# restart worker
 						worker = Process(target=escale,

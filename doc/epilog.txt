@@ -1,0 +1,14 @@
+
+.. |escale| replace:: **Escale**
+.. |dropbox| replace:: Dropbox
+.. |google| replace:: Google
+.. |googledrive| replace:: Google Drive
+.. |macos| replace:: macOS
+.. |enter| replace:: *<enter>*
+.. _cryptography: https://cryptography.io/en/latest/
+.. _blowfish: https://pypi.python.org/pypi/blowfish/
+.. _drive: https://github.com/odeke-em/drive
+.. _onetimesecret.com: https://onetimesecret.com
+.. _python-daemon: https://pypi.python.org/pypi/python-daemon/
+.. _lockfile: https://pypi.python.org/pypi/lockfile/
+

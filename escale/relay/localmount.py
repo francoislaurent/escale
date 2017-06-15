@@ -1,6 +1,14 @@
 # -*- coding: utf-8 -*-
 
-# Copyright (c) 2017, François Laurent
+# Copyright © 2017, François Laurent
+
+# This file is part of the Escale software available at
+# "https://github.com/francoislaurent/escale" and is distributed under
+# the terms of the CeCILL-C license as circulated at the following URL
+# "http://www.cecill.info/licenses.en.html".
+
+# The fact that you are presently reading this means that you have had
+# knowledge of the CeCILL-C license and that you accept its terms.
 
 
 from escale.base.essential import *
@@ -18,7 +26,9 @@ class LocalMount(Relay):
 	__protocol__ = ['file']
 
 	def __init__(self, client, address, mount_point, **super_args):
-		if address and os.path.isabs(address) and os.path.isdir(address):
+		if address and os.path.isabs(address):
+			if not os.path.isdir(address):
+				raise ValueError("relay mount path '{}' does not exist".format(address))
 			mount_point = join(address, mount_point)
 			address = 'localhost'
 		Relay.__init__(self, client, address, mount_point, **super_args)

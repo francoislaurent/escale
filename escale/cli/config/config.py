@@ -383,9 +383,11 @@ def section_common(config, cfg_dir, section, protocol, msgs):
 			'that operate on the same relay repository')
 		multiline_print('prefer ascii name')
 		#print('')
-	_client_, client = query_field(config, section, 'clientname', suggestion=section)
-	if client:
-		config.set(section, _client_, client)
+	suggestion = get_client_name(section)
+	_client_, client = query_field(config, section, 'clientname', suggestion=suggestion)
+	if not client:
+		client = suggestion
+	config.set(section, _client_, client)
 	if protocol not in ['file']+oauth_protocols:
 		## secret
 		# username
@@ -400,24 +402,33 @@ def section_common(config, cfg_dir, section, protocol, msgs):
 			if password:
 				if os.path.isfile(password):
 					multiline_print("'{}' exists as a file".format(password))
-					multiline_print("if credentials are to be found in a file, they should be provided as 'username:password'")
-					raise ValueError('wrong password')
-				ext = '.credential'
-				if client:
-					basename = client
-				else:
-					credentials = [ f[:-len(ext)] for f in os.listdir(cfg_dir)
-						if f.endswith(ext) ]
-					if credentials:
-						basename = 0
-						while str(basename) in credentials:
-							basename += 1
-						basename = str(basename)
+					# look for corresponding password to username, if any
+					credential = ''
+					before_password = username+':'
+					with open(password, 'r') as f:
+						for credential in f:
+							if credential.startswith(before_password):
+								break
+					if credential.startswith(before_password):
+						password = credential[len(before_password):]
 					else:
-						basename = '0'
+						multiline_print(
+						"if credentials are to be found in a file, they should",
+						"be stored as 'username:password' in this file and you",
+						"should let the above username question unanswered")
+						raise ValueError('wrong password')
+				basename = repository
+				suffix = 0
+				ext = '.credential'
 				secret_file = os.path.join(cfg_dir, basename + ext)
+				while os.path.exists(secret_file):
+					# look for non-existing <basename>-<n>.<ext> filename
+					# where <n> is a positive integer
+					secret_file = os.path.join(cfg_dir,
+						'{}-{}{}'.format(basename, suffix, ext))
+					suffix += 1
 				msg = "writing new credential file '{}'".format(secret_file)
-				if os.path.isfile(secret_file):
+				if os.path.isfile(secret_file): # should no longer happen
 					msg = 'over' + msg
 				msgs.append((logging.DEBUG, msg))
 				debug_print(msg)
@@ -435,7 +446,6 @@ def section_common(config, cfg_dir, section, protocol, msgs):
 					msg = 'could not change permissions on credential file'
 					msgs.append((logging.DEBUG, e))
 					msgs.append((logging.DEBUG, msg))
-					print(e)
 					debug_print(msg)
 				config.set(section, 'secret file', secret_file)
 			else:
@@ -465,7 +475,8 @@ def section_common(config, cfg_dir, section, protocol, msgs):
 	config.set(section, _enc_, encryption)
 	# encryption passphrase
 	if encryption not in [ '0', 'off', 'no', 'false' ]:
-		_pass_, passphrase = query_field(config, section, 'passphrase filename', required=True)
+		_pass_, passphrase = query_field(config, section, 'passphrase',
+			description='passphrase filename', required=True)
 		if not os.path.isabs(passphrase):
 			if os.path.isfile(passphrase):
 				passphrase = os.path.join(os.getcwd(), passphrase)

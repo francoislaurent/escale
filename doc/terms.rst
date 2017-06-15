@@ -30,4 +30,3 @@ knowledge of the CeCILL-C license and that you accept its terms.
 .. The CeCILL licenses are compatible with the GPL.
 .. You can distribute your modified version of the software under the GPL.
 
-.. |escale| replace:: **Escale**

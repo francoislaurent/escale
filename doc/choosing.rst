@@ -34,7 +34,6 @@ The information below may not be up-to-date and is very far from being exhaustiv
 .. [#drive] on top of the *drive* utility
 
 
-.. |escale| replace:: **Escale**
 .. _Dropbox: Dropbox.html
 .. _Google Drive: GoogleDrive.html
 .. _Yandex.Disk: YandexDisk.html
