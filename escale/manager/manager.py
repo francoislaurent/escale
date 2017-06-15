@@ -7,7 +7,6 @@
 #   Contributions:
 #     * `filetype` argument and attribute
 #     * initial `filter` method (without `include` and `exclude` support)
-#     * initial `UnrecoverableError` handling (symbol added in a single except statement)
 
 # This file is part of the Escale software available at
 # "https://github.com/francoislaurent/escale" and is distributed under
@@ -180,13 +179,9 @@ class Manager(Reporter):
 					_fresh_start = False
 				if not self.tq_controller.wait():
 					break
-			except ExpressInterrupt+(UnrecoverableError,) as e:
-				last_error = e
-				break
+			except ExpressInterrupt as e:
+				raise
 			except Exception as e:
-				if isinstance(e, EnvironmentError) and e.errno == 24:
-					last_error = UnrecoverableError(e)
-					break
 				t = time.time()
 				if t - _last_error_time < 1: # the error repeats too fast; abort
 					# last_error is defined
@@ -202,8 +197,6 @@ class Manager(Reporter):
 		except:
 			self.logger.error("cannot close the connection to '%s'", self.relay.address)
 			self.logger.debug(traceback.format_exc())
-		del self.relay # delete temporary files
-		del self.encryption # delete temporary files
 		try:
 			raise last_error
 		except UnboundLocalError:

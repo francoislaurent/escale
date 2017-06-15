@@ -365,9 +365,15 @@ class WebDAV(Relay):
 				for file in ls if file.contenttype ]
 		if files:
 			files, sizes, mtimes = zip(*files)
-			if 'mtime' in stats:
-				mtimes = [ time.strptime(t[5:], '%d %b %Y %H:%M:%S GMT') for t in mtimes ]
-				files = list(zip(files, mtimes))
+			if stats:
+				files = [ files ]
+				for m in stats:
+					if m == 'mtime':
+						mtimes = [ time.strptime(t[5:], '%d %b %Y %H:%M:%S GMT') for t in mtimes ]
+						files.append(mtimes)
+					elif m == 'size':
+						files.append(sizes)
+				files = zip(*files)
 		#print(('WebDAV._list: remote_dir, files', remote_dir, files))
 		return files
 

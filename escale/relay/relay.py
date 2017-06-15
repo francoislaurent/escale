@@ -727,7 +727,7 @@ class Relay(AbstractRelay):
 		This method treats locks as files.
 		"""
 		remote_lock = self.lock(remote_file)
-		fd, local_lock = tempfile.mkstemp
+		fd, local_lock = tempfile.mkstemp()
 		os.close(fd)
 		try:
 			self._get(remote_lock, local_lock)

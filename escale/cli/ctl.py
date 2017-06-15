@@ -186,3 +186,31 @@ def restore(repository=None, archive=None, fast=None):
 		kwargs['safe'] = False
 	backup_manager(archive, repository, 'restore', **kwargs)
 
+
+def recover(repository=None, timestamp=None):
+	# quick n dirty
+	if timestamp:
+		tsformat = timestamp
+	else:
+		tsformat = '%y%m%d_%H%M%S'
+	cfg, _, _ = parse_cfg()
+	logger = logging.get_logger()
+	logger.setLevel(logging.DEBUG)
+	relay, cfg = parse_section(cfg, repository, logger)
+	client = cfg.pop('clientname')
+	address = cfg.pop('address')
+	rpath = cfg.pop('directory')
+	lpath = cfg.pop('path')
+	relay = relay(client, address, rpath, logger=logger, **cfg)
+	repo = AccessController(repository, lpath)
+	ls = repo.listFiles()
+	relay.open()
+	fd, placeholder = tempfile.mkstemp()
+	os.close(fd)
+	for local in ls:
+		timestamp = time.strftime(tsformat, time.gmtime(os.path.getmtime(local)))
+		with open(placeholder, 'w') as f:
+			f.write(timestamp)
+		remote = os.path.relpath(local, lpath)
+		relay._push(placeholder, relay.placeholder(remote))
+	os.unlink(placeholder)

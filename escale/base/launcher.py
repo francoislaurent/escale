@@ -2,10 +2,6 @@
 
 # Copyright © 2017, François Laurent
 
-# Copyright © 2017, Institut Pasteur
-#   Contributor: François Laurent
-#   Contribution: UnrecoverableError
-
 # This file is part of the Escale software available at
 # "https://github.com/francoislaurent/escale" and is distributed under
 # the terms of the CeCILL-C license as circulated at the following URL

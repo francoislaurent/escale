@@ -1,10 +1,6 @@
 # -*- coding: utf-8 -*-
 
-# Copyright © 2017, Institut Pasteur
-#   Contributor: François Laurent
-
 # Copyright © 2017, François Laurent
-#   contributions: MissingSetupFeature, QuotaExceeded, LicenseError, ExpressInterrupt
 
 # This file is part of the Escale software available at
 # "https://github.com/francoislaurent/escale" and is distributed under
@@ -17,13 +13,6 @@
 
 from .essential import PROGRAM_NAME
 import errno
-
-
-class UnrecoverableError(RuntimeError):
-	"""
-	This exception signals that the Python environment should be reset.
-	"""
-	pass
 
 
 class MissingSetupFeature(ImportError):

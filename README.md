@@ -41,7 +41,7 @@ Please find the extended documentation at [escale.readthedocs.io](http://escale.
   * migration of relay repositories from a host to another
   * backup relay repositories to an archive
   * restore relay repositories from an archive
-  * when missing, the ``client`` configuration option is set to the corresponding section/repository name
+  * when missing, the ``client`` configuration option is set to the local hostname
   * unclaimed locks can be cleared by any client after ``lock timeout``
   * ``lock timeout`` configuration option
   * ``puller count``/``pullers`` configuration option
@@ -111,15 +111,9 @@ Coming features are:
 * actually support multiple pullers (not tested yet)
 * split and recombine big files
 * more (symmetric) cryptographic algorithms and more cryptographic options
+* rclone-based generic backend
 * SSH backend
 * google-api-python-client backend for Google Drive
-
-
-## Alternative solutions
-
-If you can get a F\*EX account, you may find [the F\*EX service](http://fex.rus.uni-stuttgart.de/) more convenient.
-
-Extra tools include [Stream EXchange](http://fex.belwue.de/SEX.html), to be set as a *cron* job.
-
-A [F\*EX use case](http://fex.rus.uni-stuttgart.de/usecases/fexpush.html) may actually be considered for integration into *Escale*.
+* F\*EX/SEX backend?
+* configuration wizard with explicit switch of commercial services
 
