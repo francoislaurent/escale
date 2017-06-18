@@ -42,4 +42,22 @@ Respectivelly answer ``y`` and ``~/Dropbox/Escale Repository`` to the next two q
 
 .. include:: wizard-last-steps.txt
 
+Your client is ready and can be launched with:
+
+.. parsed-literal::
+
+	$ :strong:`escale`
+
+or as a daemon:
+
+.. parsed-literal::
+
+	$ :strong:`escale -d`
+
+You can make your terminal continuously flush the logs with:
+
+.. parsed-literal::
+
+	$ :strong:`tail -f ~/.config/escale/escale.log`
+
 

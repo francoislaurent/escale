@@ -53,6 +53,25 @@ Respectivelly answer ``y`` and ``~/GoogleDrive/Escale Repository`` to the next t
 
 .. include:: wizard-last-steps.txt
 
+Your client is ready and can be launched with:
+
+.. parsed-literal::
+
+	$ :strong:`escale`
+
+or as a daemon:
+
+.. parsed-literal::
+
+	$ :strong:`escale -d`
+
+You can make your terminal continuously flush the logs with:
+
+.. parsed-literal::
+
+	$ :strong:`tail -f ~/.config/escale/escale.log`
+
+
 
 Synchronizing with drive
 ------------------------
@@ -95,7 +114,36 @@ Respectivelly answer ``y`` and ``googledrive://Escale Repository`` to the next t
 
 The wizard will now assist you in installing the drive utility, if necessary.
 
+.. parsed-literal::
 
-.. todo:: write this section
+        If you don't have 'drive' installed, leave it empty:
+        Drive binary: |enter|
+        The 'drive' Go package is going to be installed.
+        Do you want to continue? [Y/n] |enter|
+        Cannot find the 'GOPATH' environment variable.
+        Where do you want Go packages to be installed? [~/golang] |enter|
+        go get -u github.com/odeke-em/drive/drive-google
+        ...
+        'drive' installed.
+	Do you want to add/edit another section? [N/y] |enter|
+
+
+Your client is ready and can be launched with:
+
+.. parsed-literal::
+
+	$ :strong:`escale`
+
+or as a daemon:
+
+.. parsed-literal::
+
+	$ :strong:`escale -d`
+
+You can make your terminal continuously flush the logs with:
+
+.. parsed-literal::
+
+	$ :strong:`tail -f ~/.config/escale/escale.log`
 
 

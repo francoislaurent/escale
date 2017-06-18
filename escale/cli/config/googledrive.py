@@ -66,13 +66,16 @@ def setup(config, section):
 				env['PATH'] = os.environ['PATH']
 			except KeyError:
 				extra_args['shell'] = True
+			extra_args['env'] = env
 			# install drive
-			with_subprocess('go', 'get', '-u', 'github.com/odeke-em/drive/drive-google',
-					env=env, **extra_args)
+			cmd = ('go', 'get', '-u', 'github.com/odeke-em/drive/drive-google')
+			print(' '.join(cmd))
+			with_subprocess(*cmd, **extra_args)
 			drive_bin = os.path.join(go_path, 'bin', 'drive-google')
 			if os.path.isfile(drive_bin):
 				config.set(section, drive_option, drive_bin)
 			else:
 				raise EnvironmentError("failed to install 'drive'")
+			print("'drive' installed")
 	return config
 

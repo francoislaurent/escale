@@ -91,25 +91,6 @@ The last few steps are straightforward:
 	 examples:  2GB  4.5G  1To  (default unit is gigabyte)
 	Disk quota: [] :strong:`1` |enter|
 	Do you want to add/edit another section? [N/y] |enter|
-	$> 
 
 Setting disk quota to ``1`` will make |escale| use no more than one gigabyte in your Dropbox space.
-
-Your client is ready and can be launched with:
-
-.. parsed-literal::
-
-	$ :strong:`escale`
-
-or as a daemon:
-
-.. parsed-literal::
-
-	$ :strong:`escale -d`
-
-You can make your terminal continuously flush the logs with:
-
-.. parsed-literal::
-
-	$ :strong:`tail -f ~/.config/escale/escale.log`
 

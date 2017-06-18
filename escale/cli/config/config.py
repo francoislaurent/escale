@@ -36,6 +36,7 @@ except NameError:
 	pass
 
 tab = "\t"
+help_cmd = '?'
 
 multi_path_protocols = __multi_path_protocols__
 oauth_protocols = __multi_path_protocols__ # may no longer be true in the future
@@ -46,7 +47,8 @@ def show_protocols(ps):
 	return quote_join(ps, final=' or ')
 
 
-def query_field(config, section, field, description=None, suggestion='', required=False, echo=True):
+def query_field(config, section, field, description=None, suggestion='', required=False, echo=True,
+		help=None, reminder=True):
 	'''
 	Request user input for a single field.
 
@@ -72,6 +74,10 @@ def query_field(config, section, field, description=None, suggestion='', require
 			a non-empty answer.
 
 		echo (bool): if False, the answer is not echoed (suitable for passwords).
+
+		help (str): help message displayed when the user inputs '?'.
+
+		reminder (bool): if True, a reminder about help availability is printed.
 
 	Returns:
 
@@ -100,14 +106,20 @@ def query_field(config, section, field, description=None, suggestion='', require
 		existing = config.get(section, option) # existing value presented as default one
 		#if not suggestion:
 		suggestion = existing # existing value should be favored
+	if help and reminder:
+		multiline_print("reminder: help will be printed on answering '{}'".format(help_cmd))
 	if echo:
 		_input = input
 	else:
 		_input = getpass
 	if not suggestion and required:
 		answer = None
-		while not answer:
+		while True:
 			answer = _input(decorate_line('{} (required): '.format(description)))
+			if help and answer == '?':
+				multiline_print(help)
+			elif answer:
+				break
 	else:
 		if suggestion is None:
 			suggestion = ''
@@ -115,7 +127,12 @@ def query_field(config, section, field, description=None, suggestion='', require
 			colon = ''
 		else:
 			colon = ':'
-		answer = _input(decorate_line('{}{} [{}] '.format(description, colon, suggestion)))
+		while True:
+			answer = _input(decorate_line('{}{} [{}] '.format(description, colon, suggestion)))
+			if help and answer == '?':
+				print(help)
+			else:
+				break
 		if not answer and existing:
 				answer = existing
 		# an empty answer represents `suggestion`, do not return `suggestion`
@@ -138,8 +155,12 @@ def query_local_repository(config, section=None, msgs=[]):
 	else:
 		_rep_ = default_option('path')
 		rep = None
-		while not rep:
+		while True:
 			rep = input(decorate_line('{} (required): '.format(description)))
+			if rep == '?':
+				multiline_print()
+			elif rep:
+				break
 	if rep and rep[0] == '~':
 		rep = os.path.expanduser(rep)
 	if not os.path.isabs(rep):
