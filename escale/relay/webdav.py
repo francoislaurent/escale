@@ -86,7 +86,7 @@ class WebDAVClient(easywebdav.Client):
 			logger = logging.getLogger(log_root).getChild('WebDAVClient')
 		self.logger = logger
 		if 'path' in kwargs:
-			kwargs['path'] = quote(kwargs['path'])
+			kwargs['path'] = os.path.join('/', quote(kwargs['path']))
 		easywebdav.Client.__init__(self, host, **kwargs)
 		if ssl_version:
 			self.session.mount('https://', make_https_adapter(parse_ssl_version(ssl_version))())
@@ -126,6 +126,8 @@ class WebDAVClient(easywebdav.Client):
 					try:
 						path = e.args[1]
 					except:
+						if e.actual_code == 403:
+							raise e
 						self.logger.error("%s", e)
 					else:
 						if e.actual_code == 403:
@@ -165,7 +167,7 @@ class WebDAVClient(easywebdav.Client):
 			return self.ls(url.path, recursive)
 
 		tree = easywebdav.xml.fromstring(response.content)
-		response.close()
+		#response.close()
 		return [easywebdav.client.elem2file(elem) for elem in tree.findall('{DAV:}response')]
 
 	def upload(self, local_path, remote_path):
@@ -324,11 +326,11 @@ class WebDAV(Relay):
 		if recursive and self._infinity_depth is False:
 			# infinite depth not allowed by WebDAV server
 			ls = self.webdav.ls(remote_dir, False)
-			remote_dir = os.path.join('/', remote_dir)
+			dirnames = [ unquote(entry.name) for entry in ls if not entry.contenttype ]
+			remote_dir = os.path.join('/', asstr(remote_dir))
 			ls = itertools.chain(ls,
-					*[self.ls(unquote(entry.name), True) for entry in ls
-						if not entry.contenttype \
-						and os.path.relpath(entry.name, remote_dir) != '.' ])
+					*[self.ls(dirname, True) for dirname in dirnames
+						if os.path.relpath(dirname, remote_dir) != '.' ])
 			return ls
 		first_recursive_call = recursive and \
 				self._infinity_depth is None and \

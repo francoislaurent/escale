@@ -341,7 +341,7 @@ class Relay(AbstractRelay):
 		'_placeholder_prefix', '_placeholder_suffix',
 		'_lock_prefix', '_lock_suffix', 'lock_timeout',
 		'_message_hash', '_message_prefix', '_message_suffix',
-		'placeholder_mtime']
+		'placeholder_cache']
 
 	def __init__(self, client, address, repository, logger=None, ui_controller=None,
 			lock_timeout=True, timestamped_messages=False, **ignored):
@@ -369,6 +369,7 @@ class Relay(AbstractRelay):
 			self._message_hash = message_hash
 		else:
 			self._message_hash = None
+		self.placeholder_cache = {}
 
 
 	def newTemporaryFile(self):
@@ -568,7 +569,9 @@ class Relay(AbstractRelay):
 		It caches last modification times of placeholders for future `getMetaInfo` calls.
 		"""
 		ls = self._list(remote_dir, recursive=recursive, stats=('mtime',))
-		self.placeholder_mtime = {}
+		if not ls:
+			return []
+		current_mtimes = {}
 		lock_files = []
 		regular_files = []
 		for file, mtime in ls:
@@ -576,13 +579,27 @@ class Relay(AbstractRelay):
 			if self._isLock(filename):
 				lock_files.append(file)
 			elif self._isPlaceholder(filename):
-				self.placeholder_mtime[file] = mtime
+				if mtime:
+					regular_file = os.path.join(filedir, self._fromPlaceholder(filename))
+					current_mtimes[regular_file] = mtime
 			elif not self._isMessage(filename):
 				lock_file = join(filedir, self._lock(filename))
 				regular_files.append((file, lock_file))
 		ready = [ regular_file
 				for regular_file, lock_file in regular_files
 				if lock_file not in lock_files ]
+		previous_mtimes = self.placeholder_cache
+		self.placeholder_cache = {}
+		if mtime:
+			for regular_file in ready:
+				current_mtime = current_mtimes[regular_file]
+				if regular_file in previous_mtimes:
+					previous_mtime, meta = previous_mtimes[regular_file]
+					if previous_mtime < current_mtime:
+						meta = None
+				else:
+					meta = None
+				self.placeholder_cache[regular_file] = (current_mtime, meta)
 		return ready
 
 	def listCorrupted(self, remote_dir='', recursive=True):
@@ -610,14 +627,29 @@ class Relay(AbstractRelay):
 		"""
 		The default implementation manipulates placeholders and locks as individual files.
 		"""
-		ls = self._list(remote_dir, recursive=recursive)
+		ls = self._list(remote_dir, recursive=recursive, stats=('mtime',))
+		if not ls:
+			return []
+		cache = {}
+		regular_files = []
 		placeholders = []
 		others = []
-		for file in ls:
-			if self.isPlaceholder(file):
-				placeholders.append(self.fromPlaceholder(file))
+		for file, mtime in ls:
+			filedir, filename = os.path.split(file)
+			if self._isPlaceholder(filename):
+				regular_file = os.path.join(filedir, self._fromPlaceholder(filename))
+				placeholders.append(regular_file)
+				if mtime:
+					if regular_file in self.placeholder_cache:
+						previous_mtime, meta = self.placeholder_cache[regular_file]
+						if previous_mtime < mtime:
+							meta = None
+					else:
+						meta = None
+					cache[regular_file] = (mtime, meta)
 			else:
 				others.append(file)
+		self.placeholder_cache = cache
 		ls = others
 		if end2end:
 			return placeholders
@@ -762,7 +794,19 @@ class Relay(AbstractRelay):
 				local_placeholder = output_file
 			else:
 				local_placeholder = self.newTemporaryFile()
-			self._get(remote_placeholder, local_placeholder)
+			try:
+				ts, meta = self.placeholder_cache[remote_file]
+			except:
+				self._get(remote_placeholder, local_placeholder)
+			else:
+				if meta is None:
+					self._get(remote_placeholder, local_placeholder)
+					with open(local_placeholder, 'rb') as f:
+						meta = f.read()
+					self.placeholder_cache[remote_file] = (ts, meta)
+				else:
+					with open(local_placeholder, 'wb') as f:
+						f.write(meta)
 			return local_placeholder
 		else:
 			return None
