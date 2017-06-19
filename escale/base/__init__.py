@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-# Copyright (c) 2017, François Laurent
+# Copyright © 2017, François Laurent
 
 # This file is part of the Escale software available at
 # "https://github.com/francoislaurent/escale" and is distributed under
@@ -13,8 +13,8 @@
 
 from .exceptions import *
 from .essential import *
-#from .timer import *
-#from .config import *
+from .timer import *
+from .config import *
 #from .launcher import *
 
 #__all__ = ['PROGRAM_NAME', 'PYTHON_VERSION', 'binary_type', 'text_type', 'asstr', 'join',

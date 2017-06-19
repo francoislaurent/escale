@@ -25,6 +25,11 @@ from escale.manager.backup import *
 
 
 def start(pidfile=None):
+	"""
+	Start all the client defined in the default configuration file.
+
+	This routine is the only one that records the pid of the main process in file.
+	"""
 	if not pidfile:
 		pidfile = get_pid_file()
 	if os.path.exists(pidfile):
@@ -51,6 +56,9 @@ def start(pidfile=None):
 
 
 def stop(pidfile=None):
+	"""
+	Kill all the running escale processes.
+	"""
 	if not pidfile:
 		pidfile = get_pid_file()
 	if not os.path.exists(pidfile):
@@ -75,6 +83,9 @@ def stop(pidfile=None):
 
 
 def access(modifiers=None, resource=None, repository=None):
+	"""
+	Get or set access modifiers of a resource.
+	"""
 	get_modifiers = modifiers is None
 	set_modifiers = modifiers is not None
 	if resource and os.path.exists(resource):
@@ -137,6 +148,11 @@ def access(modifiers=None, resource=None, repository=None):
 
 
 def migrate(repository=None, destination=None, fast=None):
+	"""
+	Migrate a relay repository from a host to another.
+
+	Supports change in protocol and prefixes/suffixes of special files.
+	"""
 	kwargs = {}
 	if os.path.isfile(destination):
 		changes = parse_cfg(destination)
@@ -174,6 +190,9 @@ def migrate(repository=None, destination=None, fast=None):
 
 
 def backup(repository=None, archive=None, fast=None):
+	"""
+	Store a full relay repository in an archive.
+	"""
 	kwargs = {}
 	if fast:
 		kwargs['safe'] = False
@@ -181,6 +200,9 @@ def backup(repository=None, archive=None, fast=None):
 
 
 def restore(repository=None, archive=None, fast=None):
+	"""
+	Overwrite a relay repository with the uncompressed content of an archive.
+	"""
 	kwargs = {}
 	if fast:
 		kwargs['safe'] = False
@@ -188,6 +210,12 @@ def restore(repository=None, archive=None, fast=None):
 
 
 def recover(repository=None, timestamp=None):
+	"""
+	Make a relay repository with placeholder files as if the local repository
+	resulted from a complete download of an existing repository with escale.
+
+	.. warning:: not tested.
+	"""
 	# quick n dirty
 	if timestamp:
 		tsformat = timestamp
@@ -214,3 +242,4 @@ def recover(repository=None, timestamp=None):
 		remote = os.path.relpath(local, lpath)
 		relay._push(placeholder, relay.placeholder(remote))
 	os.unlink(placeholder)
+

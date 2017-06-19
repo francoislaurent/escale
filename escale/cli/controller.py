@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-# Copyright (c) 2017, François Laurent
+# Copyright © 2017, François Laurent
 
 # This file is part of the Escale software available at
 # "https://github.com/francoislaurent/escale" and is distributed under
@@ -33,18 +33,33 @@ oauth_package = 'escale.oauth'
 
 
 class DirectController(object):
+	"""
+	User interface controller.
+
+	Implements a few basic routines that inform the user or request information from her.
+	"""
 
 	def __init__(self, logger=None, maintainer=None):
 		self.logger = logger
 		self.maintainer = maintainer
 
 	def requestCredential(self, hostname=None, username=None):
+		"""
+		Request username and password.
+		"""
 		return request_credential(hostname, username)
 
 	def getServerCertificate(self, ssl_socket):
+		"""
+		Deprecated.
+		"""
 		return False # not implemented yet
 
 	def notifyMaintainer(self, exception='', backtrace=''):
+		"""
+		Send a notification email to the maintainer's email address using
+		the local SMTP server if any.
+		"""
 		if self.maintainer:
 			# try to email the maintainer about the unexpected shutdown
 			try:
@@ -81,6 +96,9 @@ class DirectController(object):
 				server.quit()
 
 	def failure(self, repository, exception, backtrace=None):
+		"""
+		Notify client termination on error.
+		"""
 		if isinstance(exception, UnrecoverableError):
 			self.logger.critical("UnrecoverableError: %s", exception.args[0])
 			if backtrace is not None:
@@ -90,9 +108,15 @@ class DirectController(object):
 			self.notifyMaintainer(exception, backtrace)
 
 	def success(self, repository, result):
+		"""
+		Notify client termination on task completion.
+		"""
 		pass
 
 	def restartWorker(self, repository, sleep_time=None):
+		"""
+		Notify client automatic restart.
+		"""
 		if sleep_time:
 			if 1 < sleep_time:
 				number = 's'
@@ -118,6 +142,9 @@ class DirectController(object):
 		return getattr(module, function)(*args, **kwargs)
 
 	def mount(self, protocol, *args):
+		"""
+		Mount volumes in the file system.
+		"""
 		try:
 			return self.__dynamic__(oauth_package, protocol, 'mount', *args) # no kwargs
 		except:
@@ -125,11 +152,21 @@ class DirectController(object):
 			raise
 
 	def umount(self, protocol, *args):
+		"""
+		Mount volumes from the file system.
+		"""
 		return self.__dynamic__(oauth_package, protocol, 'umount', *args) # no kwargs
 
 
 
 class UIController(Listener, DirectController):
+	"""
+	Thread-safe version of a user interface controller.
+
+	A "parent" UIController should run in the main thread while each worker thread or
+	subprocess runs a proxy UIController that relays all the calls to the "parent"
+	controller.
+	"""
 
 	def __init__(self, lock=Lock(), queue=Queue(), logger=None, parent=None, maintainer=None):
 		Listener.__init__(self)

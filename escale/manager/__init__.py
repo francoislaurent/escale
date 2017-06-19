@@ -11,7 +11,7 @@
 # knowledge of the CeCILL-C license and that you accept its terms.
 
 
-from .config import *
+from .config import get_client_name
 from .manager import Manager
 from .access import Accessor, AccessAttributes, AccessController, access_modifier_prefix
 from .history import TimeQuotaController, History, usage_statistics_prefix

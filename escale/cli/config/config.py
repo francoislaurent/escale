@@ -21,6 +21,7 @@ from ..format import *
 from escale.base.essential import copyfile
 from escale.base.config import *
 from escale.relay import __multi_path_protocols__
+from escale.manager.config import *
 import os
 import stat
 import codecs
@@ -383,7 +384,8 @@ def add_section(config, cfg_dir, section=None, msgs=[]):
 	while not section:
 		section = input(decorate_line('section name (required): '))
 	msgs.append((logging.DEBUG, "editing the '%s' configuration section", section))
-	config.add_section(section)
+	if not config.has_section(section):
+		config.add_section(section)
 	config.set(section, _rep_, rep)
 	for option, value in kwargs.items():
 		if value:
@@ -438,7 +440,7 @@ def section_common(config, cfg_dir, section, protocol, msgs):
 						"be stored as 'username:password' in this file and you",
 						"should let the above username question unanswered")
 						raise ValueError('wrong password')
-				basename = repository
+				basename = section
 				suffix = 0
 				ext = '.credential'
 				secret_file = os.path.join(cfg_dir, basename + ext)
@@ -496,8 +498,12 @@ def section_common(config, cfg_dir, section, protocol, msgs):
 	config.set(section, _enc_, encryption)
 	# encryption passphrase
 	if encryption not in [ '0', 'off', 'no', 'false' ]:
+		suggestion = section+'.credential'
 		_pass_, passphrase = query_field(config, section, 'passphrase',
-			description='passphrase filename', required=True)
+			description='passphrase filename', suggestion=suggestion)
+		if not passphrase:
+			passphrase = suggestion
+		# make passphrase path absolute
 		if not os.path.isabs(passphrase):
 			if os.path.isfile(passphrase):
 				passphrase = os.path.join(os.getcwd(), passphrase)

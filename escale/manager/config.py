@@ -2,6 +2,11 @@
 
 # Copyright © 2017, François Laurent
 
+# Copyright © 2017, Institut Pasteur
+#   Contributor: François Laurent
+#   Contributions:
+#     * `multi_path_protocols` support in `parse_address`
+
 # This file is part of the Escale software available at
 # "https://github.com/francoislaurent/escale" and is distributed under
 # the terms of the CeCILL-C license as circulated at the following URL
@@ -12,9 +17,6 @@
 
 
 from escale.base.config import *
-import escale.relay as relay
-import escale.encryption as encryption
-import socket
 
 try:
 	from configparser import NoOptionError # Py3
@@ -23,10 +25,24 @@ except ImportError:
 
 
 def get_client_name(repository, config={}):
+	"""
+	Read client name from config or fall back to default.
+
+	Arguments:
+
+		repository (str): repository name.
+
+		config (dict): option-value configuration dictionnary.
+
+	Returns:
+
+		str: client name.
+	"""
 	try:
 		return config.pop('clientname')
 	except KeyError:
 		try:
+			import socket
 			hostname = socket.gethostname()
 		except:
 			hostname = None
@@ -40,6 +56,21 @@ def get_client_name(repository, config={}):
 
 
 def parse_section(config, repository, logger):
+	"""
+	Make relay backend and parse related options.
+
+	Arguments:
+
+		config (ConfigParser): configuration object.
+
+		repository (str): configuration section.
+
+		logger (Logger): logger.
+
+	Returns:
+
+		(AbstractRelay, dict): relay class and dictionnary of parameters.
+	"""
 	# moved from escale.base.launcher
 	# parse config
 	args = parse_fields(config, repository, fields, logger)
@@ -114,6 +145,7 @@ def parse_section(config, repository, logger):
 		with open(args['passphrase'], 'rb') as f:
 			args['passphrase'] = f.read()
 	if 'encryption' in args:
+		import escale.encryption as encryption
 		if isinstance(args['encryption'], bool):
 			if args['encryption']:
 				cipher = encryption.by_cipher('fernet')
@@ -146,6 +178,230 @@ def parse_section(config, repository, logger):
 			del args['encryption']
 		else:
 			args['encryption'] = cipher(args['passphrase'])
+	import escale.relay as relay
 	relay_class = relay.by_protocol(args['protocol'])
 	return (relay_class, args)
 
+
+def parse_address(addr, multi_path_protocols=[]):
+	"""
+	Parse host addresses or paths.
+
+	Arguments:
+
+		addr (str): host address.
+
+		multi_path_protocols (list): list of *multi-path* protocols.
+
+	Returns:
+
+		(str, str, str, str): (protocol, address, port, path)
+
+	Addresses can have multiple formats:
+
+	* ``file://absolutepath``
+	* ``protocol://servername[:port][/relativepath]``
+
+	Note that ``absolutepath`` must start with *'/'* or *'~/'* to be identified
+	as an absolute path.
+
+	``absolutepath`` and ``servername`` are returned as second argument and 
+	``relativepath`` as fourth output argument.
+
+	*new in 0.5:* `multi_path_protocols`; moved from :mod:`escale.base.config`
+
+	*multi-path* protocols admit paths such as:
+
+	* ``protocol``
+	* ``protocol://relativepath`` where ``relativepath`` is returned as path
+	* ``protocol://absolutepath`` where ``absolutepath`` is returned as address
+	* ``protocol://absolutepath//relativepath``
+
+	Note that ``absolutepath`` must start with *'/'* or *'~/'* to be identified
+	as an absolute path.
+
+	Similarly ``relativepath`` should not start with any of *'/'* or *'~/'*.
+
+	Example *multi-path* address:
+	::
+
+		googledrive:///home/user/MyGoogleDrive//Escale repository
+
+	where ``/home/user/MyGoogleDrive`` is the path of the "locally-mounted"
+	storage space and ``Escale repository`` is the directory that Escale will 
+	use for synchronization.
+
+	The above example can be parsed as expected if *'googledrive'* is provided
+	in the `multi_path_protocols` input argument.
+	"""
+	try:
+		protocol, addr = addr.split('://')
+	except ValueError:
+		addr = os.path.expanduser(addr)
+		if os.path.isabs(addr):
+			return (None, addr, None, None) # stop here
+		elif addr in multi_path_protocols:
+			protocol = addr
+			return (protocol, None, None, None) # stop here
+		protocol = None
+	else:
+		addr = os.path.expanduser(addr)
+		if protocol in multi_path_protocols:
+			if os.path.isabs(addr):
+				try:
+					addr, path = addr.split('//')
+				except ValueError:
+					path = None
+			else:
+				path = addr
+				addr = None
+			return (protocol, addr, None, path)
+		elif os.path.isabs(addr):
+			# 'file'-like protocol
+			return (protocol, addr, None, None) # path is returned as second argument
+	try:
+		addr, path = addr.split('/', 1)
+	except ValueError:
+		path = None
+	try:
+		addr, port = addr.split(':')
+	except ValueError:
+		port = None
+	return (protocol, addr, port, path)
+
+
+def get_dist_file(default_dirs={}, filename=None,
+		config=None, section=None, option=None):
+	"""
+	Get path of "distribution" files such as caches and locks.
+
+	Arguments:
+
+		default_dirs (dict): mapping configuration filepath -> distribution filepath.
+
+		filename (str): basename.
+
+		config (ConfigParser or str): configuration filepath or object.
+
+		section (str): repository name.
+
+		option (str): configuration option.
+
+	Returns:
+
+		str: filepath.
+
+	*new in 0.5:* moved from :mod:`escale.base.config`
+
+	The "dist" directory is determined from the configuration object if any,
+	or from the configuration filepath combined with the `default_dirs` mapping.
+
+	If `filename` is not provided, it is derived from the basename of the 
+	configuration file.
+	"""
+	if config is None:
+		config, cfg_file, _ = parse_cfg()
+	elif isinstance(config, ConfigParser):
+		cfg_file = config.filename
+	else:
+		cfg_file = config
+		config = None
+	undefined = True
+	dist_dir, cfg_basename = os.path.split(cfg_file)
+	if not dist_dir:
+		dist_dir = os.getcwd()
+	if option and config is not None:
+		if section is None:
+			section = default_section
+		try:
+			dist_dir = getpath(config, section, option)
+		except NoOptionError:
+			pass
+		else:
+			if not os.path.isabs(dist_dir):
+				raise ValueError("'{}' should be absolute path".format(option))
+			undefined = False
+	if undefined:
+		for cfg_dir in default_dirs:
+			if cfg_file.startswith(cfg_dir):
+				dist_dir = default_dirs[cfg_dir]
+				break
+	if not filename:
+		filename, _ = os.path.splitext(cfg_basename)
+	dist_file = os.path.join(dist_dir, filename)
+	if not os.path.isdir(dist_dir):
+		if os.path.exists(dist_dir):
+			raise OSError("resource '{}' is not a directory".format(dist_dir))
+		os.makedirs(dist_dir)
+	return dist_file
+
+
+def get_pid_file(config=None):
+	"""
+	Get the location of the pid (process id) file.
+
+	Arguments:
+
+		config (ConfigParser): configuration object or filepath.
+
+	Returns:
+
+		str: path to pid file.
+
+	*new in 0.5:* moved from :mod:`escale.base.config`
+	"""
+	pid_file = get_dist_file(default_run_dirs, config=config)
+	if not pid_file.endswith('.pid'):
+		pid_file += '.pid'
+	return pid_file
+
+
+def get_cache_file(config=None, section=None, prefix='', previously=None):
+	"""
+	Get the corresponding persistent data location for a given configuration 
+	file and section.
+
+	Arguments:
+
+		config (ConfigParser): configuration object or filepath.
+
+		section (str): section/repository name.
+
+		prefix (str): prefixes the basename of the returned path.
+
+		previously (str): former section/repository name if it has been renamed.
+
+	Returns:
+
+		str: path to persistent data location.
+
+	*new in 0.5:* moved from :mod:`escale.base.config`
+	"""
+	cache_option = 'cache'
+	if config is None:
+		config, _, _ = parse_cfg()
+	elif not isinstance(config, ConfigParser): # basestring
+		config, _, _ = parse_cfg(config)
+	if section is None:
+		section = config.sections()
+		if section[1:]:
+			raise ValueError("several sections were found in '{}'; 'section' should be defined".format(config.filename))
+		section = section[0]
+	cache_dir = get_dist_file(default_cache_dirs, config=config, section=section,
+			option=cache_option)
+	if not config.has_option(section, cache_option) or \
+			(config.has_option(default_section, cache_option) and \
+				config.get(section, cache_option) == config.get(default_section, cache_option)):
+		if PYTHON_VERSION == 3:
+			if isinstance(section, str):
+				section = section.encode('utf-8')
+			if isinstance(previously, str):
+				previously = previously.encode('utf-8')
+		cache_file = os.path.join(cache_dir,
+				prefix + asstr(hashlib.sha224(section).hexdigest()))
+		if previously:
+			previous_cache = os.path.join(cache_dir,
+					prefix + asstr(hashlib.sha224(previously).hexdigest()))
+			if os.path.exists(previous_cache) and not os.path.exists(cache_file):
+				os.rename(previous_cache, cache_file)
+	return cache_file

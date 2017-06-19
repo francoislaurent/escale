@@ -38,15 +38,17 @@ def setup(config, section):
 	if drive_bin:
 		config.set(section, drive_option, drive_bin)
 	else:
-		go_available = False
+		go_version = False
 		try:
 			# running arbitrary commands is not safe
 			v = with_subprocess('go', 'version', error=True)
 		except:
 			pass
 		else:
-			go_available = v.startswith('go ')
-		if go_available:
+			v = asstr(v)
+			if v.startswith('go version go'):
+				go_version = tuple([ int(v) for v in v.split()[2][2:].split('.') ])
+		if go_version and (1,7) <= go_version:
 			multiline_print("the 'drive' Go package is going to be installed")
 			answer = input(decorate_line("do you want to continue? [Y/n] "))
 			if answer and answer[0] not in 'yY':
@@ -76,6 +78,18 @@ def setup(config, section):
 				config.set(section, drive_option, drive_bin)
 			else:
 				raise EnvironmentError("failed to install 'drive'")
-			print("'drive' installed")
+			multiline_print("'drive' installed")
+		else:
+			if go_version:
+				multiline_print(
+					"your version of Go is too old")
+			else:
+				multiline_print(
+					"please install the Go toolchain and run the wizard again",
+					"to set up the path of the 'drive' command")
+			multiline_print(
+				"you can alternatively install a compiled version of ",
+				"'drive' following the instructions available at:",
+				"https://github.com/odeke-em/drive/blob/master/platform_packages.md")
 	return config
 

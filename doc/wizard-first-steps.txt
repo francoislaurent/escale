@@ -18,7 +18,7 @@ You must accept the terms of the license if you want to use |escale|.
 .. parsed-literal::
 
         Do you have knowledge of the CeCILL-C license and accept its terms? [NO/yes] :strong:`yes`
-        Acceptance stored in file: '$HOME/.config/escale/acceptance'
+        Acceptance stored in file: '/home/poincare/.config/escale/acceptance'
 
 .. note:: User-supplied text is shown in bold characters.
 
@@ -29,7 +29,7 @@ If you set-up |escale| for the first time, you will first be requested the path 
 
 .. parsed-literal::
 
-	Editing configuration file '$HOME/.config/escale/escale.conf'
+	Editing configuration file '/home/poincare/.config/escale/escale.conf'
 	Path of your local repository (required): :strong:`~/Documents` |enter|
 
 where ``~/Documents`` is the folder which content will be synchronized in this example.

@@ -80,7 +80,12 @@ This section details how to use the native client for Google Drive.
 This approach has the inconvenient of requiring the `drive <https://github.com/odeke-em/drive>`_ utility that in turn depends on the `Go toolchain <https://golang.org/doc/install>`_.
 
 Installing the Go toolchain may add a significant amount of used space (like 160MB on Linux for example). 
-If you already have it installed, then the approach described here is advised.
+If you already have it installed, then the approach described below is advised.
+
+.. note:: you will need Go>=1.7. On Ubuntu 16, the officially supported Go version is too old.
+
+You can alternatively install a compiled drive package.
+This procedure is described in `this link <https://github.com/odeke-em/drive/blob/master/platform_packages.md>`_.
 
 The backend in |escale| that makes use of the drive utility is referred to as a native backend because data are not buffer and every file transfers and accesses to your remote data are performed at call time.
 

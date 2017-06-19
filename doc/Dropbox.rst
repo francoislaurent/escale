@@ -2,7 +2,8 @@
 Dropbox
 =======
 
-|escale| does not feature any native client for |dropbox|. You can still use the |dropbox| proprietary client, mount your account space as a folder and run |escale| on a subdirectory in that folder.
+|escale| does not feature any native client for |dropbox|. 
+You can still use the |dropbox| proprietary client, mount your account space as a folder and run |escale| on a subdirectory in that folder.
 
 Installing the proprietary Dropbox client
 -----------------------------------------

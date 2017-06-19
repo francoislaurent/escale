@@ -17,7 +17,7 @@ import threading
 
 from .exceptions import *
 from .essential import *
-from .config import parse_cfg, get_cache_file
+from .config import parse_cfg
 from escale.log import *
 # separate imports instead of single escale.manager
 # single import breaks Sphinx
