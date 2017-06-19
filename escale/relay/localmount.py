@@ -87,7 +87,7 @@ class LocalMount(Relay):
 		if files and stats and not isinstance(stats, bool):
 			_files = {}
 			_files['name'], _files['size'], _files['mtime'] = zip(*files)
-			files = zip(*[ _files[i] for i in ['name']+stats ])
+			files = zip(*[ _files[i] for i in ['name']+list(stats) ])
 		return files
 
 	def exists(self, relay_file, dirname=None):

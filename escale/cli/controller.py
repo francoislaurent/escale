@@ -99,11 +99,6 @@ class DirectController(object):
 		"""
 		Notify client termination on error.
 		"""
-		if isinstance(exception, UnrecoverableError):
-			self.logger.critical("UnrecoverableError: %s", exception.args[0])
-			if backtrace is not None:
-				self.logger.critical(" %s", backtrace)
-			self.logger.critical("the Python environment should be reset")
 		if self.maintainer:
 			self.notifyMaintainer(exception, backtrace)
 
