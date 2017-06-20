@@ -51,6 +51,44 @@ def asstr(s):
 	return s
 
 
+def quote_join(words, final=' or ', join=', ', quote="'"):
+	"""
+	Join words.
+
+	Example::
+
+	>>> quote_join(list(range(1,4)))
+	"'1', '2' or '3'"
+
+	Arguments:
+
+		words (list): list of objects that implement `__str__`.
+
+		final (str): connector between the two last words.
+
+		join (str): connector between the first words but the last.
+
+		quote (str or tuple): begin and end quotes for the words.
+
+	Return:
+
+		str: formated sentence.
+	"""
+	if isinstance(quote, (tuple, list)):
+		begin_quote, end_quote = quote
+	else:
+		begin_quote = end_quote = quote
+	slot = '{}{}{}'.format(begin_quote, '{}', end_quote)
+	p = [slot]
+	for _ in words[1:-1]:
+		p.append(join)
+		p.append(slot)
+	if words[1:]:
+		p.append(final)
+		p.append(slot)
+	return ''.join(p).format(*words)
+
+
 
 def join(dirname, *extranames):
 	'''

@@ -22,7 +22,7 @@ class TimeQuotaController(object):
 	"""
 	Time and quota controller.
 
-		refresh (int): refresh interval in seconds.
+		refresh (int): maximum refresh interval in seconds.
 
 		quota (int or float): maximum used space on relay host, in MB.
 
@@ -32,7 +32,7 @@ class TimeQuotaController(object):
 		self.logger = logger
 		if isinstance(refresh, bool) and refresh:
 			refresh = 30 # seconds
-		self.refresh = refresh
+		self.clock = Clock(initial_delay=refresh/2, max_delay=refresh)
 		if isinstance(quota, tuple):
 			value, unit = quota
 			if unit:
@@ -64,12 +64,15 @@ class TimeQuotaController(object):
 		self._used_space = None
 
 	def wait(self):
-		if self.refresh:
-			clock = Clock(self.refresh)
-			clock.wait(self.logger)
-			return True
-		else:
+		if self.clock is None:
 			return False
+		else:
+			try:
+				self.clock.wait(self.logger)
+			except StopIteration:
+				return False
+			else:
+				return True
 
 	def pull(self, local_file):
 		return self

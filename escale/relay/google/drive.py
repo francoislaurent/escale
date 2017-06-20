@@ -26,6 +26,7 @@ default_mount_point = os.path.join(os.path.expanduser('~'), '.config', PROGRAM_N
 
 def drive_binary(name=None):
 	if name:
+		name = os.path.expanduser(name)
 		if os.path.isabs(name) and os.path.isfile(name):
 			# nothing to do
 			return name

@@ -592,7 +592,10 @@ class Relay(AbstractRelay):
 		self.placeholder_cache = {}
 		if mtime:
 			for regular_file in ready:
-				current_mtime = current_mtimes[regular_file]
+				try:
+					current_mtime = current_mtimes[regular_file]
+				except KeyError:
+					continue
 				if regular_file in previous_mtimes:
 					previous_mtime, meta = previous_mtimes[regular_file]
 					if previous_mtime < current_mtime:

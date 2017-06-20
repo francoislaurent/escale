@@ -24,9 +24,9 @@ import sys
 import traceback
 import re
 from escale.base import *
-from escale.base.timer import *
 from escale.base.config import storage_space_unit
 from escale.encryption.encryption import Plain
+from .history import TimeQuotaController
 from math import *
 
 
@@ -108,8 +108,9 @@ class Manager(Reporter):
 			if cfg_arg in relay_args:
 				relay_args[rel_arg] = relay_args.pop(cfg_arg)
 		self.relay = relay(clientname, address, directory, **relay_args)
-		if tq_controller is not None:
-			self.tq_controller.quota_read_callback = self.relay.storageSpace
+		if tq_controller is None:
+			self.tq_controller = TimeQuotaController(refresh, logger=self.logger)
+		self.tq_controller.quota_read_callback = self.relay.storageSpace
 		if count:
 			self.pop_args['placeholder'] = count
 
@@ -177,6 +178,8 @@ class Manager(Reporter):
 					if not new:
 						self.logger.info('repository is up to date')
 					_fresh_start = False
+				if new:
+					self.tq_controller.clock.reset()
 				if not self.tq_controller.wait():
 					break
 			except ExpressInterrupt as e:

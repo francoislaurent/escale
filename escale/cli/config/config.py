@@ -18,7 +18,7 @@
 
 
 from ..format import *
-from escale.base.essential import copyfile
+from escale.base.essential import copyfile, quote_join
 from escale.base.config import *
 from escale.relay import __multi_path_protocols__
 from escale.manager.config import *
@@ -45,7 +45,7 @@ path_only_protocols = [ 'file' ] + multi_path_protocols
 standard_protocols = [ 'ftp', 'ftps', 'http', 'https', 'webdav' ]
 
 def show_protocols(ps):
-	return quote_join(ps, final=' or ')
+	return quote_join(ps)
 
 
 def query_field(config, section, field, description=None, suggestion='', required=False, echo=True,
@@ -498,7 +498,7 @@ def section_common(config, cfg_dir, section, protocol, msgs):
 	config.set(section, _enc_, encryption)
 	# encryption passphrase
 	if encryption not in [ '0', 'off', 'no', 'false' ]:
-		suggestion = section+'.credential'
+		suggestion = section+'.passphrase'
 		_pass_, passphrase = query_field(config, section, 'passphrase',
 			description='passphrase filename', suggestion=suggestion)
 		if not passphrase:

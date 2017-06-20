@@ -11,7 +11,7 @@ from escale import PROGRAM_NAME, __version__
 
 install_requires = ['python-daemon']
 extras_require = {
-	'WebDAV':	['easywebdav'],
+	'WebDAV':	[],
 #	'SSH':		['paramiko'],
 	'Blowfish':	['cryptography'],
 	'Fernet':	['cryptography']}
@@ -69,6 +69,7 @@ setup(
 			'base',
 			'manager',
 			'relay',
+			'relay.webdav',
 			'relay.google',
 			'log',
 			'encryption',

@@ -4,17 +4,6 @@
 #    Contributor: François Laurent
 
 
-def quote_join(ps, final=' and ', join=', '):
-	p = ["'{}'"]
-	for _ in ps[1:-1]:
-		p.append(join)
-		p.append("'{}'")
-	if ps[1:]:
-		p.append(final)
-		p.append("'{}'")
-	return ''.join(p).format(*ps)
-
-
 def decorate_line(line):
 	"""
 	Capitalize the first letter.

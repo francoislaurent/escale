@@ -4,11 +4,11 @@
 
 # This file is part of the Escale software available at
 # "https://github.com/francoislaurent/escale" and is distributed under
-# the terms of the CeCILL-B license as circulated at the following URL
+# the terms of the CeCILL-C license as circulated at the following URL
 # "http://www.cecill.info/licenses.en.html".
 
 # The fact that you are presently reading this means that you have had
-# knowledge of the CeCILL-B license and that you accept its terms.
+# knowledge of the CeCILL-C license and that you accept its terms.
 
 
 from math import *
@@ -18,12 +18,12 @@ class Clock(object):
 	'''
 	Generate increasing time intervals.
 
-	Successive time intervals monotonically increase following a softsign function:
-	::
+	Successive time intervals monotonically increase following a tanh function::
 
-		dt = dt0 * (1 +  a * n / (b + n))
+		t_n = t_0 + (t_N - t_0) / (1 + exp(N - 2*n))
 
-	where ``dt0`` is `initial_delay`, ``a`` is `factor`, ``b`` is `bias` and ``n`` is `count`.
+	where ``t_0`` is the initial delay, ``t_n`` is the delay at iteration ``n`` 
+	and ``N`` is one of the first iterations with maximum delay.
 	
 	:class:`Clock` implements the iterator interface.
 
@@ -31,31 +31,25 @@ class Clock(object):
 
 		count (float): number of time interval requests.
 
-		cumulated_time (float): cumulated time in seconds.
+		max_count (int or float): maximum number of time interval requests.
+
+		count_at_max_delay (int): ``N``.
 
 		initial_delay (float): first time interval in seconds.
 
+		max_delay (float): maximum delay.
+
+		cumulated_time (float): cumulated time in seconds.
+
 		timeout (int or float): maximum cumulated time.
 
-		max_count (int or float): maximum number of time interval requests.
-
 		precision (float): order at which time intervals are rounded.
-
-		bias (float): softsign bias.
-
-		factor (float): factor on the softsign term.
-
-		max_delay (float, __init__ argument, not stored):
-			maximum delay.
-
-		initial_factor (float, __init__ argument, not stored):
-			ratio of the second time interval over the first (or initial) one.
 	'''
-	__slots__ = ['count', 'cumulated_time',
-			'initial_delay', 'timeout', 'max_count',
-			'precision', 'bias', 'factor']
+	__slots__ = ['count', 'max_count', 'count_at_max_delay',
+			'initial_delay', 'max_delay', 'cumulated_time', 'timeout',
+			'precision']
 
-	def __init__(self, initial_delay, max_delay=None, timeout=None, max_count=None, initial_factor=2.0):
+	def __init__(self, initial_delay=1, max_delay=None, timeout=None, max_count=None, count_at_max_delay=10):
 		self.initial_delay = initial_delay
 		self.max_count = max_count
 		if max_delay is None:
@@ -63,22 +57,18 @@ class Clock(object):
 				max_delay = self.initial_delay
 			else:
 				max_delay = 10.0 * self.initial_delay
-		#elif isinstance(max_delay, int):
-		#	max_delay = float(max_delay)
+		self.max_delay = max_delay
+		self.count_at_max_delay = count_at_max_delay
 		self.precision = 10.0 ** (floor(log10(self.initial_delay)) - 1)
 		self.timeout = timeout
-		b = 1.0
-		self.factor = max_delay / self.initial_delay - b
-		if 0 < self.factor:
-			self.bias = self.factor / (initial_factor - b) - 1
-		else:
-			# any value other than 0
-			self.bias = 1.0
-		self.__iter__()
+		self.reset()
+
+	def reset(self):
+		self.count = 0
+		self.cumulated_time = 0.0
 
 	def __iter__(self):
-		self.count = 0.0
-		self.cumulated_time = 0.0
+		self.reset()
 		return self
 
 	def next(self):
@@ -91,14 +81,14 @@ class Clock(object):
 		'''
 		if not(self.max_count is None or self.count < self.max_count):
 			raise StopIteration
-		b = 1.0
-		t = self.initial_delay * (b + self.count / (self.bias + self.count) * self.factor)
+		t = self.initial_delay + (self.max_delay - self.initial_delay) / \
+			(1.0 + exp(float(self.count_at_max_delay - 2 * self.count)))
 		if self.precision:
 			t = round(t / self.precision) * self.precision
 		self.cumulated_time += t
 		if self.timeout is not None and self.timeout < self.cumulated_time:
 			raise StopIteration
-		self.count += 1.0
+		self.count += 1
 		return t
 
 	def wait(self, logger=None):
@@ -106,7 +96,14 @@ class Clock(object):
 		Call :meth:`next` and sleep during the returned duration.
 		'''
 		delay = self.next()
+		if self.precision:
+			precision = -int(log10(self.precision))
+			if precision < 0:
+				precision = 0
+			precision = '.{}'.format(precision)
+		else:
+			precision = ''
 		if logger is not None:
-			logger.debug('sleeping %s seconds', delay)
+			logger.debug('sleeping %{}f seconds'.format(precision), delay)
 		time.sleep(delay)
 

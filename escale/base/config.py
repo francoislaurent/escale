@@ -205,6 +205,8 @@ def getter(_type='str'):
 
 
 def parse_field(config, section, attrs, getters=None, logger=None):
+	if not isinstance(attrs, (tuple, list)):
+		attrs = [attrs]
 	if not getters:
 		getters = [ ConfigParser.get ]
 	last_err_msg = ''

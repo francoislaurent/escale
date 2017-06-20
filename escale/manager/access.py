@@ -347,7 +347,8 @@ class AccessController(Reporter):
 		if os.path.isfile(local_file):
 			def exists():
 				return True
-			if self.mode == 'download':
+			if self.mode != 'upload' and (self.persistent is None
+					or self.persistent.isWritable(filename)):
 				def delete():
 					os.unlink(local_file)
 			else:

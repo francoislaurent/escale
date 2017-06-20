@@ -12,7 +12,7 @@
 # knowledge of the CeCILL-C license and that you accept its terms.
 
 
-from escale.base.config import parse_field
+from escale.base.config import fields, parse_field
 from escale.cli.config import query_field
 from escale.cli.format import *
 from escale.relay.google.drive import *
@@ -31,6 +31,8 @@ suggested_go_path = '~/golang'
 
 
 def setup(config, section):
+	if not parse_field(config, section, fields['address']):
+		config.set(section, 'relay address', default_mount_point)
 	drive_bin = drive_binary(parse_field(config, section, drive_option))
 	if not drive_bin:
 		multiline_print("if you don't have 'drive' installed, leave it empty:")
