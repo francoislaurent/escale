@@ -1,9 +1,15 @@
 
 If not already done, install |escale| as detailled `elsewhere <install.html>`_:
 
+.. .. parsed-literal::
+
+..        $ :strong:`pip install --user escale`
+
 .. parsed-literal::
 
-        $ :strong:`pip install --user escale`
+	$ :strong:`git clone https://github.com/francoislaurent/escale`
+	$ :strong:`cd escale`
+	$ :strong:`pip install --user -e .`
 
 Run the |escale| configuration wizard in a terminal:
 

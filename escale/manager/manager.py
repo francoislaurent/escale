@@ -7,6 +7,8 @@
 #   Contributions:
 #     * `filetype` argument and attribute
 #     * initial `filter` method (without `include` and `exclude` support)
+#     * new placeholder format
+#     * checksum function support
 
 # This file is part of the Escale software available at
 # "https://github.com/francoislaurent/escale" and is distributed under
@@ -27,7 +29,7 @@ from escale.base import *
 from escale.base.config import storage_space_unit
 from escale.encryption.encryption import Plain
 from .history import TimeQuotaController
-from math import *
+import hashlib
 
 
 class Manager(Reporter):
@@ -53,6 +55,8 @@ class Manager(Reporter):
 			If `str`, in addition determines the timestamp format as supported by 
 			:func:`time.strftime`.
 
+		hash_algorithm (str): hash algorithm name; see also the :mod:`hashlib` library.
+
 		filetype (list of str): list of file extensions.
 
 		include (str): regular expression to include files by name.
@@ -70,7 +74,7 @@ class Manager(Reporter):
 	def __init__(self, relay, repository=None, address=None, directory=None, \
 		encryption=Plain(None), timestamp=True, refresh=True, clientname=None, \
 		filetype=[], include=None, exclude=None, tq_controller=None, count=None, \
-		**relay_args):
+		hash_algorithm=None, **relay_args):
 		Reporter.__init__(self, **relay_args)
 		self.repository = repository
 		if directory:
@@ -79,9 +83,18 @@ class Manager(Reporter):
 		else:
 			directory = ''
 		self.encryption = encryption
-		if timestamp is True:
-			timestamp = '%y%m%d_%H%M%S'
 		self.timestamp = timestamp
+		if hash_algorithm:
+			if isinstance(hash_algorithm, (bool, int)):
+				# poor default algorithm for compatibility with Python<3.6 clients
+				hash_algorithm = 'sha512'
+			def hash_function(data):
+				h = hashlib.new(hash_algorithm)
+				h.update(asbytes(data))
+				return h.hexdigest()
+			self.hash_function = hash_function
+		else:
+			self.hash_function = None
 		self.tq_controller = tq_controller
 		if filetype:
 			self.filetype = [ f if f[0] == '.' else '.' + f
@@ -247,22 +260,27 @@ class Manager(Reporter):
 			if not local_file:
 				# update not allowed
 				continue
+			meta = self.relay.getMetadata(remote_file, timestamp_format=self.timestamp)
 			last_modified = None
 			if self.timestamp:
-				meta = self.relay.getMetaInfo(remote_file)
-				if meta:
-					with open(meta, 'r') as f:
-						# meta information is assumed to be ascii
-						last_modified = f.readline().rstrip()
-					os.unlink(meta)
-					if last_modified:
-						last_modified = time.strptime(last_modified, self.timestamp)
-						last_modified = calendar.timegm(last_modified) # remote_mtime
-					else:
-						# if self.timestamp is defined, then meta information should as well
-						self.logger.warning("corrupt meta information for file '%s'", remote_file)
+				if meta and meta.timestamp:
+					last_modified = meta.timestamp
+				else:
+					# if `timestamp` is `True` or is a format string,
+					# then metadata should be defined
+					self.logger.warning("corrupt meta information for file '%s'", remote_file)
+			checksum = None
 			if os.path.isfile(local_file):
-				if last_modified and last_modified <= floor(os.path.getmtime(local_file)):
+				# generate checksum of local file
+				if self.hash_function:
+					existing_content = self.encryption.encrypt(local_file)
+					try:
+						with open(existing_content, 'rb') as f:
+							checksum = self.hash_function(f.read())
+					finally:
+						self.encryption.finalize(existing_content)
+				# check for modifications
+				if not meta.fileModified(local_file, checksum, remote=True):
 					if self.count == 1:
 						# no one else will ever download the current copy of the regular file
 						# on the relay; delete it
@@ -304,40 +322,41 @@ class Manager(Reporter):
 			if PYTHON_VERSION == 2 and isinstance(remote_file, unicode) and \
 				remote and isinstance(remote[0], str):
 				remote_file = remote_file.encode('utf-8')
+			meta = None
+			checksum = None
+			temp_file = None
 			modified = False # if no remote copy, this is ignored
-			if self.timestamp: # check file last modification time
-				local_mtime = floor(os.path.getmtime(local_file))
-				last_modified = time.gmtime(local_mtime) # UTC
-				last_modified = time.strftime(self.timestamp, last_modified)
-				if remote_file in remote:
-					meta = self.relay.getMetaInfo(remote_file)
-					if meta:
-						with open(meta, 'r') as f:
-							remote_mtime = f.readline().rstrip()
-						os.unlink(meta)
-						if remote_mtime:
-							remote_mtime = time.strptime(remote_mtime, self.timestamp)
-							remote_mtime = calendar.timegm(remote_mtime)
-							modified = remote_mtime < int(local_mtime)
-						else: # no meta information
-							modified = True
-							# this may not be true, but this will update the meta
-							# information with a valid content.
-					#else: (TODO) directly read mtime on remote copy?
-			else:
-				last_modified = None
-			if remote_file not in remote or modified:
-				self.repository.confirmPush(local_file)
+			exists = remote_file in remote
+			if (self.timestamp or self.hash_function) and exists:
+				# check file last modification time and checksum
+				meta = self.relay.getMetadata(remote_file, timestamp_format=self.timestamp)
+				if meta:
+					if self.hash_function:
+						temp_file = self.encryption.encrypt(local_file)
+						with open(temp_file, 'rb') as f:
+							checksum = self.hash_function(f.read())
+					modified = meta.fileModified(local_file, checksum, remote=False)
+				else:
+					# no meta information available
+					modified = True
+					# this may not be true, but this will update the meta
+					# information with a valid content.
+			if not exists or modified:
 				new = True
-				temp_file = self.encryption.encrypt(local_file)
+				self.repository.confirmPush(local_file)
+				last_modified = os.path.getmtime(local_file)
+				if not temp_file:
+					temp_file = self.encryption.encrypt(local_file)
 				self.logger.info("uploading file '%s'", remote_file)
 				try:
 					with self.tq_controller.push(local_file):
-						ok = self.relay.push(temp_file, remote_file,
-							blocking=False, last_modified=last_modified)
+						ok = self.relay.push(temp_file, remote_file, blocking=False,
+							last_modified=last_modified, checksum=checksum)
 				except QuotaExceeded as e:
 					self.logger.info("%s; no more files can be sent", e)
 					ok = False
+				finally:
+					self.encryption.finalize(temp_file)
 				if ok:
 					self.logger.debug("file '%s' successfully uploaded", remote_file)
 				elif ok is not None:

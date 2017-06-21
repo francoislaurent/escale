@@ -17,7 +17,7 @@
 
 
 from escale.base.config import *
-
+import hashlib
 try:
 	from configparser import NoOptionError # Py3
 except ImportError:

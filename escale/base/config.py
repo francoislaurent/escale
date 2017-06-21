@@ -8,6 +8,7 @@
 #     * `ssl_version`, `verify_ssl`, `filetype`, `quota` in `fields`
 #     * `_item_separator`, `getlist`, `getunit`, `storage_space_unit` (dict() statement)
 #     * `list = getlist` and `number_unit = getnum` lines in `getter`
+#     * `checksum` in `fields`
 
 # This file is part of the Escale software available at
 # "https://github.com/francoislaurent/escale" and is distributed under
@@ -27,7 +28,6 @@ except ImportError:
 	ConfigParser = cp.SafeConfigParser
 	NoOptionError = cp.NoOptionError
 import re # moved from syncacre.cli.config together with parse_address
-import hashlib
 import itertools
 
 
@@ -64,6 +64,7 @@ default_cache_dirs = { user_cfg_dir: user_cache_dir,
 # 'locktimeout', 'mode' and 'count' added in version 0.5-?
 # 'pattern' becomes 'include' in version 0.5rc2
 # 'exclude' added in version 0.5rc2
+# 'checksum' added in version 0.5.1
 fields = dict(path=('path', ['local path', 'path']),
 	address=['host address', 'relay address', 'remote address', 'address'],
 	directory=['host directory', 'relay directory', 'remote directory',
@@ -91,7 +92,8 @@ fields = dict(path=('path', ['local path', 'path']),
 	keyfile=('path', ['keyfile', 'key file', 'private key']),
 	locktimeout=(('bool', 'int'), ['lock timeout']),
 	mode=['mode', 'synchronization mode'],
-	count=('int', ['puller count', 'pullers']))
+	count=('int', ['puller count', 'pullers']),
+	checksum=(('bool', 'str'), ['checksum', 'hash algorithm']))
 
 
 def default_option(field, all_options=False):

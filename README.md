@@ -27,6 +27,14 @@ Please find the extended documentation at [escale.readthedocs.io](http://escale.
 
 ## Changelog:
 
+* `0.5.1`:
+
+  * new placeholder format with checksum support
+  * ``checksum``/``hash algorithm`` configuration option
+  * easywebdav dependency removed
+  * uncompleted transfer auto-fixing for `shared` and `conservative` synchronization mode (bug fix)
+  * configuration wizard offers a correct default passphrase filename (bug fix)
+
 * `0.5` (including `0.5-rc*`):
 
   * project name becomes *Escale*
@@ -108,7 +116,6 @@ Coming features are:
 
 * resume interrupted upload/download
 * file auto-destruction when several pullers have been defined and one takes too much time to get its copy of the file
-* actually support multiple pullers (not tested yet)
 * split and recombine big files
 * more (symmetric) cryptographic algorithms and more cryptographic options
 * rclone-based generic backend

@@ -19,14 +19,23 @@ from escale import PROGRAM_NAME
 PYTHON_VERSION = sys.version_info[0]
 
 
-# this symbols are deprecated since the introduction of `asstr`
 if PYTHON_VERSION == 2:
 	binary_type = str
 	text_type = unicode
+	basestring = basestring
 elif PYTHON_VERSION == 3:
 	binary_type = bytes
 	text_type = str
+	basestring = (bytes, str)
 
+
+def asbytes(s):
+	'''
+	Coerce bytes-like object to ``bytes`` (Python 3) or ``str`` (Python 2).
+	'''
+	if isinstance(s, text_type):
+		s = s.encode('utf-8')
+	return s
 
 def asstr(s):
 	'''

@@ -144,16 +144,16 @@ class AbstractRelay(Reporter):
 		"""
 		raise NotImplementedError('abstract method')
 
-	def getMetaInfo(self, remote_file, output_file=None):
+	def getMetadata(self, remote_file, output_file=None, timestamp_format=None):
 		"""
 		Download meta-information.
 
-		If no local file is specified, it makes a temporary file to be manually unlinked 
+		If no local file is specified but `output_file` is `True`, 
+		`getMetadata` makes and returns a temporary file instead of a
+		:class:`~escale.relay.info.Metadata` object.
+
+		The returned temporary file should be manually unlinked 
 		once done with it.
-
-		The first line in the created file is the original file modification time.
-
-		A default implementation may use placeholders as files where to store the header.
 
 		Example:
 
@@ -161,27 +161,34 @@ class AbstractRelay(Reporter):
 
 			import os
 
-			tmpfile = relay.getMetaInfo(path_to_remote_file)
+			temporary_file = relay.getMetadata(path_to_remote_file, output_file=True)
 
-			with open(tmpfile, 'r') as f:
+			with open(temporary_file, 'r') as f:
 				# do something with `f`
 
-			os.unlink(tmpfile)
+			os.unlink(temporary_file)
 
 		
 		Arguments:
 
-			remote_file (str): path to regular file (no placeholder or lock).
+			remote_file (str): path to regular file (no placeholder or message).
 
-			output_file (str): path to local file.
+			output_file (str or bool): path to local file.
+
+			timestamp_format (str): backward-compatibility option for the former
+				metadata format.
 
 		Returns:
 
-			str: path to local copy of the placeholder file.
+			Metadata or str: metadata or path of a local file.
+
+		*in 0.5.1:* *getMetaInfo* renamed as `getMetadata`
+
+		*new in 0.5.1:* timestamp_format; `getMetadata` returns a `Metadata` object
 		"""
 		raise NotImplementedError('abstract method')
 
-	def push(self, local_file, remote_dest, last_modified=None, blocking=True):
+	def push(self, local_file, remote_dest, last_modified=None, checksum=None, blocking=True):
 		"""
 		Upload a file to the remote host.
 
@@ -193,12 +200,16 @@ class AbstractRelay(Reporter):
 
 			last_modified (str): meta information to be recorded for the remote copy.
 
+			checksum (str-like): checksum of the encrypted content of `local_file`.
+
 			blocking (bool): if target exists and is locked, whether should we block 
 				until the lock is released or skip the file.
 
 		Returns:
 
 			bool: True if successful, False if failed.
+
+		*new in 0.5.1:* checksum
 		"""
 		raise NotImplementedError('abstract method')
 
@@ -242,7 +253,7 @@ class AbstractRelay(Reporter):
 		"""
 		raise NotImplementedError('abstract method')
 
-	def repair(self, lock, local_file):
+	def repair(self, lock, local_file, checksum=None):
 		"""
 		Attempt to repair a corrupted file.
 
@@ -252,6 +263,10 @@ class AbstractRelay(Reporter):
 				attribute refers to the file on the remote host.
 
 			local_file (escale.manager.Accessor): accessor for local file.
+
+			checksum (str-like): checksum of the encrypted content of `local_file`.
+
+		*new in 0.5.1:* checksum
 		"""
 		raise NotImplementedError('abstract method')
 
@@ -264,7 +279,7 @@ class AbstractRelay(Reporter):
 
 		Arguments:
 
-			* remote_dir (str): path to the remote directory to be removed.
+			remote_dir (str): path to the remote directory to be removed.
 
 		"""
 		raise NotImplementedError('abstract method')
@@ -336,6 +351,9 @@ class Relay(AbstractRelay):
 
 		_message_suffix (str): suffix for message files.
 
+		placeholder_cache (dict): dictionnary of cached placeholders.
+
+	*new in 0.5.1:* placeholder_cache
 	"""
 	__slots__ = [ '_temporary_files',
 		'_placeholder_prefix', '_placeholder_suffix',
@@ -364,7 +382,7 @@ class Relay(AbstractRelay):
 		self._message_prefix = '.'
 		self._message_suffix = '.message'
 		if timestamped_messages:
-			def hash_message(path):
+			def message_hash(path):
 				return time.strftime('%y%m%d%H%M%S', time.gmtime())
 			self._message_hash = message_hash
 		else:
@@ -566,12 +584,11 @@ class Relay(AbstractRelay):
 		"""
 		The default implementation manipulates placeholders and locks as individual files.
 
-		It caches last modification times of placeholders for future `getMetaInfo` calls.
+		It caches last modification times of placeholders for future `getMetadata` calls.
 		"""
 		ls = self._list(remote_dir, recursive=recursive, stats=('mtime',))
 		if not ls:
 			return []
-		current_mtimes = {}
 		lock_files = []
 		regular_files = []
 		for file, mtime in ls:
@@ -581,28 +598,19 @@ class Relay(AbstractRelay):
 			elif self._isPlaceholder(filename):
 				if mtime:
 					regular_file = os.path.join(filedir, self._fromPlaceholder(filename))
-					current_mtimes[regular_file] = mtime
+					try:
+						previous_mtime, meta = self.placeholder_cache[regular_file]
+						if previous_mtime < mtime:
+							meta = None
+					except KeyError:
+						meta = None
+					self.placeholder_cache[regular_file] = (mtime, meta)
 			elif not self._isMessage(filename):
 				lock_file = join(filedir, self._lock(filename))
 				regular_files.append((file, lock_file))
 		ready = [ regular_file
 				for regular_file, lock_file in regular_files
 				if lock_file not in lock_files ]
-		previous_mtimes = self.placeholder_cache
-		self.placeholder_cache = {}
-		if mtime:
-			for regular_file in ready:
-				try:
-					current_mtime = current_mtimes[regular_file]
-				except KeyError:
-					continue
-				if regular_file in previous_mtimes:
-					previous_mtime, meta = previous_mtimes[regular_file]
-					if previous_mtime < current_mtime:
-						meta = None
-				else:
-					meta = None
-				self.placeholder_cache[regular_file] = (current_mtime, meta)
 		return ready
 
 	def listCorrupted(self, remote_dir='', recursive=True):
@@ -621,6 +629,7 @@ class Relay(AbstractRelay):
 						locks.append(lock)
 				elif mtime and self.lock_timeout:
 					if isinstance(mtime, time.struct_time):
+						# for backward compatibility
 						mtime = calendar.timegm(mtime)
 					if self.lock_timeout < time.time() - mtime:
 						locks.append(lock)
@@ -633,7 +642,6 @@ class Relay(AbstractRelay):
 		ls = self._list(remote_dir, recursive=recursive, stats=('mtime',))
 		if not ls:
 			return []
-		cache = {}
 		regular_files = []
 		placeholders = []
 		others = []
@@ -643,16 +651,15 @@ class Relay(AbstractRelay):
 				regular_file = os.path.join(filedir, self._fromPlaceholder(filename))
 				placeholders.append(regular_file)
 				if mtime:
-					if regular_file in self.placeholder_cache:
+					try:
 						previous_mtime, meta = self.placeholder_cache[regular_file]
 						if previous_mtime < mtime:
 							meta = None
-					else:
+					except KeyError:
 						meta = None
-					cache[regular_file] = (mtime, meta)
+					self.placeholder_cache[regular_file] = (mtime, meta)
 			else:
 				others.append(file)
-		self.placeholder_cache = cache
 		ls = others
 		if end2end:
 			return placeholders
@@ -787,42 +794,55 @@ class Relay(AbstractRelay):
 			os.unlink(local_lock)
 		return info
 
-	def getMetaInfo(self, remote_file, output_file=None):
+	def getMetadata(self, remote_file, output_file=None, timestamp_format=None):
 		"""
 		This method treats placeholders as files.
 		"""
 		if self.hasPlaceholder(remote_file):
-			remote_placeholder = self.placeholder(remote_file)
-			if output_file:
-				local_placeholder = output_file
-			else:
+			ts, meta = self.placeholder_cache.get(remote_file, (None, None))
+			if output_file is True or meta is None:
 				local_placeholder = self.newTemporaryFile()
-			try:
-				ts, meta = self.placeholder_cache[remote_file]
-			except:
+			elif output_file:
+				local_placeholder = output_file
+			if meta is None:
+				remote_placeholder = self.placeholder(remote_file)
 				self._get(remote_placeholder, local_placeholder)
-			else:
-				if meta is None:
-					self._get(remote_placeholder, local_placeholder)
-					with open(local_placeholder, 'rb') as f:
-						meta = f.read()
-					self.placeholder_cache[remote_file] = (ts, meta)
-				else:
-					with open(local_placeholder, 'wb') as f:
-						f.write(meta)
-			return local_placeholder
+				if ts or not output_file:
+					meta = parse_metadata(local_placeholder, \
+							target=remote_file, \
+							log=self.logger.debug, \
+							timestamp_format=timestamp_format)
+					if ts:
+						self.placeholder_cache[remote_file] = (ts, meta)
+					else:#elif not output_file:
+						self.delTemporaryFile(local_placeholder)
+			elif output_file:
+				with open(local_placeholder, 'wb') as f:
+					f.write(repr(meta))
+			if output_file:
+				meta = local_placeholder
+			return meta
 		else:
+			if self.placeholder_cache:
+				try:
+					del self.placeholder_cache[remote_file]
+				except KeyError:
+					pass
 			return None
 
-	def updatePlaceholder(self, remote_file, last_modified=None):
+	def updatePlaceholder(self, remote_file, last_modified=None, checksum=None):
 		"""
 		Update a placeholder when the corresponding file is pushed.
 
 		This method treats placeholders as files.
 
 		To pop or get a file, use :meth:`markAsRead` instead.
+
+		*new in 0.5.1:* checksum
 		"""
-		self.touch(self.placeholder(remote_file), last_modified)
+		meta = Metadata(pusher=self.client, target=remote_file,
+				timestamp=last_modified, checksum=checksum)
+		self.touch(self.placeholder(remote_file), repr(meta))
 
 	def releasePlace(self, remote_file, handle_missing=False):
 		"""
@@ -879,11 +899,11 @@ class Relay(AbstractRelay):
 		"""
 		raise NotImplementedError('abstract method')
 
-	def push(self, local_file, remote_dest, last_modified=None, blocking=True):
+	def push(self, local_file, remote_dest, last_modified=None, checksum=None, blocking=True):
 		if not self.acquireLock(remote_dest, mode='w', blocking=blocking):
 			return False
 		if last_modified:
-			self.updatePlaceholder(remote_dest, last_modified=last_modified)
+			self.updatePlaceholder(remote_dest, last_modified=last_modified, checksum=checksum)
 		self._push(local_file, remote_dest)
 		self.releaseLock(remote_dest)
 		return True
@@ -958,7 +978,10 @@ class Relay(AbstractRelay):
 				self.markAsRead(remote_file, **kwargs)
 				if 1 < placeholder: # or similarly: if 'local_placeholder' in kwargs:
 					self.delTemporaryFile(local_placeholder)
-			else:
+			else: # older-than-old style placeholding mechanism
+				# could have warned before getting the file
+				self.logger.warning("missing meta information for file: '%s'", remote_file)
+				# no modification time or checksum
 				self.updatePlaceholder(remote_file)
 		self.releaseLock(remote_file)
 		return True
@@ -976,6 +999,8 @@ class Relay(AbstractRelay):
 	def markAsRead(self, remote_file, local_placeholder=None):
 		"""
 		This method treats placeholders as files.
+
+		Compatible with both old-style and new-style placeholders.
 		"""
 		remote_placeholder = self.placeholder(remote_file)
 		get = not local_placeholder
@@ -1004,7 +1029,8 @@ class Relay(AbstractRelay):
 		self.releaseLock(remote_file)
 		return True
 
-	def repair(self, lock, local_file):
+	def repair(self, lock, local_file, checksum=None):
+		# TODO: use the checksum to resolve conflicting situations
 		remote_file = lock.target
 		if lock.mode == 'w':
 			if not local_file.exists():
