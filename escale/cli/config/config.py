@@ -38,6 +38,7 @@ except NameError:
 
 tab = "\t"
 help_cmd = '?'
+help_instructions = "request help with '{}'".format(help_cmd)
 
 multi_path_protocols = __multi_path_protocols__
 oauth_protocols = __multi_path_protocols__ # may no longer be true in the future
@@ -46,6 +47,22 @@ standard_protocols = [ 'ftp', 'ftps', 'http', 'https', 'webdav' ]
 
 def show_protocols(ps):
 	return quote_join(ps)
+
+
+def print_help(help, space=True):
+	if help:
+		if isinstance(help, (list, tuple)):
+			if space:
+				print('')
+			for _help in help:
+				if isinstance(_help, (list, tuple)):
+					multiline_print(*_help)
+				else:
+					multiline_print(_help)
+				if space:
+					print('')
+		else:
+			multiline_print(help)
 
 
 def query_field(config, section, field, description=None, suggestion='', required=False, echo=True,
@@ -108,7 +125,7 @@ def query_field(config, section, field, description=None, suggestion='', require
 		#if not suggestion:
 		suggestion = existing # existing value should be favored
 	if help and reminder:
-		multiline_print("reminder: help will be printed on answering '{}'".format(help_cmd))
+		multiline_print(help_instructions)
 	if echo:
 		_input = input
 	else:
@@ -117,8 +134,8 @@ def query_field(config, section, field, description=None, suggestion='', require
 		answer = None
 		while True:
 			answer = _input(decorate_line('{} (required): '.format(description)))
-			if help and answer == '?':
-				multiline_print(help)
+			if answer == help_cmd:
+				print_help(help)
 			elif answer:
 				break
 	else:
@@ -130,8 +147,8 @@ def query_field(config, section, field, description=None, suggestion='', require
 			colon = ':'
 		while True:
 			answer = _input(decorate_line('{}{} [{}] '.format(description, colon, suggestion)))
-			if help and answer == '?':
-				print(help)
+			if answer == help_cmd:
+				print_help(help)
 			else:
 				break
 		if not answer and existing:
@@ -158,8 +175,8 @@ def query_local_repository(config, section=None, msgs=[]):
 		rep = None
 		while True:
 			rep = input(decorate_line('{} (required): '.format(description)))
-			if rep == '?':
-				multiline_print()
+			if rep == help_cmd:
+				print_help(None)
 			elif rep:
 				break
 	if rep and rep[0] == '~':
@@ -174,19 +191,47 @@ def query_local_repository(config, section=None, msgs=[]):
 	return (_rep_, rep, msgs)
 
 
-def query_relay_address(config, section=None, remote=True, msgs=[]):
+def query_relay_address(config, section=None, remote=True, msgs=[], help=None):
 	if remote:
 		description = 'address of the relay repository'
 	else:
 		description = 'path of the locally accessible relay repository'
+	if help is None:
+		if remote:
+			help = [[
+				"enter the relay host address",
+				],[
+				"a host address should be in the form:",
+				"  protocol://servername[:port][/path]",
+				"if 'protocol' is any of:",
+				"  "+show_protocols(standard_protocols),
+				],[
+				"some protocols do not even need a server name, e.g.:",
+				"  googledrive[://path]",
+				]]
+		else:
+			help = [[
+				"enter the path of locally accessible directory",
+				],[
+				"if you intend to use Google Drive mounted with",
+				"the drive utility, you can alternatively specify:",
+				"  googledrive:///mountpoint[//path]",
+				"where '/mountpoint' is the absolute path to a local",
+				"mount and 'path' is the path of the relay directory",
+				"relative to the mount point",
+				]]
 	if section:
 		_addr_, addr = query_field(config, section, 'address',
-			 description=description, required=True)
+			 description=description, required=True, help=help)
 	else:
 		_addr_ = default_option('address')
 		addr = None
-		while not addr:
+		while True:
 			addr = input(decorate_line(description+' (required): '))
+			if addr == help_cmd:
+				print_help(help)
+			elif addr:
+				break
 	protocol, servername, port, path = parse_address(addr,
 			multi_path_protocols=multi_path_protocols)
 	if section:
@@ -224,8 +269,10 @@ def query_relay_address(config, section=None, remote=True, msgs=[]):
 			else:
 				option = default_option(field)
 				if required is True:
-					while not new_value:
+					while True:
 						new_value = input(decorate_line(key+' (required): '))
+						if new_value and new_value != help_cmd:
+							break
 				elif required:
 					# `required` contains default value
 					suggestion = required
@@ -305,12 +352,16 @@ def edit_config(cfg_file, msgs=[]):
 				plural = 's'
 			else:
 				plural = ''
-			multiline_print("existing section{}:".format(plural))
-			for _section in sections:
-				print("{}. '{}'".format(tab, _section))
-			multiline_print('prefer ascii names')
-			while not section:
+			help = [["existing section{}:".format(plural)],
+				[ "{}. '{}'".format(tab, _section) for _section in sections ],
+				['prefer ascii names']]
+			print_help(help, space=False)
+			while True:
 				section = input(decorate_line('section name (required): '))
+				if section == help_cmd:
+					print_help(help, space=False)
+				elif section:
+					break
 		if section in sections:
 			config, msgs = edit_section(config, cfg_dir, section, msgs)
 		else:
@@ -355,34 +406,17 @@ def add_section(config, cfg_dir, section=None, msgs=[]):
 	## host address
 	answer = input(decorate_line("is the relay repository locally mounted in the file system? [N/y] "))
 	remote = not answer or answer[0].lower() == 'n'
-	#print("")
-	if remote:
-		multiline_print("enter the relay host address")
-		multiline_print(
-			"a host address should be in the form:",
-			"  protocol://servername[:port][/path]",
-			"if 'protocol' is any of:",
-			"  "+show_protocols(standard_protocols))
-		multiline_print(
-			"some protocols do not even need a server name, e.g.:",
-			"  googledrive[://path]")
-	else:
-		multiline_print("enter the path of locally accessible directory")
-		#print("")
-		multiline_print(
-			"if you intend to use Google Drive mounted with",
-			"the drive utility, you can alternatively specify:",
-			"  googledrive:///mountpoint[//path]",
-			"where '/mountpoint' is the absolute path to a local",
-			"mount and 'path' is the path of the relay directory",
-			"relative to the mount point")
-	#print("")
 	config, kwargs, msgs = query_relay_address(config, section, remote, msgs)
-	if not section:
-		multiline_print('choose a name for this configuration section')
-		multiline_print('prefer ascii names')
-	while not section:
+	help = [
+		'choose a name for this configuration section',
+		'prefer ascii names',
+		]
+	while True:
 		section = input(decorate_line('section name (required): '))
+		if section == help_cmd:
+			print_help(help)
+		elif section:
+			break
 	msgs.append((logging.DEBUG, "editing the '%s' configuration section", section))
 	if not config.has_section(section):
 		config.add_section(section)
@@ -396,18 +430,16 @@ def add_section(config, cfg_dir, section=None, msgs=[]):
 def section_common(config, cfg_dir, section, protocol, msgs):
 	# code moved from `add_section`
 	## client name
-	if not actual_option(config, section, 'clientname'):
-		# print explanations only if editing a new section
-		#print('')
-		multiline_print('choose a client name')
-		#print('')
-		multiline_print(
-			'the client name should uniquely identify the client among all the nodes',
-			'that operate on the same relay repository')
-		multiline_print('prefer ascii name')
-		#print('')
+	help = [
+		'choose a client name',
+		[
+		'the client name should uniquely identify the client among all the nodes',
+		'that operate on the same relay repository',
+		],
+		'prefer ascii name',
+		]
 	suggestion = get_client_name(section)
-	_client_, client = query_field(config, section, 'clientname', suggestion=suggestion)
+	_client_, client = query_field(config, section, 'clientname', suggestion=suggestion, help=help)
 	if not client:
 		client = suggestion
 	config.set(section, _client_, client)
@@ -583,21 +615,21 @@ def section_common(config, cfg_dir, section, protocol, msgs):
 		suggestion = mode
 	else:
 		suggestion = 'shared'
-	#print("")
-	multiline_print("synchronization mode can be 'upload', 'download', 'shared' or 'conservative' ")
-	if not mode: # explain roughly
-		print(tab + ". 'upload': your local files will be sent to the relay repository")
-		print(tab + "            your local files will not be modified")
-		print(tab + ". 'download': you will get files from the relay repository")
-		print(tab + "              your local files will not be sent over the internet")
-		print(tab + "              but they can be modified")
-		print(tab + ". 'shared': your files will be fully synchronized")
-		print(tab + ". 'conservative': your local files will be sent to the relay repository")
-		print(tab + "                  but will not be modified")
-		print(tab + "                  you will get only new files from the relay repository")
-		#print("")
+	help = [[
+		"synchronization mode can be 'upload', 'download', 'shared' or 'conservative' ",
+		tab + ". 'upload': your local files will be sent to the relay repository",
+		tab + "            your local files will not be modified",
+		tab + ". 'download': you will get files from the relay repository",
+		tab + "              your local files will not be sent over the internet",
+		tab + "              but they can be modified",
+		tab + ". 'shared': your files will be fully synchronized",
+		tab + ". 'conservative': your local files will be sent to the relay repository",
+		tab + "                  but will not be modified",
+		tab + "                  you will get only new files from the relay repository ",
+		]]
+	multiline_print(help[0][0])
 	_mode_, answer = query_field(config, section, 'mode',
-			description="which mode for this client?", suggestion=suggestion)
+			description="which mode for this client?", suggestion=suggestion, help=help)
 	# write down (no need to do so with 'shared')
 	if answer:
 		config.set(section, _mode_, answer)
@@ -607,6 +639,22 @@ def section_common(config, cfg_dir, section, protocol, msgs):
 			config.set(section, pull_option, 'yes')
 		elif push_only:
 			config.set(section, push_option, 'yes')
+	# TODO: multi-puller mode
+	if False:#mode != 'upload':
+		help = [
+			["pullers are clients that may download any file uploaded",
+			"by another client"],
+			["similarly, pushers are clients that may upload files"],
+			["the number of pullers is not always predictible"],
+			["it may equal the number of clients that do NOT run in",
+			"'upload' mode"],
+			["with no more than two clients or a single puller, you",
+			"can safely ignore this question"],
+			]
+		_count_, count = query_field(config, section, 'count',
+				description="number of pullers", help=help)
+		if count:
+			config.set(section, _count_, count)
 	## refresh rate (let's make it explicit/visible in the configuration file)
 	default_refresh = '10'
 	_refresh_, refresh = query_field(config, section, 'refresh',
@@ -616,10 +664,11 @@ def section_common(config, cfg_dir, section, protocol, msgs):
 	config.set(section, _refresh_, refresh)
 	# disk quota for webdav
 	if mode != 'download':
-		multiline_print(
+		help = [[
 			"quotas on the amount of sent data are recommended for pushers",
-			" examples:  2GB  4.5G  1To  (default unit is gigabyte)")
-		_quota_, quota = query_field(config, section, 'quota')
+			" examples:  2GB  4.5G  1To  (default unit is gigabyte)",
+			]]
+		_quota_, quota = query_field(config, section, 'quota', help=help)
 		if quota:
 			config.set(section, _quota_, quota)
 	# delegate to protocol dependent setup
@@ -699,48 +748,4 @@ def edit_section(config, cfg_dir, section, msgs=[]):
 	remote = protocol not in path_only_protocols
 	config, kwargs, msgs = query_relay_address(config, section, remote, msgs)
 	return section_common(config, cfg_dir, section, kwargs['protocol'], msgs)
-"""
-			# first, determine whether host is 
-			#   protocol:///path
-			# or
-			#   protocol://servername[:port][/path]
-			if protocol in multi_path_protocols:
-				_, addr = query_field(config, section, 'address',
-						description='mount point or address')
-				if addr:
-					config.set(section, 'relay address', addr)
-				_path_ = 'remote directory'
-				_, path = query_field(config, section, 'directory',
-						description=_path_)
-				if path:
-					config.set(section, _path_, path)
-			elif protocol in path_only_protocols:
-				_, path = query_field(config, section, 'directory',
-						description='mount point')
-				if path:
-					config.set(section, 'relay directory', path)
-				# ensure that 'address' and 'port' are not defined
-				for undesirable_option in fields['port']+fields['address']:
-					try:
-						config.remove_option(section, undesirable_option)
-					except:
-						pass
-			else:
-				_addr_, servername = query_field(config, section, 'address', description='server name',
-						required=True)
-				if servername:
-					config.set(section, _addr_, servername)
-				# offer to modify protocol for cases such as 'ftp' <-> 'ftps', 'http' <-> 'https'
-				_proto_, protocol = query_field(config, section, 'protocol')
-				if protocol:
-					if protocol in path_only_protocols: # this will prevent only a few misuses
-						raise ValueError('cannot switch from a family of protocols to another; use `escalectl migrate` instead')
-					config.set(section, _proto_, protocol)
-				if parse_field(config, section, fields['port']):
-					_port_, port = query_field(config, section, 'port')
-					if port:
-						config.set(section, 'port', port)
-				_, host_path = query_field(config, section, 'directory')
-				if host_path:
-					config.set(section, 'host path', host_path) # host path introduced in 0.4a3
-"""
+

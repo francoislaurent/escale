@@ -55,7 +55,7 @@ class Manager(Reporter):
 			If `str`, in addition determines the timestamp format as supported by 
 			:func:`time.strftime`.
 
-		hash_algorithm (str): hash algorithm name; see also the :mod:`hashlib` library.
+		checksum (str): hash algorithm name; see also the :mod:`hashlib` library.
 
 		filetype (list of str): list of file extensions.
 
@@ -74,7 +74,7 @@ class Manager(Reporter):
 	def __init__(self, relay, repository=None, address=None, directory=None, \
 		encryption=Plain(None), timestamp=True, refresh=True, clientname=None, \
 		filetype=[], include=None, exclude=None, tq_controller=None, count=None, \
-		hash_algorithm=None, **relay_args):
+		checksum=None, **relay_args):
 		Reporter.__init__(self, **relay_args)
 		self.repository = repository
 		if directory:
@@ -84,14 +84,20 @@ class Manager(Reporter):
 			directory = ''
 		self.encryption = encryption
 		self.timestamp = timestamp
-		if hash_algorithm:
-			if isinstance(hash_algorithm, (bool, int)):
+		if checksum:
+			if isinstance(checksum, (bool, int)):
 				# poor default algorithm for compatibility with Python<3.6 clients
-				hash_algorithm = 'sha512'
+				checksum = 'sha512'
 			def hash_function(data):
-				h = hashlib.new(hash_algorithm)
+				h = hashlib.new(checksum)
 				h.update(asbytes(data))
 				return h.hexdigest()
+			try:
+				hashlib.new(checksum)
+			except ValueError:
+				self.logger.warning("unsupported hash algorithm: '%s'", checksum)
+				self.logger.warning('checksum support deactivated')
+				hash_function = None
 			self.hash_function = hash_function
 		else:
 			self.hash_function = None
