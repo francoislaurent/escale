@@ -8,7 +8,6 @@ It makes use of common file transfer solutions (FTP) and popular cloud solutions
 File modifications are also propagated.
 
 It features end-to-end encryption, quota management, filename filters, access control and adaptive transmission latencies. 
-It also features useful management routines such as migration, backup and restoration of relay repositories.
 
 It can run as a daemon and simultaneously synchronize several repositories between multiple clients.
 
@@ -31,9 +30,11 @@ Please find the extended documentation at [escale.readthedocs.io](http://escale.
 
   * new placeholder format with checksum support
   * ``checksum``/``hash algorithm`` configuration option
+  * the checksum mechanism is active by default
   * easywebdav dependency removed
   * uncompleted transfer auto-fixing for `shared` and `conservative` synchronization mode (bug fix)
-  * configuration wizard offers a correct default passphrase filename (bug fix)
+  * the configuration wizard offers a correct default passphrase filename (bug fix)
+  * the configuration wizard understands '?' and prints optional help messages
 
 * `0.5` (including `0.5-rc*`):
 

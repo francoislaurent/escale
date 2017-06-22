@@ -7,7 +7,7 @@ Command-line
 ------------
 
 escale
-~~~~~~
+^^^^^^
 
 The simplest way to run |escale| is to type:
 ::
@@ -37,16 +37,22 @@ If no configuration file is provided on the commandline, |escale| will look for 
 
 
 escalectl
-~~~~~~~~~
+^^^^^^^^^
 
 This command makes it easier to start and stop |escale|:
-::
+
+.. parsed-literal::
 
         escalectl start
         escalectl stop
 
+
+Access modifier edition
+"""""""""""""""""""""""
+
 It also permits to set access modifiers for individual files:
-::
+
+.. parsed-literal::
 
         escalectl access <filename> <modifiers>
 
@@ -57,39 +63,74 @@ An access modifier begins with either ``r`` for read or ``w`` for write and may 
 Without ``<modifiers>``, ``escalectl access <filename>`` shows the modifiers for file ``<filename>``.
 
 See command-line help for more information:
-::
+
+.. parsed-literal::
 
         escalectl access --help
 
+
+Moving relays
+"""""""""""""
+
 |escalectl| can also migrate a relay repository from a host and another.
-::
 
-        escalectl migrate <destination-relay>
+.. parsed-literal::
 
-where ``<destination-relay>`` is a relay address in the same format as requested during assisted
+        escalectl migrate -r <repository> <destination-relay>
+
+where ``<repository>`` is an existing section in the default configuration file 
+(optional if you maintain a single repository in |escale|)
+and ``<destination-relay>`` is a relay address in the same format as requested during assisted
 configuration with *escale -i*.
-For example, it can be ``<protocol>://<servername>/<path-to-repository>``.
+
+A relay address for example can be ``<protocol>://<servername>/<path-to-repository>``.
 
 A new configuration file can also be provided instead. 
 Beware that section names should match.
 
 More options are listed in:
-::
+
+.. parsed-literal::
 
         escalectl migrate --help
 
-|escalectl| also features repository backup and restoration. For example:
-::
 
-	# back-up 'my-repository' repository into 'my-backup.tar.bz2' archive
+Backup
+""""""
+
+|escalectl| also features repository backup and restoration. 
+For example:
+
+.. parsed-literal::
+
+	# back-up the 'my-repository' repository into a 'my-backup.tar.bz2' archive
 	escalectl backup my-repository my-backup.tar.bz2 --fast
-	# restore 'my-repository' repository from 'my-backup.tar.bz2' archive
+	# restore the 'my-repository' repository from the 'my-backup.tar.bz2' archive
 	escalectl restore my-repository my-backup.tar.bz2 --fast
 
 The ``--fast`` option is recommended only if the repository will not undergo changes during backup or restoration.
 
 Even if called with this option, the process may take a while.
 You are advised to copy yourself the remote repository with a native client (FTP, web, etc).
+
+
+Recovery procedure
+""""""""""""""""""
+
+There is a mechanism to recover a lost relay repository, 
+provided that all the clients were up-to-date.
+
+.. note:: restrictions may apply if clients run in `conservative` mode.
+
+|escalectl| can restore the placeholders with the ``fix`` subcommand:
+
+.. parsed-literal::
+
+	escalectl fix
+
+A specific repository can be specified if several repositories are defined in the default configuration file.
+
+
 
 Configuration file
 ------------------
@@ -124,12 +165,14 @@ Other parameters are:
 * ``verify ssl``: boolean that defines whether to check the remote host's certificate
 * ``ssl version``: either ``SSLv2``, ``SSLv3``, ``SSLv23``, ``TLS``, ``TLSv1``, ``TLSv1.1`` or ``TLSv1.2``
 * ``file extension`` (or ``file type``): a comma-separated list of file extensions (with or without the initial dot)
-* ``pattern`` or ``filter``: a regular expression to filter file by names
+* ``include`` (or ``include files``, ``pattern``, ``filter``): a regular expression to filter in files by name
+* ``exclude`` (or ``exclude files``): a regular expression to filter out files by name
 * ``disk quota``: a decimal number with storage space units such as ``KB``, ``MB``, ``GB``, etc
 * ``maintainer``: an email address; if a client aborts and an SMTP server is available on the client machine, a notice email can be sent to this address
-* ``mode`` (or ``synchronization mode``): either ``download`` (synonym of ``pull only = yes``), ``upload`` (synonym of ``push only = yes``), ``conservative`` or ``share`` (default). See `Synchronization modes`_
+* ``mode`` (or ``synchronization mode``): either ``download`` (synonym of ``pull only = yes``), ``upload`` (synonym of ``push only = yes``), ``conservative``/``preservative`` or ``share``/``shared`` (default). See `Synchronization modes`_
 * ``lock timeout``: timeout for unclaimed locks, in seconds
 * ``puller count`` (or ``pullers``): number of puller nodes operating on the remote repository. See `Multi-client and multi-puller regimes`_
+* ``checksum`` (or ``hash algorithm``): boolean (default: true) or hash algorithm has supported by :func:`hashlib.new`. See also `hashlib.algorithms_available`
 
 
 Relay backends
@@ -137,9 +180,11 @@ Relay backends
 
 |escale| features FTP (``ftp``, ``ftps``) and WebDAV (``http``, ``https``, ``webdav``) native clients. 
 There is also Google Drive client (``googledrive``) that requires the `drive`_ utility. 
+
 This is governed by the ``protocol`` configuration option.
 
 In addition, a local directory (or mount; ``file``) can be used as a relay repository. 
+
 This is especially useful when no native client is available for a given service but third party software can mount the remote space into the file system.
 
 For example Dropbox is not yet natively supported by |escale| but the Dropbox proprietary client can synchronize a directory and |escale| can use this or any synchronized subdirectory.
@@ -152,7 +197,7 @@ Synchronization modes
 
 
 Multi-client and multi-puller regimes
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. todo:: make doc
 
@@ -160,14 +205,18 @@ Multi-client and multi-puller regimes
 Encryption
 ----------
 
-Two encryption algorithm are supported: ``fernet`` from the `cryptography`_ library and ``blowfish``. 
+Two encryption algorithms are supported: ``fernet`` from the `cryptography`_ library and ``blowfish``. 
+
+Some backends also support ``native`` when the proper backend features an encryption mechanism.
+See for example the ``googledrive`` backend.
+
 ``blowfish`` has two backends: ``blowfish.cryptography`` from the `cryptography`_ library (default if the library is available) and ``blowfish.blowfish`` from the `blowfish`_ library.
 
 Note that ``blowfish.cryptography`` and ``blowfish.blowfish`` cannot interoperate.
 
 Both algorithms require a passphrase that follow a specific format. It is advised that the first node lets ``escale -i`` generate a passphrase (available in the configuration directory) and then to communicate the generated passphrase to the other nodes.
 
-.. note:: never send credentials or passphrases by unencrypted email. Consider services like `onetimesecret.com <https://onetimesecret.com>`_ instead.
+.. note:: never send credentials or passphrases by plain email. Consider encrypted email or services like `onetimesecret.com <https://onetimesecret.com>`_ instead.
 
 .. |escalecmd| replace:: *escale*
 .. |escalectl| replace:: *escalectl*
