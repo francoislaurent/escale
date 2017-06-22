@@ -14,6 +14,7 @@
 import subprocess
 import sys
 import os
+import traceback
 
 from escale import *
 from escale.base.essential import *
@@ -210,14 +211,11 @@ def restore(repository=None, archive=None, fast=None):
 	backup_manager(archive, repository, 'restore', **kwargs)
 
 
-def recover(repository=None, timestamp=None):
+def recover(repository=None, timestamp=None, overwrite=True):
 	"""
 	Make a relay repository with placeholder files as if the local repository
 	resulted from a complete download of an existing repository with escale.
-
-	.. warning:: not tested.
 	"""
-	# quick n dirty
 	if timestamp:
 		tsformat = timestamp
 	else:
@@ -225,34 +223,50 @@ def recover(repository=None, timestamp=None):
 	cfg, cfg_file, msgs = parse_cfg()
 	logger, msgs = set_logger(cfg, cfg_file, msgs=msgs)
 	flush_init_messages(logger, msgs)
-	client = make_client(cfg, repository)
-	ls = client.repository.listFiles()
-	client.relay.open()
+	if repository:
+		repositories = [ repository ]
+	else:
+		repositories = cfg.sections()
 	fd, local_placeholder = tempfile.mkstemp()
 	os.close(fd)
-	for local in ls:
-		remote = os.path.relpath(local, client.repository.path)
-		if client.relay.hasPlaceholder(remote):
-			continue
-		checksum = None
-		if client.hash_function:
-			timestamp = os.path.getmtime(local)
-			content = client.encryption.encrypt(local)
+	try:
+		for repository in repositories:
 			try:
-				with open(content, 'rb') as f:
-					checksum = client.hash_function(f.read())
-			finally:
-				client.encryption.finalize(content)
-		if checksum:
-			metadata = repr(Metadata(pusher=client.relay.client, target=remote,
-				timestamp=timestamp, checksum=checksum))
-		else:
-			# old format
-			timestamp = time.strftime(tsformat, time.gmtime(os.path.getmtime(local)))
-			metadata = timestamp
-		with open(local_placeholder, 'w') as f:
-			f.write(metadata)
-		remote_placeholder = client.relay.placeholder(remote)
-		client.relay._push(local_placeholder, remote_placeholder)
-	os.unlink(local_placeholder)
+				client = make_client(cfg, repository)
+				ls = client.repository.listFiles()
+				client.relay.open()
+				for local in ls:
+					remote = os.path.relpath(local, client.repository.path)
+					remote_placeholder = client.relay.placeholder(remote)
+					if client.relay.hasPlaceholder(remote):
+						if overwrite:
+							client.relay.unlink(remote_placeholder)
+						else:
+							continue
+					checksum = None
+					if client.hash_function:
+						timestamp = os.path.getmtime(local)
+						content = client.encryption.encrypt(local)
+						try:
+							with open(content, 'rb') as f:
+								checksum = client.hash_function(f.read())
+						finally:
+							client.encryption.finalize(content)
+					if checksum:
+						metadata = repr(Metadata(pusher=client.relay.client,
+								target=remote, timestamp=timestamp,
+								checksum=checksum))
+					else:
+						# old format
+						timestamp = time.strftime(tsformat,
+								time.gmtime(os.path.getmtime(local)))
+						metadata = timestamp
+					with open(local_placeholder, 'w') as f:
+						f.write(metadata)
+					client.relay._push(local_placeholder, remote_placeholder)
+				client.relay.close()
+			except:
+				print(traceback.format_exc())
+	finally:
+		os.unlink(local_placeholder)
 
