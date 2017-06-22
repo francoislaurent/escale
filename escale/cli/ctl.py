@@ -18,8 +18,9 @@ import os
 from escale import *
 from escale.base.essential import *
 from escale.base.config import *
+from escale.relay.info import *
 from escale.manager.access import *
-from escale.base.launcher import escale_launcher
+from escale.base.launcher import *
 from escale.manager.migration import *
 from escale.manager.backup import *
 
@@ -221,25 +222,37 @@ def recover(repository=None, timestamp=None):
 		tsformat = timestamp
 	else:
 		tsformat = '%y%m%d_%H%M%S'
-	cfg, _, _ = parse_cfg()
-	logger = logging.get_logger()
-	logger.setLevel(logging.DEBUG)
-	relay, cfg = parse_section(cfg, repository, logger)
-	client = cfg.pop('clientname')
-	address = cfg.pop('address')
-	rpath = cfg.pop('directory')
-	lpath = cfg.pop('path')
-	relay = relay(client, address, rpath, logger=logger, **cfg)
-	repo = AccessController(repository, lpath)
-	ls = repo.listFiles()
-	relay.open()
-	fd, placeholder = tempfile.mkstemp()
+	cfg, cfg_file, msgs = parse_cfg()
+	logger, msgs = set_logger(cfg, cfg_file, msgs=msgs)
+	flush_init_messages(logger, msgs)
+	client = make_client(cfg, repository)
+	ls = client.repository.listFiles()
+	client.relay.open()
+	fd, local_placeholder = tempfile.mkstemp()
 	os.close(fd)
 	for local in ls:
-		timestamp = time.strftime(tsformat, time.gmtime(os.path.getmtime(local)))
-		with open(placeholder, 'w') as f:
-			f.write(timestamp)
-		remote = os.path.relpath(local, lpath)
-		relay._push(placeholder, relay.placeholder(remote))
-	os.unlink(placeholder)
+		remote = os.path.relpath(local, client.repository.path)
+		if client.relay.hasPlaceholder(remote):
+			continue
+		checksum = None
+		if client.hash_function:
+			timestamp = os.path.getmtime(local)
+			content = client.encryption.encrypt(local)
+			try:
+				with open(content, 'rb') as f:
+					checksum = client.hash_function(f.read())
+			finally:
+				client.encryption.finalize(content)
+		if checksum:
+			metadata = repr(Metadata(pusher=client.relay.client, target=remote,
+				timestamp=timestamp, checksum=checksum))
+		else:
+			# old format
+			timestamp = time.strftime(tsformat, time.gmtime(os.path.getmtime(local)))
+			metadata = timestamp
+		with open(local_placeholder, 'w') as f:
+			f.write(metadata)
+		remote_placeholder = client.relay.placeholder(remote)
+		client.relay._push(local_placeholder, remote_placeholder)
+	os.unlink(local_placeholder)
 

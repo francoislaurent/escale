@@ -24,41 +24,20 @@ For example in a terminal you can type:
 
         $ :strong:`mkdir ~/Dropbox/Escale\\ Repository`
 
-.. include:: wizard-first-steps.txt
+.. include:: wizard-part-1.txt
 
 Respectivelly answer ``y`` and ``~/Dropbox/Escale Repository`` to the next two questions:
 
 .. parsed-literal::
 
 	Is the relay repository locally mounted in the file system? [N/y] :strong:`y` |enter|
-	Enter the path of the locally accessible repository.
-	If you intend to use Google Drive mounted with
-	the drive utility, you can alternatively specify:
-	  googledrive:///mountpoint[//path]
-	where '/mountpoint' is the absolute path to a local
-	mount and 'path' is the path of the relay directory
-	relative to the mount point.
+	Request help with '?'
 	Path of the locally accessible relay repository (required): :strong:`~/Dropbox/Escale Repository` |enter|
 
 
-.. include:: wizard-last-steps.txt
+.. include:: wizard-part-2.txt
 
-Your client is ready and can be launched with:
+.. include:: wizard-part-4.txt
 
-.. parsed-literal::
-
-	$ :strong:`escale`
-
-or as a daemon:
-
-.. parsed-literal::
-
-	$ :strong:`escale -d`
-
-You can make your terminal continuously flush the logs with:
-
-.. parsed-literal::
-
-	$ :strong:`tail -f ~/.config/escale/escale.log`
-
+.. include:: wizard-part-5.txt
 

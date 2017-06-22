@@ -425,7 +425,7 @@ def actual_option(config, section, options):
 	# largely borrowed from :func:`escale.cli.config.config.query_field`
 	option = None
 	if isinstance(options, tuple):
-		_type, _options = _options
+		_type, options = options
 		if isinstance(_type, tuple):
 			_type = _type[0] # not used
 	if isinstance(options, list):
@@ -436,4 +436,29 @@ def actual_option(config, section, options):
 	elif config.has_option(section, options):
 		option = options
 	return option
+
+
+def full_address(config, section):
+	protocol = parse_field(config, section, 'protocol')
+	if not protocol:
+		raise ValueError("'protocol' not defined")
+	path = parse_field(config, section, fields['directory'])
+	if protocol == 'file':
+		if not path:
+			raise ValueError("'relay path' not defined")
+		return path
+	else:
+		address = parse_field(config, section, fields['address'])
+		if address:
+			address += '/'
+		else:
+			address = ''
+		if path is None:
+			path = ''
+		return ''.join([
+				protocol,
+				'://',
+				address,
+				path,
+				])
 

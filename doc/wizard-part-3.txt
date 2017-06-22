@@ -1,0 +1,13 @@
+
+The remote service may request a username and password.
+
+.. parsed-literal::
+
+	If the credentials are available in a file, leave the following field empty.
+	Authentification username: [] :strong:`my-username` |enter|
+	Password: [] *<type password>* |enter|
+	Writing new credential file '$HOME/.config/escale/my-first-repository.credential'
+
+.. important:: Passwords and credential files are private and should not be sent in 
+	plain emails. Consider encrypted emails or services like `onetimesecret.com`_. 
+

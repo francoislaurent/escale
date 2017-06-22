@@ -29,11 +29,10 @@ You may find the following `guide <https://linuxnewbieguide.org/how-to-use-googl
 Configuring Escale
 ^^^^^^^^^^^^^^^^^^
 
-.. todo:: write this section
+.. include:: wizard-part-1.txt
 
-.. include:: wizard-first-steps.txt
+Let's now assume that your Google Drive is mounted on ``$HOME/GoogleDrive``.
 
-Let's now assume that your Google Drive is mount on ``$HOME/GoogleDrive``.
 You need to create a folder in there so that |escale| can temporary stored files and meta-information.
 Let's call this folder ``Escale Repository``.
 
@@ -42,35 +41,14 @@ Respectivelly answer ``y`` and ``~/GoogleDrive/Escale Repository`` to the next t
 .. parsed-literal::
 
 	Is the relay repository locally mounted in the file system? [N/y] :strong:`y` |enter|
-	Enter the path of the locally accessible repository.
-	If you intend to use Google Drive mounted with
-	the drive utility, you can alternatively specify:
-	  googledrive:///mountpoint[//path]
-	where '/mountpoint' is the absolute path to a local
-	mount and 'path' is the path of the relay directory
-	relative to the mount point.
+	Request help with '?'
 	Path of the locally accessible relay repository (required): :strong:`~/GoogleDrive/Escale Repository` |enter|
 
-.. include:: wizard-last-steps.txt
+.. include:: wizard-part-2.txt
 
-Your client is ready and can be launched with:
+.. include:: wizard-part-4.txt
 
-.. parsed-literal::
-
-	$ :strong:`escale`
-
-or as a daemon:
-
-.. parsed-literal::
-
-	$ :strong:`escale -d`
-
-You can make your terminal continuously flush the logs with:
-
-.. parsed-literal::
-
-	$ :strong:`tail -f ~/.config/escale/escale.log`
-
+.. include:: wizard-part-5.txt
 
 
 Synchronizing with drive
@@ -90,13 +68,16 @@ This procedure is described in `this link <https://github.com/odeke-em/drive/blo
 The backend in |escale| that makes use of the drive utility is referred to as a native backend because data are not buffer and every file transfers and accesses to your remote data are performed at call time.
 
 Note that |escale| will assist you in installing drive but not the Go toolchain.
+
 Please first install Go.
-On Ubuntu, this is as simple as::
+On Ubuntu 17 or later, this is as simple as:
 
-	sudo apt install golang
+.. parsed-literal::
+
+	$ sudo apt install golang
 
 
-.. include:: wizard-first-steps.txt
+.. include:: wizard-part-1.txt
 
 
 Respectivelly answer ``y`` and ``googledrive://Escale Repository`` to the next two questions:
@@ -104,17 +85,13 @@ Respectivelly answer ``y`` and ``googledrive://Escale Repository`` to the next t
 .. parsed-literal::
 
 	Is the relay repository locally mounted in the file system? [N/y] :strong:`y` |enter|
-	Enter the path of the locally accessible repository.
-	If you intend to use Google Drive mounted with
-	the drive utility, you can alternatively specify:
-	  googledrive:///mountpoint[//path]
-	where '/mountpoint' is the absolute path to a local
-	mount and 'path' is the path of the relay directory
-	relative to the mount point.
+	Request help with '?'
 	Path of the locally accessible relay repository (required): :strong:`googledrive://Escale Repository` |enter|
 
 
-.. include:: wizard-last-steps.txt
+.. include:: wizard-part-2.txt
+
+.. include:: wizard-part-4.txt
 
 
 The wizard will now assist you in installing the drive utility, if necessary.
@@ -133,22 +110,13 @@ The wizard will now assist you in installing the drive utility, if necessary.
 	Do you want to add/edit another section? [N/y] |enter|
 
 
-Your client is ready and can be launched with:
+.. include:: wizard-part-5.txt
 
-.. parsed-literal::
+When you will run the *escale* command for the first time without the *-i* option, 
+you will be instructed to copy and paste a link into a web browser, 
+so that you can log in with |google| services.
 
-	$ :strong:`escale`
-
-or as a daemon:
-
-.. parsed-literal::
-
-	$ :strong:`escale -d`
-
-You can make your terminal continuously flush the logs with:
-
-.. parsed-literal::
-
-	$ :strong:`tail -f ~/.config/escale/escale.log`
-
+Onced logged-in, the webpage will display a single line you can copy and paste back onto the 
+command-line. 
+This will permit |escale| to connect to your |googledrive| space.
 

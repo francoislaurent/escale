@@ -21,17 +21,19 @@ The information below may not be up-to-date and is very far from being exhaustiv
 +---------------+-----------------+-----------------+------------------+
 | Service       | Native support  | Escale backend  | More information |
 +===============+=================+=================+==================+
-| Box           |     Yes[#nv]_   |     WebDAV      |                  |
+| Box           |    Yes [#nv]_   |     WebDAV      |                  |
 +---------------+-----------------+-----------------+------------------+
 | Dropbox       |       No        |   LocalMount    | `Dropbox`_       |
 +---------------+-----------------+-----------------+------------------+
-| Google Drive  |   Yes[#drive]_  |   GoogleDrive   | `Google Drive`_  |
+| Google Drive  |    Yes [#dr]_   |   GoogleDrive   | `Google Drive`_  |
 +---------------+-----------------+-----------------+------------------+
 | Yandex.Disk   |       Yes       |     WebDAV      | `Yandex.Disk`_   |
 +---------------+-----------------+-----------------+------------------+
 
+
+
 .. [#nv] not verified
-.. [#drive] on top of the *drive* utility
+.. [#dr] on top of the `drive`_ utility
 
 
 .. _Dropbox: Dropbox.html

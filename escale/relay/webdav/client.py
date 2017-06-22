@@ -149,7 +149,7 @@ class Client(object):
 		if verify_ssl is not None:
 			self.session.verify = verify_ssl
 		if ssl_version:
-			self.session.mount('https://', make_https_adapter(parse_ssl_version(self.ssl_version))())
+			self.session.mount('https://', make_https_adapter(parse_ssl_version(ssl_version))())
 		self.infinity_depth = None
 		self.download_chunk_size = 1048576
 

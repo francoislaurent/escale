@@ -28,22 +28,7 @@ from escale.manager.history import History, usage_statistics_prefix
 from escale.cli.controller import DirectController, UIController
 
 
-
-def escale(config, repository, log_handler=None, ui_connector=None):
-	"""
-	Read the section related to a repository in a loaded configuration object and runs a 
-	:class:`~escale.manager.Manager` for that repository.
-
-	Arguments:
-
-		config (ConfigParser): configuration object.
-
-		repository (str): configuration section name or, alternatively, client name.
-
-		log_handler (log handler): input argument to :meth:`~logging.Logger.addHandler`.
-
-		ui_connector (?): connector to user-interface controller.
-	"""
+def make_client(config, repository, log_handler=None, ui_connector=None):
 	# set logger
 	logger = logging.getLogger(log_root).getChild(repository)
 	logger.setLevel(logging.DEBUG)
@@ -80,15 +65,34 @@ def escale(config, repository, log_handler=None, ui_connector=None):
 			ui_controller=ui_controller,
 			tq_controller=tq_controller,
 			**args)
+	return manager
+
+
+def escale(config, repository, log_handler=None, ui_connector=None):
+	"""
+	Read the section related to a repository in a loaded configuration object and runs a 
+	:class:`~escale.manager.Manager` for that repository.
+
+	Arguments:
+
+		config (ConfigParser): configuration object.
+
+		repository (str): configuration section name or, alternatively, client name.
+
+		log_handler (log handler): input argument to :meth:`~logging.Logger.addHandler`.
+
+		ui_connector (?): connector to user-interface controller.
+	"""
+	manager = make_client(config, repository, log_handler=None, ui_connector=None)
 	try:
 		result = manager.run()
 	except ExpressInterrupt:
 		raise
 	except Exception as exc:
-		if not ui_controller.failure(repository, exc):
+		if not manager.ui_controller.failure(repository, exc):
 			raise
 	else:
-		ui_controller.success(repository, result)
+		manager.ui_controller.success(repository, result)
 
 
 

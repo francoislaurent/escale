@@ -64,7 +64,7 @@ def quote_join(words, final=' or ', join=', ', quote="'"):
 	"""
 	Join words.
 
-	Example::
+	Example:
 
 	>>> quote_join(list(range(1,4)))
 	"'1', '2' or '3'"

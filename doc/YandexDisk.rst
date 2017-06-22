@@ -4,40 +4,22 @@ Yandex.Disk
 
 |escale| can operate with the Yandex.Disk WebDAV server at webdav.yandex.ru.
 
-.. include:: wizard-first-steps
+.. include:: wizard-part-1.txt
 
-You have to choose a name for the directory that will accommodate the relay repository. Here we choose ``Escale Repository`` as a name:
+You have to choose a name for the directory that will accommodate the relay repository. 
+Here we choose ``Escale Repository`` as a name:
 
 .. parsed-literal::
 
 	Is the relay repository locally mounted in the file system? [N/y] |enter|
-	A host address should be in the form:
-	  protocol:///servername[:port][/path]
-	if 'protocol' is any of:
-          'ftp', 'ftps', 'http', 'https' or 'webdav'
-        Some protocols do not even need a server name, e.g.: 
-          googledrive[://path]
+	Request help with '?'
         Address of the relay repository (required): :strong:`https://webdav.yandex.ru/Escale Repository` |enter|
 
+.. include:: wizard-part-2.txt
 
-.. exclude:: wizard-last-steps
+.. include:: wizard-part-3.txt
 
+.. include:: wizard-part-4.txt
 
-Your client is ready and can be launched with:
-
-.. parsed-literal::
-
-	$ :strong:`escale`
-
-or as a daemon:
-
-.. parsed-literal::
-
-	$ :strong:`escale -d`
-
-You can make your terminal continuously flush the logs with:
-
-.. parsed-literal::
-
-	$ :strong:`tail -f ~/.config/escale/escale.log`
+.. include:: wizard-part-5.txt
 

@@ -1,0 +1,19 @@
+
+You will have to choose a name for the synchronized repository and a client name.
+
+The repository name - or configuration section name - should be different from
+a local repository to another, on your local host.
+
+The client name should be different from a client to another, for a given relay
+repository.
+The default client name is the hostname of your local host.
+ 
+
+.. parsed-literal::
+
+	Choose a name for this configuration section.
+	Prefer ascii names.
+	Section name (required): :strong:`my-first-repository` |enter|
+	Request help with '?'
+	Client name: [poincare] |enter|
+

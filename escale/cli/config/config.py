@@ -131,7 +131,6 @@ def query_field(config, section, field, description=None, suggestion='', require
 	else:
 		_input = getpass
 	if not suggestion and required:
-		answer = None
 		while True:
 			answer = _input(decorate_line('{} (required): '.format(description)))
 			if answer == help_cmd:
@@ -173,12 +172,8 @@ def query_local_repository(config, section=None, msgs=[]):
 	else:
 		_rep_ = default_option('path')
 		rep = None
-		while True:
+		while not rep or rep == help_cmd:
 			rep = input(decorate_line('{} (required): '.format(description)))
-			if rep == help_cmd:
-				print_help(None)
-			elif rep:
-				break
 	if rep and rep[0] == '~':
 		rep = os.path.expanduser(rep)
 	if not os.path.isabs(rep):
@@ -222,10 +217,9 @@ def query_relay_address(config, section=None, remote=True, msgs=[], help=None):
 				]]
 	if section:
 		_addr_, addr = query_field(config, section, 'address',
-			 description=description, required=True, help=help)
+			description=description, required=True, help=help)
 	else:
 		_addr_ = default_option('address')
-		addr = None
 		while True:
 			addr = input(decorate_line(description+' (required): '))
 			if addr == help_cmd:
@@ -235,11 +229,15 @@ def query_relay_address(config, section=None, remote=True, msgs=[], help=None):
 	protocol, servername, port, path = parse_address(addr,
 			multi_path_protocols=multi_path_protocols)
 	if section:
-		if protocol or remote:
+		section_exists = config.has_section(section)
+		if protocol:
+			required_or_default = False
+		elif remote:
 			required_or_default = True
 		else:
-			# enforce 'file' as a protocol; if the user wanted another protocol
-			# (e.g. 'googledrive') she should have specified it in 'address'
+			# enforce 'file' as a protocol if not any; if the user wanted 
+			# another protocol (e.g. 'googledrive') she should have specified 
+			# it in the relay repository address
 			required_or_default = False#'file'
 		# check existing fields and request new values for the existing fields
 		_fields_ = {
@@ -249,18 +247,19 @@ def query_relay_address(config, section=None, remote=True, msgs=[], help=None):
 			}
 		for key in _fields_:
 			field, new_value, required = _fields_[key]
-			try:
-				options = fields[field]
-			except KeyError:
-				options = field
-			option = actual_option(config, section, options)
-			modified = False
+			if section_exists:
+				try:
+					options = fields[field]
+				except KeyError:
+					options = field
+				option = actual_option(config, section, options)
+			else:
+				option = None
 			if option:
 				# old_value does exist
 				old_value = config.get(section, option)
 				if new_value:
-					modified = old_value != new_value
-					if modified:
+					if old_value != new_value:
 						msg = "{} '{}' modified to: '{}'".format(key, old_value, new_value)
 						msgs.append((logging.INFO, msg))
 						multiline_print(msg)
@@ -268,23 +267,24 @@ def query_relay_address(config, section=None, remote=True, msgs=[], help=None):
 					new_value = old_value
 			else:
 				option = default_option(field)
-				if required is True:
-					while True:
-						new_value = input(decorate_line(key+' (required): '))
-						if new_value and new_value != help_cmd:
-							break
-				elif required:
-					# `required` contains default value
-					suggestion = required
-					new_value = input(decorate_line(
-						'{}: [{}] '.format(key, suggestion)))
-					if not new_value:
-						new_value = suggestion
-			_fields_[key] = (option, new_value, modified)
-		_prot_, protocol, modified = _fields_['protocol']
-		_port_, port, _ = _fields_['port']
-		_path_, path, _ = _fields_['path to relay repository']
-		# TODO: clean-up `config`, especially if `modified` is True
+				if not new_value:
+					if required is True:
+						while not new_value or new_value == help_cmd:
+							new_value = input(decorate_line(key+' (required): '))
+					elif required:
+						# `required` contains default value
+						suggestion = required
+						new_value = help_cmd
+						while new_value == help_cmd:
+							new_value = input(decorate_line(
+								'{}: [{}] '.format(key, suggestion)))
+						if not new_value:
+							new_value = suggestion
+			_fields_[key] = (option, new_value)
+		_prot_, protocol = _fields_['protocol']
+		_port_, port = _fields_['port']
+		_path_, path = _fields_['path to relay repository']
+		# TODO: clean-up `config`, especially if `protocol` has been modified
 	else:
 		_prot_ = default_option('protocol')
 		_port_ = default_option('port')
@@ -356,12 +356,11 @@ def edit_config(cfg_file, msgs=[]):
 				[ "{}. '{}'".format(tab, _section) for _section in sections ],
 				['prefer ascii names']]
 			print_help(help, space=False)
-			while True:
+			while not section:
 				section = input(decorate_line('section name (required): '))
 				if section == help_cmd:
 					print_help(help, space=False)
-				elif section:
-					break
+					section = None
 		if section in sections:
 			config, msgs = edit_section(config, cfg_dir, section, msgs)
 		else:
@@ -411,12 +410,11 @@ def add_section(config, cfg_dir, section=None, msgs=[]):
 		'choose a name for this configuration section',
 		'prefer ascii names',
 		]
-	while True:
+	while not section:
 		section = input(decorate_line('section name (required): '))
 		if section == help_cmd:
 			print_help(help)
-		elif section:
-			break
+			section = None
 	msgs.append((logging.DEBUG, "editing the '%s' configuration section", section))
 	if not config.has_section(section):
 		config.add_section(section)
@@ -576,8 +574,46 @@ def section_common(config, cfg_dir, section, protocol, msgs):
 				multiline_print(msg)
 		config.set(section, _pass_, passphrase)
 	## synchronization mode
+	config, mode, msgs = query_synchronization_mode(config, section, msgs)
+	## refresh rate (let's make it explicit/visible in the configuration file)
+	default_refresh = '10'
+	_refresh_, refresh = query_field(config, section, 'refresh',
+		description='refresh interval (in seconds)', suggestion=default_refresh)
+	if not refresh:
+		refresh = default_refresh
+	config.set(section, _refresh_, refresh)
+	# disk quota for webdav
+	if mode != 'download':
+		help = [[
+			"quotas on the amount of sent data are recommended for pushers",
+			" examples:  2GB  4.5G  1To  (default unit is gigabyte)",
+			]]
+		_quota_, quota = query_field(config, section, 'quota', help=help)
+		if quota:
+			config.set(section, _quota_, quota)
+	# delegate to protocol dependent setup
+	try:
+		extra_mod = importlib.import_module('.'.join((__package__, protocol)))
+	except ImportError:
+		pass
+	else:
+		try:
+			result = extra_mod.setup(config, section)
+		except Exception as e:
+			import traceback
+			print(traceback.format_exc())
+			print(e)
+			debug_print('aborted.')
+		else:
+			if type(result) is type(config):
+				config = result
+	return config, msgs
+
+
+def query_synchronization_mode(config, section, msgs=[]):
+	## synchronization mode
 	# get existing value, if any
-	# and delete all the options found to handle all kind of conflicts
+	# and delete all the related options to prevent conflicts
 	mode = ''
 	pull_only = False
 	for option in fields['pull_only'][1][::-1]:
@@ -639,55 +675,88 @@ def section_common(config, cfg_dir, section, protocol, msgs):
 			config.set(section, pull_option, 'yes')
 		elif push_only:
 			config.set(section, push_option, 'yes')
-	# TODO: multi-puller mode
-	if False:#mode != 'upload':
-		help = [
-			["pullers are clients that may download any file uploaded",
-			"by another client"],
-			["similarly, pushers are clients that may upload files"],
-			["the number of pullers is not always predictible"],
-			["it may equal the number of clients that do NOT run in",
-			"'upload' mode"],
-			["with no more than two clients or a single puller, you",
-			"can safely ignore this question"],
-			]
-		_count_, count = query_field(config, section, 'count',
-				description="number of pullers", help=help)
-		if count:
-			config.set(section, _count_, count)
-	## refresh rate (let's make it explicit/visible in the configuration file)
-	default_refresh = '10'
-	_refresh_, refresh = query_field(config, section, 'refresh',
-		description='refresh interval (in seconds)', suggestion=default_refresh)
-	if not refresh:
-		refresh = default_refresh
-	config.set(section, _refresh_, refresh)
-	# disk quota for webdav
-	if mode != 'download':
-		help = [[
-			"quotas on the amount of sent data are recommended for pushers",
-			" examples:  2GB  4.5G  1To  (default unit is gigabyte)",
-			]]
-		_quota_, quota = query_field(config, section, 'quota', help=help)
-		if quota:
-			config.set(section, _quota_, quota)
-	# delegate to protocol dependent setup
-	try:
-		extra_mod = importlib.import_module('.'.join((__package__, protocol)))
-	except ImportError:
-		pass
-	else:
-		try:
-			result = extra_mod.setup(config, section)
-		except Exception as e:
-			import traceback
-			print(traceback.format_exc())
-			print(e)
-			debug_print('aborted.')
+	if mode != 'upload':
+		multiline_print("specify the number of pullers for relay repository:",
+			"{}'{}'".format(tab, full_address(config, section)))
+		while True:
+			answer = input(decorate_paragraph(
+				"do you want to directly set the puller count [1] or do you ",
+				"prefer to be guided with a series of questions [2] so that ",
+				"the assistant will choose a value for you? [2] "))
+			if not answer or answer in '12':
+				break
+		guide = answer != '1'
+		if guide:
+			help = [["specify below the total number of clients for the same ",
+				"relay repository"],
+				["with no more than two clients or a single puller, you can",
+				"safely ignore this question"]]
+			# note: 'client count' option is not recognized by :mod:`escale.base.config`
+			_count_ = 'client count'
+			_, count = query_field(config, section, _count_,
+					description="total number of clients",
+					help=help)
+			if count:
+				client_count = int(count)
+				config.set(section, _count_, count)
+				if mode == 'download':
+					heterogeneous = True
+				else:
+					while True:
+						answer = input(decorate_line(
+							"will all the clients run in either 'shared' or 'conservative'\nmode? [Y/n] "))
+						if not answer or answer.lower()[0] in 'yn':
+							break
+					heterogeneous = answer and answer.lower()[0] == 'n'
+					# note: 'heterogenous clients' option is not recognized
+					config.set(section, 'homogeneous clients', 'no' if heterogeneous else 'yes')
+				if heterogeneous:
+					# note: 'upload count' option is not recognized
+					_count_ = 'upload count'
+					if mode == 'download':
+						suggestion = 1
+					else:
+						suggestion = 0
+					_, count = query_field(config, section, _count_,
+							description="number of clients in 'upload' mode",
+							suggestion=str(suggestion))
+					if count:
+						upload_count = int(count)
+						config.set(section, _count_, count)
+					else:
+						upload_count = suggestion
+					count = client_count - upload_count
+				else:
+					count = client_count - 1
+				_count_ = actual_option(config, section, fields['count'])
+				if _count_:
+					existing_count = config.get(section, _count_)
+				else:
+					_count_ = default_option('count')
+					existing_count = None
+				if not existing_count or int(existing_count) != count:
+					if existing_count:
+						msg = "{} was: '{}'; is now: '{}'".format(_count_, existing_count, count)
+						msgs.append((logging.INFO, msg))
+						multiline_print(msg)
+					config.set(section, _count_, str(count))
 		else:
-			if type(result) is type(config):
-				config = result
-	return config, msgs
+			help = [
+				["for a given relay repository, pullers are clients that ",
+				"may download any file uploaded by another client"],
+				["similarly, pushers are clients that may upload files"],
+				["the number of pullers is not always predictible ",
+				"especially if file access permissions are modified"],
+				["it may equal the number of clients that do NOT run in ",
+				"'upload' mode"],
+				["if all the clients run in 'shared' mode, a safe choice ",
+				"is the number of clients minus one"],
+				["with no more than two clients or a single puller, you ",
+				"can safely ignore this question"],
+				]
+			_count_, count = query_field(config, section, 'count',
+					description="number of pullers", help=help)
+	return (config, mode, msgs)
 
 
 def edit_section(config, cfg_dir, section, msgs=[]):
