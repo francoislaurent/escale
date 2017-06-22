@@ -74,7 +74,7 @@ class Manager(Reporter):
 	def __init__(self, relay, repository=None, address=None, directory=None, \
 		encryption=Plain(None), timestamp=True, refresh=True, clientname=None, \
 		filetype=[], include=None, exclude=None, tq_controller=None, count=None, \
-		checksum=None, **relay_args):
+		checksum=True, **relay_args):
 		Reporter.__init__(self, **relay_args)
 		self.repository = repository
 		if directory:
