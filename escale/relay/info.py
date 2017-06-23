@@ -151,7 +151,7 @@ class Metadata(object):
 		elif isinstance(self.pullers, (list, tuple)):
 			return len(self.pullers)
 
-	def fileModified(self, local_file=None, checksum=None, hash_function=None, remote=False):
+	def fileModified(self, local_file=None, checksum=None, hash_function=None, remote=False, debug=None):
 		"""
 		Tell whether a file has been modified.
 
@@ -177,21 +177,33 @@ class Metadata(object):
 
 			bool: `True` if file has been modified.
 
-		Note that if the local and remote files can be compared by checksums, 
-		the `remote` argument is ignored.
-
 		"""
 		file_available = local_file and os.path.isfile(local_file)
+		identical = None
 		if self.checksum:
 			if not checksum and file_available and hash_function is not None:
 				with open(local_file, 'rb') as f:
 					checksum = hash_function(f.read())
 			if checksum:
-				return checksum != self.checksum
+				identical = checksum == self.checksum
+				if debug and not identical:
+					debug((local_file, checksum, self.checksum))
+				if identical:
+					# if files are identical
+					return False
 		if file_available:
 			local_mtime = int(os.path.getmtime(local_file))
 			if self.timestamp:
 				remote_mtime = self.timestamp
+				if identical is False and local_mtime == remote_mtime:
+					# likely cause: change in encryption algorithm
+					msg = "has the encryption algorithm changed?"
+					if debug:
+						debug(msg)
+					else:
+						raise RuntimeError(msg)
+				if debug and local_mtime != remote_mtime:
+					debug((local_file, local_mtime, remote_mtime))
 				if remote is False:
 					return remote_mtime < local_mtime
 				elif remote is True:

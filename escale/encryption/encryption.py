@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-# Copyright (c) 2017, François Laurent
+# Copyright © 2017, François Laurent
 
 # This file is part of the Escale software available at
 # "https://github.com/francoislaurent/escale" and is distributed under
@@ -79,7 +79,9 @@ class Cipher(object):
 		try:
 			with __open__(fo, 'wb') as fo:
 				with open(plain, 'rb') as fi:
-					fo.write(self._encrypt(fi.read()))
+					_c = self._encrypt(fi.read())
+					#print(_c)
+					fo.write(_c)
 		except ExpressInterrupt:
 			raise
 		except Exception as e:

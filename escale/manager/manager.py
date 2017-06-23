@@ -57,6 +57,8 @@ class Manager(Reporter):
 
 		checksum (str): hash algorithm name; see also the :mod:`hashlib` library.
 
+		checksum_cache (dict): cache of checksums for local files.
+
 		filetype (list of str): list of file extensions.
 
 		include (str): regular expression to include files by name.
@@ -101,6 +103,7 @@ class Manager(Reporter):
 			self.hash_function = hash_function
 		else:
 			self.hash_function = None
+		self.checksum_cache = {} if self.hash_function else None
 		self.tq_controller = tq_controller
 		if filetype:
 			self.filetype = [ f if f[0] == '.' else '.' + f
@@ -183,8 +186,8 @@ class Manager(Reporter):
 		_check_sanity = True
 		_fresh_start = True
 		_last_error_time = 0
-		new = False
 		while True:
+			new = False
 			try:
 				if _check_sanity:
 					self.sanityCheck()
@@ -198,6 +201,7 @@ class Manager(Reporter):
 						self.logger.info('repository is up to date')
 					_fresh_start = False
 				if new:
+					self.logger.debug('reset adaptive timer')
 					self.tq_controller.clock.reset()
 				if not self.tq_controller.wait():
 					break
@@ -275,18 +279,11 @@ class Manager(Reporter):
 					# if `timestamp` is `True` or is a format string,
 					# then metadata should be defined
 					self.logger.warning("corrupt meta information for file '%s'", remote_file)
-			checksum = None
 			if os.path.isfile(local_file):
-				# generate checksum of local file
-				if self.hash_function:
-					existing_content = self.encryption.encrypt(local_file)
-					try:
-						with open(existing_content, 'rb') as f:
-							checksum = self.hash_function(f.read())
-					finally:
-						self.encryption.finalize(existing_content)
+				# generate checksum of the local file
+				checksum = self.checksum(local_file)
 				# check for modifications
-				if not meta.fileModified(local_file, checksum, remote=True):
+				if not meta.fileModified(local_file, checksum, remote=True, debug=self.logger.debug):
 					if self.count == 1:
 						# no one else will ever download the current copy of the regular file
 						# on the relay; delete it
@@ -328,20 +325,14 @@ class Manager(Reporter):
 			if PYTHON_VERSION == 2 and isinstance(remote_file, unicode) and \
 				remote and isinstance(remote[0], str):
 				remote_file = remote_file.encode('utf-8')
-			meta = None
-			checksum = None
-			temp_file = None
+			checksum, temp_file = self.checksum(local_file, True)
 			modified = False # if no remote copy, this is ignored
 			exists = remote_file in remote
 			if (self.timestamp or self.hash_function) and exists:
 				# check file last modification time and checksum
 				meta = self.relay.getMetadata(remote_file, timestamp_format=self.timestamp)
 				if meta:
-					if self.hash_function:
-						temp_file = self.encryption.encrypt(local_file)
-						with open(temp_file, 'rb') as f:
-							checksum = self.hash_function(f.read())
-					modified = meta.fileModified(local_file, checksum, remote=False)
+					modified = meta.fileModified(local_file, checksum, remote=False, debug=self.logger.debug)
 				else:
 					# no meta information available
 					modified = True
@@ -376,4 +367,38 @@ class Manager(Reporter):
 		Use ``self.repository.readableFiles`` instead.
 		"""
 		return self.repository.readable(self.filter(self.repository.listFiles(path)))
+
+	def checksum(self, local_file, return_encrypted=False):
+		checksum = None
+		temp_file = None
+		if self.checksum_cache is not None:
+			mtime = int(os.path.getmtime(local_file))
+			try:
+				previous_mtime, checksum = self.checksum_cache[local_file]
+			except KeyError:
+				pass
+			else:
+				if previous_mtime != mtime:
+					# calculate the checksum again
+					checksum = None
+		if not checksum and self.hash_function:
+			temp_file = self.encryption.encrypt(local_file)
+			try:
+				with open(temp_file, 'rb') as f:
+					checksum = self.hash_function(f.read())
+			finally:
+				if not return_encrypted:
+					self.encryption.finalize(temp_file)
+			if self.checksum_cache is not None:
+				#self.logger.debug('\n'.join((
+				#	"caching checksum for file:",
+				#	"'{}'",
+				#	"last modified: {}",
+				#	"checksum: {}")).format(local_file, mtime, checksum))
+				self.checksum_cache[local_file] = (mtime, checksum)
+		if return_encrypted:
+			return (checksum, temp_file)
+		else:
+			return checksum
+
 
