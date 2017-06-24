@@ -81,11 +81,12 @@ former_timestamp_format = '%y%m%d_%H%M%S'
 class Metadata(object):
 
 	__slots__ = ['header', 'version', 'target', 'pusher',
-			'timestamp', 'timestamp_format', 'checksum', 'pullers',
+			'timestamp', 'timestamp_format', 'checksum',
+			'parts', 'pullers',
 			'ignored']
 
 	def __init__(self, version=None, target=None, pusher=None, timestamp=None, timestamp_format=None,
-			checksum=None, pullers=[], **ignored):
+			checksum=None, parts=None, pullers=[], **ignored):
 		self.header = 'placeholder'
 		if pusher:
 			pusher = asstr(pusher)
@@ -109,6 +110,9 @@ class Metadata(object):
 		self.version = version
 		self.pullers = pullers
 		self.ignored = ignored
+		if parts:
+			parts = int(parts)
+		self.parts = parts
 
 	def __repr__(self):
 		if self.version:
@@ -123,6 +127,8 @@ class Metadata(object):
 				info += ['\ntimestamp: ', str(self.timestamp)]
 			if self.checksum:
 				info += ['\nchecksum: ', asstr(self.checksum)]
+			if self.parts:
+				info += ['\nparts: ', str(self.parts)]
 			for k in self.ignored:
 				info += [ '\n', k, ': ', self.ignored[k] ]
 			info.append('\n---pullers---')
@@ -151,6 +157,10 @@ class Metadata(object):
 		elif isinstance(self.pullers, (list, tuple)):
 			return len(self.pullers)
 
+	@property
+	def part_count(self):
+		return self.parts
+
 	def fileModified(self, local_file=None, checksum=None, hash_function=None, remote=False, debug=None):
 		"""
 		Tell whether a file has been modified.
@@ -160,7 +170,7 @@ class Metadata(object):
 			local_file (str): local file path; file must have a valid last
 				modification time.
 
-			checksum (str-like): checksum of file content (after encryption if any).
+			checksum (str-like): checksum of file content.
 
 			hash_function (func): hash function that can be applied to the
 				content of the `local_file` file if `checksum` is not defined.
@@ -186,8 +196,8 @@ class Metadata(object):
 					checksum = hash_function(f.read())
 			if checksum:
 				identical = checksum == self.checksum
-				if debug and not identical:
-					debug((local_file, checksum, self.checksum))
+				#if debug and not identical:
+				#	debug((local_file, checksum, self.checksum))
 				if identical:
 					# if files are identical
 					return False
@@ -196,14 +206,15 @@ class Metadata(object):
 			if self.timestamp:
 				remote_mtime = self.timestamp
 				if identical is False and local_mtime == remote_mtime:
-					# likely cause: change in encryption algorithm
-					msg = "has the encryption algorithm changed?"
+					# likely cause: encryption introduces "salt" in the message
+					# checksum should be calculated from plain data
+					msg = "is checksum calculated from encrypted data?"
 					if debug:
 						debug(msg)
 					else:
 						raise RuntimeError(msg)
-				if debug and local_mtime != remote_mtime:
-					debug((local_file, local_mtime, remote_mtime))
+				#if debug and local_mtime != remote_mtime:
+				#	debug((local_file, local_mtime, remote_mtime))
 				if remote is False:
 					return remote_mtime < local_mtime
 				elif remote is True:
@@ -225,7 +236,8 @@ def parse_metadata(lines, target=None, timestamp_format=None, log=None):
 	# define a few helpers
 	def invalid(line):
 		return ValueError("invalid meta attribute: '{}'".format(line))
-	convert = {'timestamp': int}
+	convert = {'timestamp': int, 'parts': int}
+	# 'parts' can be converted in `Metadata` constructor; 'timestamp' cannot
 	# parse
 	meta = {}
 	if target:

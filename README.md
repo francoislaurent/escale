@@ -26,7 +26,7 @@ Please find the extended documentation at [escale.readthedocs.io](http://escale.
 
 ## Changelog:
 
-* `0.5.1`:
+* `0.6` (including `0.6-rc*`):
 
   * new placeholder format with checksum support
   * ``checksum``/``hash algorithm`` configuration option
@@ -115,7 +115,6 @@ Please find the extended documentation at [escale.readthedocs.io](http://escale.
 
 Coming features are:
 
-* resume interrupted upload/download
 * file auto-destruction when several pullers have been defined and one takes too much time to get its copy of the file
 * split and recombine big files
 * more (symmetric) cryptographic algorithms and more cryptographic options

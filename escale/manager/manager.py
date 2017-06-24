@@ -325,7 +325,7 @@ class Manager(Reporter):
 			if PYTHON_VERSION == 2 and isinstance(remote_file, unicode) and \
 				remote and isinstance(remote[0], str):
 				remote_file = remote_file.encode('utf-8')
-			checksum, temp_file = self.checksum(local_file, True)
+			checksum = self.checksum(local_file)
 			modified = False # if no remote copy, this is ignored
 			exists = remote_file in remote
 			if (self.timestamp or self.hash_function) and exists:
@@ -342,8 +342,7 @@ class Manager(Reporter):
 				new = True
 				self.repository.confirmPush(local_file)
 				last_modified = os.path.getmtime(local_file)
-				if not temp_file:
-					temp_file = self.encryption.encrypt(local_file)
+				temp_file = self.encryption.encrypt(local_file)
 				self.logger.info("uploading file '%s'", remote_file)
 				try:
 					with self.tq_controller.push(local_file):
@@ -368,7 +367,7 @@ class Manager(Reporter):
 		"""
 		return self.repository.readable(self.filter(self.repository.listFiles(path)))
 
-	def checksum(self, local_file, return_encrypted=False):
+	def checksum(self, local_file):
 		checksum = None
 		temp_file = None
 		if self.checksum_cache is not None:
@@ -382,13 +381,8 @@ class Manager(Reporter):
 					# calculate the checksum again
 					checksum = None
 		if not checksum and self.hash_function:
-			temp_file = self.encryption.encrypt(local_file)
-			try:
-				with open(temp_file, 'rb') as f:
-					checksum = self.hash_function(f.read())
-			finally:
-				if not return_encrypted:
-					self.encryption.finalize(temp_file)
+			with open(local_file, 'rb') as f:
+				checksum = self.hash_function(f.read())
 			if self.checksum_cache is not None:
 				#self.logger.debug('\n'.join((
 				#	"caching checksum for file:",
@@ -396,9 +390,6 @@ class Manager(Reporter):
 				#	"last modified: {}",
 				#	"checksum: {}")).format(local_file, mtime, checksum))
 				self.checksum_cache[local_file] = (mtime, checksum)
-		if return_encrypted:
-			return (checksum, temp_file)
-		else:
-			return checksum
+		return checksum
 
 

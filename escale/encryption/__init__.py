@@ -57,8 +57,6 @@ else:
 
 def by_cipher(cipher):
 	cipher = cipher.lower() # should we?
-	if cipher not in ['plain', 'blowfish.blowfish', 'native']:
-		raise NotImplementedError("as of 0.5.1, a major encryption bug has been detected in backends based on the cryptography library.\nPlease use 'encryption = blowfish.blowfish' instead.")
 	try:
 		return __ciphers__[cipher]
 	except KeyError as e:

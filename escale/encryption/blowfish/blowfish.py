@@ -39,7 +39,8 @@ class Blowfish(Cipher):
 
 	def _encrypt(self, data, iv=None):
 		if iv is None:
-			iv = b'\xb3\x88\tp\t\x05\x0e\xe1'# os.urandom(_iv_len)
+			#iv = b'\xb3\x88\tp\t\x05\x0e\xe1'
+			iv = os.urandom(_iv_len)
 		return iv + b''.join(_mode[self.mode](self.cipher, data, iv))
 
 	def _decrypt(self, data, iv=None):
