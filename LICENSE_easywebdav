@@ -1,4 +1,7 @@
-Copyright (c) 2017, François Laurent and Institut Pasteur (see individual files for more information on copyright)
+The copyright notice below applies to the easywebdav project which the escale/relay/webdav/client.py file is derived from:
+
+Copyright (c) 2011, Kenneth Reitz
+Copyright (c) 2012 year, Amnon Grossman
 
 Permission to use, copy, modify, and/or distribute this software for any purpose with or without fee is hereby granted, provided that the above copyright notice and this permission notice appear in all copies.
 
