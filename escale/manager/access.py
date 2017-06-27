@@ -4,11 +4,11 @@
 
 # This file is part of the Escale software available at
 # "https://github.com/francoislaurent/escale" and is distributed under
-# the terms of the CeCILL-B license as circulated at the following URL
+# the terms of the CeCILL-C license as circulated at the following URL
 # "http://www.cecill.info/licenses.en.html".
 
 # The fact that you are presently reading this means that you have had
-# knowledge of the CeCILL-B license and that you accept its terms.
+# knowledge of the CeCILL-C license and that you accept its terms.
 
 
 from escale.base.essential import *
@@ -104,11 +104,11 @@ class AccessAttributes(object):
 		return self.location is not None
 
 	def _decode(self, a):
-		if a is self._u:
+		if a == self._u:
 			return None
-		elif a is self._f:
+		elif a == self._f:
 			return False
-		elif a is self._t:
+		elif a == self._t:
 			return True
 		else:
 			raise ValueError("unrecognized symbol '{}'".format(a))
@@ -139,7 +139,7 @@ class AccessAttributes(object):
 		else:
 			with self.table(resource) as entry:
 				attributes = entry.get()
-				value = self._decode(attributes[attr])
+				value = self._decode(attributes[attr:attr+1])
 				if value is None and explicit:
 					value = explicit
 					attributes = self._encode(value).join((attributes[:attr], attributes[attr+1:]))
@@ -202,6 +202,46 @@ class AccessAttributes(object):
 
 	def setWritability(self, resource, w):
 		self._set(self._w, resource, w)
+
+
+
+class ControllerProxy(object):
+	__slots__ = ('controller')
+	def __init__(self, controller):
+		self.controller = controller
+	@property
+	def mode(self):
+		return self.controller.mode
+	@property
+	def persistent(self):
+		return self.controller.persistent
+	def _format(self, filename):
+		return self.controller._format(filename)
+	def __safe__(self, func, *args, **kwargs):
+		return self.controller.__safe__(func, *args, **kwargs)
+
+class Pull(ControllerProxy):
+	__slots__ = ('filename')
+	def __init__(self, controller, filename):
+		ControllerProxy.__init__(self, controller)
+		self.filename = filename
+	def __enter__(self):
+		if self.mode == 'conservative':
+			self.persistent.setWritable(self._format(self.filename))
+		return self
+	def __exit__(self, exc_type, exc_value, exc_traceback):
+		pass
+
+class Push(ControllerProxy):
+	__slots__ = ('filename')
+	def __init__(self, controller, filename):
+		ControllerProxy.__init__(self, controller)
+		self.filename = filename
+	def __enter__(self):
+		return self
+	def __exit__(self, exc_type, exc_value, exc_traceback):
+		if self.mode == 'conservative':
+			self.__safe__(self.persistent.setNotWritable, self.filename)
 
 
 
@@ -412,10 +452,16 @@ class AccessController(Reporter):
 		self.__safe__(self.persistent.setWritability, filename, w)
 
 	def confirmPull(self, filename):
-		if self.mode == 'conservative':
-			self.persistent.setWritable(self._format(filename))
+		"""
+		Return a context manager so that permissions can be updated at the beginning or
+		at completion of the transfer.
+		"""
+		return Pull(self, filename)
 
 	def confirmPush(self, filename):
-		if self.mode == 'conservative':
-			self.__safe__(self.persistent.setNotWritable, filename)
+		"""
+		Return a context manager so that permissions can be updated at the beginning or
+		at completion of the transfer.
+		"""
+		return Push(self, filename)
 

@@ -271,7 +271,7 @@ def parse_address(addr, multi_path_protocols=[]):
 
 
 def get_dist_file(default_dirs={}, filename=None,
-		config=None, section=None, option=None):
+		config=None, section=None, options=None):
 	"""
 	Get path of "distribution" files such as caches and locks.
 
@@ -285,7 +285,7 @@ def get_dist_file(default_dirs={}, filename=None,
 
 		section (str): repository name.
 
-		option (str): configuration option.
+		options (str or tuple or list): configuration option(s).
 
 	Returns:
 
@@ -310,14 +310,21 @@ def get_dist_file(default_dirs={}, filename=None,
 	dist_dir, cfg_basename = os.path.split(cfg_file)
 	if not dist_dir:
 		dist_dir = os.getcwd()
-	if option and config is not None:
+	if options and config is not None:
 		if section is None:
 			section = default_section
-		try:
-			dist_dir = getpath(config, section, option)
-		except NoOptionError:
-			pass
-		else:
+		if not isinstance(options, (tuple, list)):
+			options = [ options ]
+		found = False
+		for option in options:
+			try:
+				dist_dir = getpath(config, section, option)
+			except NoOptionError:
+				pass
+			else:
+				found = True
+				break
+		if found:
 			if not os.path.isabs(dist_dir):
 				raise ValueError("'{}' should be absolute path".format(option))
 			undefined = False
@@ -377,7 +384,7 @@ def get_cache_file(config=None, section=None, prefix='', previously=None):
 
 	*new in 0.5:* moved from :mod:`escale.base.config`
 	"""
-	cache_option = 'cache'
+	cache_option = ['cache', 'cache dir']
 	if config is None:
 		config, _, _ = parse_cfg()
 	elif not isinstance(config, ConfigParser): # basestring
@@ -388,20 +395,17 @@ def get_cache_file(config=None, section=None, prefix='', previously=None):
 			raise ValueError("several sections were found in '{}'; 'section' should be defined".format(config.filename))
 		section = section[0]
 	cache_dir = get_dist_file(default_cache_dirs, config=config, section=section,
-			option=cache_option)
-	if not config.has_option(section, cache_option) or \
-			(config.has_option(default_section, cache_option) and \
-				config.get(section, cache_option) == config.get(default_section, cache_option)):
-		if PYTHON_VERSION == 3:
-			if isinstance(section, str):
-				section = section.encode('utf-8')
-			if isinstance(previously, str):
-				previously = previously.encode('utf-8')
-		cache_file = os.path.join(cache_dir,
-				prefix + asstr(hashlib.sha224(section).hexdigest()))
-		if previously:
-			previous_cache = os.path.join(cache_dir,
-					prefix + asstr(hashlib.sha224(previously).hexdigest()))
-			if os.path.exists(previous_cache) and not os.path.exists(cache_file):
-				os.rename(previous_cache, cache_file)
+			options=cache_option)
+	if PYTHON_VERSION == 3:
+		if isinstance(section, str):
+			section = section.encode('utf-8')
+		if isinstance(previously, str):
+			previously = previously.encode('utf-8')
+	cache_file = os.path.join(cache_dir,
+			prefix + asstr(hashlib.sha224(section).hexdigest()))
+	if previously:
+		previous_cache = os.path.join(cache_dir,
+				prefix + asstr(hashlib.sha224(previously).hexdigest()))
+		if os.path.exists(previous_cache) and not os.path.exists(cache_file):
+			os.rename(previous_cache, cache_file)
 	return cache_file

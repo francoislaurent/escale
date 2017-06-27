@@ -205,18 +205,36 @@ class Manager(Reporter):
 					self.tq_controller.clock.reset()
 				if not self.tq_controller.wait():
 					break
-			except ExpressInterrupt as e:
+			except ExpressInterrupt:
 				raise
 			except Exception as e:
 				t = time.time()
+				# break on fast self-repeating errors
 				if t - _last_error_time < 1: # the error repeats too fast; abort
 					# last_error is defined
 					if type(e) == type(last_error):
 						break
 				last_error = e
 				_last_error_time = t
-				self.logger.critical(traceback.format_exc())
 				_check_sanity = True # check again for corrupted files
+				# wait on network downtime
+				if isinstance(e, OSError):
+					# check errno; see also the errno standard library
+					# a few candidates error codes:
+					# ENETDOWN: 100, Network is down
+					# ENETUNREACH: 101, Network is unreachable
+					# ENETRESET: 102, Network dropped connection because of reset
+					# ECONNABORTED: 103, Software caused connection abort
+					# ECONNRESET: 104, Connection reset by peer
+					# ENOTCONN: 107, Transport endpoint is not connected
+					# ESHUTDOWN: 108, Cannot send after transport endpoint shutdown
+					# ETIMEDOUT: 110, Connection timed out
+					# EHOSTDOWN: 112, Host is down
+					if e.args and e.args[0] in [107]:
+						self.logger.debug("%s", e)
+						self.tq_controller.wait()
+						continue
+				self.logger.critical(traceback.format_exc())
 		# close and clear everything
 		try:
 			self.relay.close()
@@ -295,22 +313,24 @@ class Manager(Reporter):
 				msg = "updating local file '%s'"
 			else:
 				msg = "downloading file '%s'"
-			self.repository.confirmPull(local_file)
-			new = True
-			temp_file = self.encryption.prepare(local_file)
-			self.logger.info(msg, remote_file)
-			try:
-				with self.tq_controller.pull(temp_file):
-					ok = self.relay.pop(remote_file, temp_file, blocking=False, **self.pop_args)
-			except RuntimeError: # TODO: define specific exceptions
-				ok = False
-			if ok:
-				self.logger.debug("file '%s' successfully downloaded", remote_file)
-			elif ok is not None:
-				self.logger.error("failed to download '%s'", remote_file)
-			self.encryption.decrypt(temp_file, local_file)
-			if last_modified:
-				os.utime(local_file, (time.time(), last_modified))
+			with self.repository.confirmPull(local_file):
+				new = True
+				temp_file = self.encryption.prepare(local_file)
+				self.logger.info(msg, remote_file)
+				try:
+					with self.tq_controller.pull(temp_file):
+						ok = self.relay.pop(remote_file, temp_file, blocking=False, **self.pop_args)
+					if not ok:
+						raise RuntimeError
+				except RuntimeError: # TODO: define specific exceptions
+					ok = False
+				if ok:
+					self.logger.debug("file '%s' successfully downloaded", remote_file)
+				elif ok is not None:
+					self.logger.error("failed to download '%s'", remote_file)
+				self.encryption.decrypt(temp_file, local_file)
+				if last_modified:
+					os.utime(local_file, (time.time(), last_modified))
 		return new
 
 	def upload(self):
@@ -339,24 +359,24 @@ class Manager(Reporter):
 					# this may not be true, but this will update the meta
 					# information with a valid content.
 			if not exists or modified:
-				new = True
-				self.repository.confirmPush(local_file)
-				last_modified = os.path.getmtime(local_file)
-				temp_file = self.encryption.encrypt(local_file)
-				self.logger.info("uploading file '%s'", remote_file)
-				try:
-					with self.tq_controller.push(local_file):
-						ok = self.relay.push(temp_file, remote_file, blocking=False,
-							last_modified=last_modified, checksum=checksum)
-				except QuotaExceeded as e:
-					self.logger.info("%s; no more files can be sent", e)
-					ok = False
-				finally:
-					self.encryption.finalize(temp_file)
-				if ok:
-					self.logger.debug("file '%s' successfully uploaded", remote_file)
-				elif ok is not None:
-					self.logger.warning("failed to upload '%s'", remote_file)
+				with self.repository.confirmPush(local_file):
+					new = True
+					last_modified = os.path.getmtime(local_file)
+					temp_file = self.encryption.encrypt(local_file)
+					self.logger.info("uploading file '%s'", remote_file)
+					try:
+						with self.tq_controller.push(local_file):
+							ok = self.relay.push(temp_file, remote_file, blocking=False,
+								last_modified=last_modified, checksum=checksum)
+					except QuotaExceeded as e:
+						self.logger.info("%s; no more files can be sent", e)
+						ok = False
+					finally:
+						self.encryption.finalize(temp_file)
+					if ok:
+						self.logger.debug("file '%s' successfully uploaded", remote_file)
+					elif ok is not None:
+						self.logger.warning("failed to upload '%s'", remote_file)
 		return new
 
 	def localFiles(self, path=None):

@@ -155,7 +155,15 @@ class Client(object):
 
 	def send(self, method, target, expected_codes, context=False, allow_redirects=False, **kwargs):
 		url = os.path.join(self.baseurl, quote(asstr(target)))
-		response = self.session.request(method, url, allow_redirects=allow_redirects, **kwargs)
+		try:
+			response = self.session.request(method, url, allow_redirects=allow_redirects, **kwargs)
+		except requests.exceptions.ConnectionError as e:
+			if e.args[1:] and e.args[1]:
+				e1 = e.args[1]
+				if isinstance(e1, OSError):# and hasattr(e1, 'errno') and e1.errno == 107:
+					raise e1
+			else:
+				raise
 		status_code = response.status_code
 		if not isinstance(expected_codes, (list, tuple)):
 			expected_codes = (expected_codes,)
