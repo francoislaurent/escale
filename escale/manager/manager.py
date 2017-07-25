@@ -267,6 +267,27 @@ class Manager(Reporter):
 			files = [ f for f in files if not self.exclude.match(os.path.basename(f)) ]
 		return files
 
+	def _filter(self, f):
+		"""
+		Tell if a file is to be selected.
+
+		Arguments:
+
+			f (str): file basename.
+
+		Returns:
+
+			bool: selected if ``True``, rejected if ``False``.
+		"""
+		ok = True
+		if self.filetype:
+			ok = os.path.splitext(f)[1] in self.filetype
+		if ok and self.include:
+			ok = self.include.match(f)
+		if ok and self.exclude:
+			ok = not self.exclude.match(f)
+		return ok
+
 	def sanityCheck(self):
 		"""
 		Performs sanity checks and fixes the corrupted files.
@@ -385,7 +406,7 @@ class Manager(Reporter):
 
 		Use ``self.repository.readableFiles`` instead.
 		"""
-		return self.repository.readable(self.filter(self.repository.listFiles(path)))
+		return self.repository.readable(self.repository.listFiles(path, select=self._filter))
 
 	def checksum(self, local_file):
 		checksum = None

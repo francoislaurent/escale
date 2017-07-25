@@ -49,8 +49,9 @@ def set_logger(config, cfg_file=None, verbosity=logging.NOTSET, msgs=[]):
 			file_level = 'DEBUG'
 	# console log
 	console_default = 'INFO'
-	if verbosity == 0 or verbosity == 1:
+	if verbosity == 1:
 		# handles `bool`s (all possible values), some `int`s and `float`s
+		# but 0 because 0 is the default value
 		if verbosity:
 			console_level = console_default
 		else:

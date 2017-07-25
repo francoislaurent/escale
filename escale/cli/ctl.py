@@ -15,6 +15,8 @@ import subprocess
 import sys
 import os
 import traceback
+import time
+from math import floor
 
 from escale import *
 from escale.base.essential import *
@@ -211,11 +213,13 @@ def restore(repository=None, archive=None, fast=None):
 	backup_manager(archive, repository, 'restore', **kwargs)
 
 
-def recover(repository=None, timestamp=None, overwrite=True):
+def recover(repository=None, timestamp=None, overwrite=True, update=None, fast=None):
 	"""
 	Make a relay repository with placeholder files as if the local repository
 	resulted from a complete download of an existing repository with escale.
 	"""
+	if update is not None:
+		overwrite = not update
 	if timestamp:
 		tsformat = timestamp
 	else:
@@ -233,12 +237,24 @@ def recover(repository=None, timestamp=None, overwrite=True):
 		for repository in repositories:
 			try:
 				client = make_client(cfg, repository)
-				ls = client.repository.listFiles()
+				ls = client.localFiles()
 				client.relay.open()
+				if fast:
+					client.logger.info('{} local files found'.format(len(ls)))
+					remote = client.relay.listTransfered()
+					client.logger.info('{} remote files found'.format(len(remote)))
+					ls = [ l for l in ls if os.path.relpath(l, client.repository.path) not in remote ]
+				N = len(ls)
+				client.logger.info('%s placeholder files to update', N)
+				clock = time.time()
+				progr = 0
+				N = float(N)
+				n = 0.0
 				for local in ls:
+					n += 1.0
 					remote = os.path.relpath(local, client.repository.path)
 					remote_placeholder = client.relay.placeholder(remote)
-					if client.relay.hasPlaceholder(remote):
+					if not fast and client.relay.hasPlaceholder(remote):
 						if overwrite:
 							client.relay.unlink(remote_placeholder)
 						else:
@@ -264,6 +280,12 @@ def recover(repository=None, timestamp=None, overwrite=True):
 					with open(local_placeholder, 'w') as f:
 						f.write(metadata)
 					client.relay._push(local_placeholder, remote_placeholder)
+					new_progr = int(floor(n / N * 100.0))
+					new_clock = time.time()
+					if progr < new_progr and 5 < new_clock - clock:
+						progr = new_progr
+						clock = new_clock
+						client.logger.info('progression: {}%'.format(progr))
 				client.relay.close()
 			except:
 				print(traceback.format_exc())

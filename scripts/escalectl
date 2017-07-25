@@ -67,6 +67,8 @@ if __name__ == '__main__':
 	_restore.set_defaults(func=restore)
 	_fix = parsers.add_parser('fix', help='recover a lost relay repository from an up-to-date local repository')
 	_fix.add_argument('-r', '--repository', type=str, help='section in the default configuration file')
+	_fix.add_argument('-u', '--update', action='store_true', help='do not overwrite')
+	_fix.add_argument('-f', '--fast', action='store_true', help='unsafe recovery; use this only if repository is inactive')
 	_fix.set_defaults(func=recover)
 	args = parser.parse_args()
 	ret = 0

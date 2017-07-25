@@ -296,7 +296,7 @@ class AccessController(Reporter):
 		elif mode:
 			self.mode = mode
 		# set persistent data
-		self.persistent = AccessAttributes()
+		self.persistent = None #AccessAttributes()
 		if persistent:
 			if create or self.mode == 'conservative' or os.path.exists(persistent):
 				if not os.path.exists(persistent):
@@ -324,7 +324,7 @@ class AccessController(Reporter):
 			else:
 				raise ValueError("'{}' mode not supported".format(m))
 
-	def listFiles(self, path=None):
+	def listFiles(self, path=None, select=None):
 		"""
 		List all visible files in the local repository.
 
@@ -332,9 +332,17 @@ class AccessController(Reporter):
 		"""
 		if path is None:
 			path = self.path
-		ls = [ os.path.join(path, f) for f in os.listdir(path) if f[0] != '.' ]
-		local = itertools.chain([ f for f in ls if os.path.isfile(f) ], \
-			*[ self.listFiles(f) for f in ls if os.path.isdir(f) ])
+		# no improvement with os.walk compared to listdir...
+		if select is None:
+			select = lambda a: True
+		local = []
+		for dirname, _, filenames in os.walk(path):
+			local.append([ os.path.join(dirname, basename) for basename in filenames
+				if basename[0] != '.' and select(basename) ])
+		local = itertools.chain(*local)
+		#ls = [ os.path.join(path, f) for f in os.listdir(path) if f[0] != '.' ]
+		#local = itertools.chain([ f for f in ls if os.path.isfile(f) ], \
+		#	*[ self.listFiles(f) for f in ls if os.path.isdir(f) ])
 		return list(local)
 
 	def readable(self, files):
@@ -440,10 +448,16 @@ class AccessController(Reporter):
 			raise OSError("cannot find file '{}' in repository '{}'".format(filename, self.name))
 
 	def getReadability(self, filename):
-		return self.persistent.getReadability(self._format(filename))
+		if self.persistent is None:
+			return None
+		else:
+			return self.persistent.getReadability(self._format(filename))
 
 	def getWritability(self, filename):
-		return self.persistent.getWritability(self._format(filename))
+		if self.persistent is None:
+			return None
+		else:
+			return self.persistent.getWritability(self._format(filename))
 
 	def setReadability(self, filename, r):
 		self.__safe__(self.persistent.setReadability, filename, r)

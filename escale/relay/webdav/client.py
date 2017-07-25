@@ -153,18 +153,39 @@ class Client(object):
 		self.infinity_depth = None
 		self.download_chunk_size = 1048576
 
-	def send(self, method, target, expected_codes, context=False, allow_redirects=False, **kwargs):
+	def send(self, method, target, expected_codes, context=False, allow_redirects=False,
+			retry_on_status_codes=[504], retry_on_errno=[110], **kwargs):
 		url = os.path.join(self.baseurl, quote(asstr(target)))
-		try:
-			response = self.session.request(method, url, allow_redirects=allow_redirects, **kwargs)
-		except requests.exceptions.ConnectionError as e:
-			if e.args[1:] and e.args[1]:
-				e1 = e.args[1]
-				if isinstance(e1, OSError):# and hasattr(e1, 'errno') and e1.errno == 107:
-					raise e1
-			else:
+		counter = 0
+		while True:
+			counter += 1
+			try:
+				response = self.session.request(method, url, allow_redirects=allow_redirects, **kwargs)
+			except requests.exceptions.ConnectionError as e:
+				if e.args[1:] and e.args[1]:
+					e1 = e.args[1]
+					if isinstance(e1, OSError):
+						try:
+							if e1.args[0] in retry_on_errno:
+								continue
+						except AttributeError:
+							pass
+						raise e1
+				#print("in %s.Client.send: %s".format(__module__, e))
 				raise
-		status_code = response.status_code
+			status_code = response.status_code
+			if status_code in retry_on_status_codes:
+				response.close()
+				continue
+			elif 1 < counter and status_code == 423:
+				# the request actually reached the host and may have been successful
+				#print("resource locked on request retry")
+				if not context:
+					# if the response body is not expected, ignore the errors
+					# and try to silently return
+					response.close()
+					return response
+			break
 		if not isinstance(expected_codes, (list, tuple)):
 			expected_codes = (expected_codes,)
 		if status_code not in expected_codes:
