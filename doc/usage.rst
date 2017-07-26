@@ -147,6 +147,8 @@ Parameters that can only be global are:
 
 .. note:: booleans can be either ``yes``, ``no``, ``1``, ``0``, ``true``, ``false``, ``on`` or ``off``.
 
+.. note:: regular expressions for filenames can be basic strings with wildcard ``*`` as the only supported metacharacter, or full regular expressions as recognized by the `re` module if they begin and (optionally) end with the ``/`` character.
+
 Other parameters are:
 
 * ``local path`` (or ``path``): path to the local repository
@@ -165,8 +167,8 @@ Other parameters are:
 * ``verify ssl``: boolean that defines whether to check the remote host's certificate
 * ``ssl version``: either ``SSLv2``, ``SSLv3``, ``SSLv23``, ``TLS``, ``TLSv1``, ``TLSv1.1`` or ``TLSv1.2``
 * ``file extension`` (or ``file type``): a comma-separated list of file extensions (with or without the initial dot)
-* ``include`` (or ``include files``, ``pattern``, ``filter``): a regular expression to filter in files by name
-* ``exclude`` (or ``exclude files``): a regular expression to filter out files by name
+* ``include`` (or ``include files``, ``pattern``, ``filter``): comma-separated list of regular expressions to filter in files by name
+* ``exclude`` (or ``exclude files``): comma-separated list of regular expressions to filter out files by name
 * ``disk quota``: a decimal number with storage space units such as ``KB``, ``MB``, ``GB``, etc
 * ``maintainer``: an email address; if a client aborts and an SMTP server is available on the client machine, a notice email can be sent to this address
 * ``mode`` (or ``synchronization mode``): either ``download`` (synonym of ``pull only = yes``), ``upload`` (synonym of ``push only = yes``), ``conservative``/``preservative`` or ``share``/``shared`` (default). See `Synchronization modes`_

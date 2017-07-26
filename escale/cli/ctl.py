@@ -285,7 +285,7 @@ def recover(repository=None, timestamp=None, overwrite=True, update=None, fast=N
 					if progr < new_progr and 5 < new_clock - clock:
 						progr = new_progr
 						clock = new_clock
-						client.logger.info('progression: {}%'.format(progr))
+						client.logger.info('progress: {}%'.format(progr))
 				client.relay.close()
 			except:
 				print(traceback.format_exc())

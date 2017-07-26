@@ -61,9 +61,9 @@ class Manager(Reporter):
 
 		filetype (list of str): list of file extensions.
 
-		include (str): regular expression to include files by name.
+		include (list of str): regular expressions to include files by name.
 
-		exclude (str): regular expression to exclude files by name.
+		exclude (list of str): regular expressions to exclude files by name.
 
 		tq_controller (escale.manager.TimeQuotaController): time and quota controller.
 
@@ -112,18 +112,42 @@ class Manager(Reporter):
 			self.filetype = []
 		self.include = None
 		if include:
-			try:
-				self.include = re.compile(include)
-			except:
-				self.logger.error("wrong filename pattern '%s'", include)
-				self.logger.debug(traceback.format_exc())
+			if not isinstance(include, (tuple, list)):
+				include = [ include ]
+			self.include = []
+			for exp in include:
+				if exp[0] == '/':
+					if exp[-1] == '/':
+						exp = exp[1:-1]
+					else:
+						exp = exp[1:]
+				else:
+					exp = exp.replace('.', '\.').replace('*', '.*')
+				try:
+					
+					self.include.append(re.compile(exp))
+				except:
+					self.logger.error("wrong filename pattern '%s'", exp)
+					self.logger.debug(traceback.format_exc())
 		self.exclude = None
 		if exclude:
-			try:
-				self.exclude = re.compile(exclude)
-			except:
-				self.logger.error("wrong filename pattern '%s'", exclude)
-				self.logger.debug(traceback.format_exc())
+			if not isinstance(exclude, (tuple, list)):
+				exclude = [ exclude ]
+			self.exclude = []
+			for exp in exclude:
+				if exp[0] == '/':
+					if exp[-1] == '/':
+						exp = exp[1:-1]
+					else:
+						exp = exp[1:]
+				else:
+					exp = exp.replace('.', '\.').replace('*', '.*')
+				try:
+					
+					self.exclude.append(re.compile(exp))
+				except:
+					self.logger.error("wrong filename pattern '%s'", exp)
+					self.logger.debug(traceback.format_exc())
 		self.pop_args = {}
 		arg_map = [('locktimeout', 'lock_timeout')]
 		for cfg_arg, rel_arg in arg_map:
@@ -262,9 +286,9 @@ class Manager(Reporter):
 		if self.filetype:
 			files = [ f for f in files if os.path.splitext(f)[1] in self.filetype ]
 		if self.include:
-			files = [ f for f in files if self.include.match(os.path.basename(f)) ]
+			files = [ f for f in files if any([ exp.match(os.path.basename(f)) for exp in self.include ]) ]
 		if self.exclude:
-			files = [ f for f in files if not self.exclude.match(os.path.basename(f)) ]
+			files = [ f for f in files if not any([ exp.match(os.path.basename(f)) for exp in self.exclude ]) ]
 		return files
 
 	def _filter(self, f):
@@ -283,9 +307,9 @@ class Manager(Reporter):
 		if self.filetype:
 			ok = os.path.splitext(f)[1] in self.filetype
 		if ok and self.include:
-			ok = self.include.match(f)
+			ok = any([ exp.match(f) for exp in self.include ])
 		if ok and self.exclude:
-			ok = not self.exclude.match(f)
+			ok = not any([ exp.match(f) for exp in self.exclude ])
 		return ok
 
 	def sanityCheck(self):
