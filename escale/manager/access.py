@@ -206,7 +206,7 @@ class AccessAttributes(object):
 
 
 class ControllerProxy(object):
-	__slots__ = ('controller')
+	__slots__ = ('controller',)
 	def __init__(self, controller):
 		self.controller = controller
 	@property
@@ -221,7 +221,7 @@ class ControllerProxy(object):
 		return self.controller.__safe__(func, *args, **kwargs)
 
 class Pull(ControllerProxy):
-	__slots__ = ('filename')
+	__slots__ = ('filename',)
 	def __init__(self, controller, filename):
 		ControllerProxy.__init__(self, controller)
 		self.filename = filename
@@ -233,7 +233,7 @@ class Pull(ControllerProxy):
 		pass
 
 class Push(ControllerProxy):
-	__slots__ = ('filename')
+	__slots__ = ('filename',)
 	def __init__(self, controller, filename):
 		ControllerProxy.__init__(self, controller)
 		self.filename = filename

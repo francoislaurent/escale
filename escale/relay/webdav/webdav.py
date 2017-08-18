@@ -135,7 +135,7 @@ class WebDAV(Relay, Client):
 			return Client.ls(self, remote_dir, recursive)
 		except UnexpectedResponse as e:
 			if e.errno != 404:
-				if e.errno == 403:
+				if e.errno in [403, 500]:
 					raise
 				else:
 					self.logger.warning("Client.ls('%s') failed", remote_dir)

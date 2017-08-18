@@ -149,10 +149,12 @@ class Manager(Reporter):
 					self.logger.error("wrong filename pattern '%s'", exp)
 					self.logger.debug(traceback.format_exc())
 		self.pop_args = {}
-		arg_map = [('locktimeout', 'lock_timeout')]
+		arg_map = [('locktimeout', 'lock_timeout'),
+			('maxpendingtransfers', 'max_pending_transfers')]
 		for cfg_arg, rel_arg in arg_map:
 			if cfg_arg in relay_args:
 				relay_args[rel_arg] = relay_args.pop(cfg_arg)
+		self.max_pending_transfers = relay_args.pop('max_pending_transfers', None)
 		self.relay = relay(clientname, address, directory, **relay_args)
 		if tq_controller is None:
 			self.tq_controller = TimeQuotaController(refresh, logger=self.logger)
@@ -213,6 +215,7 @@ class Manager(Reporter):
 		while True:
 			new = False
 			try:
+				self.remoteListing()
 				if _check_sanity:
 					self.sanityCheck()
 					_check_sanity = False
@@ -233,11 +236,14 @@ class Manager(Reporter):
 				raise
 			except Exception as e:
 				t = time.time()
+				wait = False
 				# break on fast self-repeating errors
-				if t - _last_error_time < 1: # the error repeats too fast; abort
-					# last_error is defined
-					if type(e) == type(last_error):
+				if 0 < _last_error_time and type(e) == type(last_error):
+					# if _last_error_time is not 0, then last_error is defined
+					if t - _last_error_time < 1: # the error repeats too fast; abort
 						break
+					else:
+						wait = True
 				last_error = e
 				_last_error_time = t
 				_check_sanity = True # check again for corrupted files
@@ -255,10 +261,12 @@ class Manager(Reporter):
 					# ETIMEDOUT: 110, Connection timed out
 					# EHOSTDOWN: 112, Host is down
 					if e.args and e.args[0] in [107]:
-						self.logger.debug("%s", e)
-						self.tq_controller.wait()
-						continue
-				self.logger.critical(traceback.format_exc())
+						wait = True
+				if wait:
+					self.logger.debug("%s", e)
+					self.tq_controller.wait()
+				else:
+					self.logger.critical(traceback.format_exc())
 		# close and clear everything
 		try:
 			self.relay.close()
@@ -382,9 +390,12 @@ class Manager(Reporter):
 		"""
 		Finds out which files are to be uploaded and upload them.
 		"""
+		new = False
+		if self.max_pending_transfers:
+			if self.max_pending_transfers <= self.relay.listReady():
+				return new
 		local = self.localFiles()
 		remote = self.relay.listTransfered('', end2end=False)
-		new = False
 		for local_file in local:
 			remote_file = os.path.relpath(local_file, self.path) # relative path
 			if PYTHON_VERSION == 2 and isinstance(remote_file, unicode) and \
@@ -457,4 +468,10 @@ class Manager(Reporter):
 				self.checksum_cache[local_file] = (mtime, checksum)
 		return checksum
 
+	def remoteListing(self):
+		t = time.time()
+		self.relay.remoteListing()
+		dur = time.time() - t
+		msg = 'remote repository crawled in {:.0f} seconds'.format(dur)
+		self.logger.debug(msg)
 

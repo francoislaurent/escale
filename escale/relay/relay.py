@@ -80,6 +80,15 @@ class AbstractRelay(Reporter):
 		"""
 		raise NotImplementedError('abstract method')
 
+	def remoteListing(self):
+		"""
+		Crawl the relay repository for later calls to `list*` methods.
+
+		`remoteListing` should be optional and all the `list*` methods
+		should work with or without past calls to this method.
+		"""
+		raise NotImplementedError
+
 	def listReady(self, remote_dir='', recursive=True):
 		"""
 		List the files on the remote host that are ready for download.
@@ -359,7 +368,7 @@ class Relay(AbstractRelay):
 		'_placeholder_prefix', '_placeholder_suffix',
 		'_lock_prefix', '_lock_suffix', 'lock_timeout',
 		'_message_hash', '_message_prefix', '_message_suffix',
-		'placeholder_cache']
+		'placeholder_cache', 'listing_cache']
 
 	def __init__(self, client, address, repository, logger=None, ui_controller=None,
 			lock_timeout=True, timestamped_messages=False, **ignored):
@@ -388,6 +397,7 @@ class Relay(AbstractRelay):
 		else:
 			self._message_hash = None
 		self.placeholder_cache = {}
+		self.listing_cache = None
 
 
 	def newTemporaryFile(self):
@@ -580,13 +590,19 @@ class Relay(AbstractRelay):
 		"""
 		raise NotImplementedError('abstract method')
 
+	def remoteListing(self):
+		self.listing_cache = self._list('', recursive=True, stats=('mtime',))
+
 	def listReady(self, remote_dir='', recursive=True):
 		"""
 		The default implementation manipulates placeholders and locks as individual files.
 
 		It caches last modification times of placeholders for future `getMetadata` calls.
 		"""
-		ls = self._list(remote_dir, recursive=recursive, stats=('mtime',))
+		if remote_dir or (self.listing_cache is None):
+			ls = self._list(remote_dir, recursive=recursive, stats=('mtime',))
+		else:
+			ls = self.listing_cache
 		if not ls:
 			return []
 		lock_files = []
@@ -619,7 +635,10 @@ class Relay(AbstractRelay):
 		"""
 		if not (self.client or self.lock_timeout):
 			return []
-		ls = self._list(remote_dir, recursive=recursive, stats=['mtime'])
+		if remote_dir or (self.listing_cache is None):
+			ls = self._list(remote_dir, recursive=recursive, stats=['mtime'])
+		else:
+			ls = self.listing_cache
 		locks = []
 		for file, mtime in ls:
 			if self.isLock(file):
@@ -639,7 +658,10 @@ class Relay(AbstractRelay):
 		"""
 		The default implementation manipulates placeholders and locks as individual files.
 		"""
-		ls = self._list(remote_dir, recursive=recursive, stats=('mtime',))
+		if remote_dir or (self.listing_cache is None):
+			ls = self._list(remote_dir, recursive=recursive, stats=('mtime',))
+		else:
+			ls = self.listing_cache
 		if not ls:
 			return []
 		regular_files = []

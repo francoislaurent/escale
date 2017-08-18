@@ -66,6 +66,7 @@ default_cache_dirs = { user_cfg_dir: user_cache_dir,
 # 'exclude' added in version 0.5rc2
 # 'checksum' added in version 0.5.1
 # 'minsplitsize' added in version 0.6rc2
+# 'maxpendingtransfers' added in version 0.6rc2
 fields = dict(path=('path', ['local path', 'path']),
 	address=['host address', 'relay address', 'remote address', 'address'],
 	directory=['host directory', 'relay directory', 'remote directory',
@@ -95,7 +96,8 @@ fields = dict(path=('path', ['local path', 'path']),
 	mode=['mode', 'synchronization mode'],
 	count=('int', ['puller count', 'pullers']),
 	checksum=(('bool', 'str'), ['checksum', 'hash algorithm']),
-	minsplitsize=('int', ['min split size', 'split size', 'split']))
+	minsplitsize=('int', ['min split size', 'split size', 'split']),
+	maxpendingtransfers=('int', ['max pending transfers']))
 
 
 def default_option(field, all_options=False):

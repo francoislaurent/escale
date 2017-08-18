@@ -43,6 +43,7 @@ try:
 	from urllib import quote, unquote
 except ImportError:
 	from urllib.parse import urlparse, quote, unquote
+import time
 
 
 class UnexpectedResponse(Exception):
@@ -116,6 +117,8 @@ def _emulate_infinity(ls):
 		except UnexpectedResponse as e:
 			if e.errno == 403:
 				# the server rejects 'infinity'-depth requests
+				if hasattr(self, 'logger'):
+					self.logger.debug("the server rejects 'infinity'-depth PROPFIND requests")
 				self.infinity_depth = False
 				return _emulate_infinity(ls)(self, path, recursive)
 			raise
@@ -154,7 +157,7 @@ class Client(object):
 		self.download_chunk_size = 1048576
 
 	def send(self, method, target, expected_codes, context=False, allow_redirects=False,
-			retry_on_status_codes=[504], retry_on_errno=[110], **kwargs):
+			retry_on_status_codes=[503,504], retry_on_errno=[110], subsequent_errors_on_retry=[], **kwargs):
 		url = os.path.join(self.baseurl, quote(asstr(target)))
 		counter = 0
 		while True:
@@ -167,6 +170,8 @@ class Client(object):
 					if isinstance(e1, OSError):
 						try:
 							if e1.args[0] in retry_on_errno:
+								if hasattr(self, 'logger'):
+									self.logger.debug('ignoring %s error', e1.args[0])
 								continue
 						except AttributeError:
 							pass
@@ -177,20 +182,21 @@ class Client(object):
 			if status_code in retry_on_status_codes:
 				response.close()
 				continue
-			elif 1 < counter and status_code == 423:
-				# the request actually reached the host and may have been successful
-				#print("resource locked on request retry")
-				if not context:
-					# if the response body is not expected, ignore the errors
-					# and try to silently return
-					response.close()
-					return response
 			break
 		if not isinstance(expected_codes, (list, tuple)):
 			expected_codes = (expected_codes,)
 		if status_code not in expected_codes:
 			response.close()
-			raise UnexpectedResponse(method, url, status_code, expected_codes)
+			if 1 < counter and status_code in subsequent_errors_on_retry and not context:
+				# the request actually reached the host and may have been successful;
+				# the target resource may be locked or missing, depending on the type of request;
+				# if the response body is not expected (`not context`), ignore the errors
+				# and try to silently return
+				if hasattr(self, 'logger'):
+					self.logger.debug('ignoring a %s error on retrying a %s request', status_code, method)
+				pass
+			else:
+				raise UnexpectedResponse(method, url, status_code, expected_codes)
 		if not context:
 			response.close()
 		return response
@@ -201,10 +207,10 @@ class Client(object):
 		for d in dirs:
 			if d:
 				dirname = os.path.join(dirname, d)
-				self.send('MKCOL', dirname, (201, 301, 405, 423))
+				self.send('MKCOL', dirname, (201, 301, 405, 423), subsequent_errors_on_retry=(423,))
 
 	def delete(self, target):
-		self.send('DELETE', target, (200, 204))
+		self.send('DELETE', target, (200, 204), subsequent_errors_on_retry=(404, 423))
 
 	def rmdir(self, dirname):
 		if not (dirname and dirname[-1] == '/'):
@@ -230,8 +236,19 @@ class Client(object):
 			depth = 'infinity'
 		else:
 			depth = '1'
+		if recursive:
+			t0 = time.time()
 		r = self.send('PROPFIND', remote_path, (207, 301),
 				headers={'Depth': depth}, context=True)
+		if recursive and hasattr(self, 'logger'):
+			t1 = time.time()
+			if 300 <= t1-t0:
+				if 7200 <= t1-t0:
+					msg = 'remote repository listing took {:.0f} hours'.format((t1-t0)/3600)
+					self.logger.warning(msg)
+				#else:
+				#	msg = 'efficiency warning: remote repository listing took {:.0f} minutes'.format((t1-t0)/60)
+				#	self.logger.debug(msg)
 		try:
 			# redirect
 			if r.status_code == 301:
