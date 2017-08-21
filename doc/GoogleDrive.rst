@@ -2,12 +2,11 @@
 Google Drive
 ============
 
-To synchronize your data using |googledrive| as a relay storage, you should first make a new directory to accommodate the relay repository.
-
-To synchronize using this remote directory, you have two options:
+Three options are available to synchronize over a Google Drive storage space:
 
 * you can either mount your |googledrive| storage space in your local file system with an external tool (see the `Mounting locally`_ section)
-* or you can use the |googledrive| backend provided in |escale| (see the `Synchronizing with drive`_)
+* or you can use the |googledrive| backend provided in |escale| (see the `Synchronizing with drive`_ section)
+* or else you can use the |rclone| backend provided in |escale| (see the `Synchronizing with rclone`_ section)
 
 
 Mounting locally
@@ -54,7 +53,7 @@ Respectivelly answer ``y`` and ``~/GoogleDrive/Escale Repository`` to the next t
 Synchronizing with drive
 ------------------------
 
-This section details how to use the native client for Google Drive. 
+This section details how to use the partly-native client for Google Drive. 
 This approach has the inconvenient of requiring the `drive <https://github.com/odeke-em/drive>`_ utility that in turn depends on the `Go toolchain <https://golang.org/doc/install>`_.
 
 Installing the Go toolchain may add a significant amount of used space (like 160MB on Linux for example). 
@@ -65,7 +64,7 @@ If you already have it installed, then the approach described below is advised.
 You can alternatively install a compiled drive package.
 This procedure is described in `this link <https://github.com/odeke-em/drive/blob/master/platform_packages.md>`_.
 
-The backend in |escale| that makes use of the drive utility is referred to as a native backend because data are not buffer and every file transfers and accesses to your remote data are performed at call time.
+The backend in |escale| that makes use of the drive utility is referred to as a native backend because data are not buffered and all file transfers and accesses to your remote data are performed at call time.
 
 Note that |escale| will assist you in installing drive but not the Go toolchain.
 
@@ -119,4 +118,43 @@ so that you can log in with |google| services.
 Onced logged-in, the webpage will display a single line you can copy and paste back onto the 
 command-line. 
 This will permit |escale| to connect to your |googledrive| space.
+
+
+Synchronizing with rclone
+-------------------------
+
+This section details how to use the partially-native client for Google Drive. 
+This approach has the inconvenient of requiring the `rclone <https://rclone.org>`_ utility that in turn depends on the `Go toolchain <https://golang.org/doc/install>`_.
+
+Installing the Go toolchain may add a significant amount of used space (like 160MB on Linux for example). 
+
+The backend in |escale| that makes use of the rclone utility is referred to as a native backend because data are not buffered and all file transfers and accesses to your remote data are performed at call time.
+
+Configuring RClone
+^^^^^^^^^^^^^^^^^^
+
+Install rclone and follow `this tutorial <https://rclone.org/drive/>`_ to set up rclone.
+
+Note that instead of *remote* as a remote name, you can use any alternative name, e.g. *drive*.
+
+Configuring Escale
+^^^^^^^^^^^^^^^^^^
+
+.. include:: wizard-part-1.txt
+
+
+Respectivelly answer ``y`` and ``rclone://remote/Escale Repository`` to the next two questions, where ``remote`` is the remote name as defined for rclone:
+
+.. parsed-literal::
+
+	Is the relay repository locally mounted in the file system? [N/y] :strong:`y` |enter|
+	Request help with '?'
+	Path of the locally accessible relay repository (required): :strong:`rclone://remote/Escale Repository` |enter|
+
+
+.. include:: wizard-part-2.txt
+
+.. include:: wizard-part-4.txt
+
+.. include:: wizard-part-5.txt
 

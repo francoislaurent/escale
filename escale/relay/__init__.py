@@ -87,6 +87,19 @@ else:
 	except AttributeError as e:
 		print(e)
 
+try:
+	from .generic import RClone # should never fail
+except ImportError as e:
+	print(e)
+else:
+	__all__.append('RClone')
+	__protocols__.append(RClone)
+	try:
+		if RClone._is_multi_path:
+			__multi_path_protocols__ += RClone.__protocol__
+	except AttributeError as e:
+		pass
+
 
 def by_protocol(protocol):
 	for p in __protocols__[::-1]:
