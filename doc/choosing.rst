@@ -14,26 +14,35 @@ Your attention is drawn to the fact that the shared access to a single account m
 
 |escale| features several native clients. You may instead use an external client provided that this client lets you browse/access your data as a repository mounted in your local file system.
 
-Below follows a list of solutions classified as whether they are or may be supported by a native client, or they can be operated with some external client usually provided by the service provider itself.
+Below follows a list of solutions classified as whether they are or may be supported by a native client, or they can be operated with some external client such as `rclone <https://rclone.org/>`_.
 
 The information below may not be up-to-date and is very far from being exhaustive.
 
-+---------------+-----------------+-----------------+------------------+
-| Service       | Native support  | Escale backend  | More information |
-+===============+=================+=================+==================+
-| Box           |    Yes [#nv]_   |     WebDAV      |                  |
-+---------------+-----------------+-----------------+------------------+
-| Dropbox       |       No        |   LocalMount    | `Dropbox`_       |
-+---------------+-----------------+-----------------+------------------+
-| Google Drive  |    Yes [#dr]_   |   GoogleDrive   | `Google Drive`_  |
-+---------------+-----------------+-----------------+------------------+
-| Yandex.Disk   |       Yes       |     WebDAV      | `Yandex.Disk`_   |
-+---------------+-----------------+-----------------+------------------+
++----------------------+-----------------+-----------------+------------------+
+| Service              | Native support  | Escale backend  | More information |
++======================+=================+=================+==================+
+| Amazon Cloud Drive   |    No [#nv]_    |     RClone      |                  |
++----------------------+-----------------+-----------------+------------------+
+| Amazon S3            |    No [#nv]_    |     RClone      |                  |
++----------------------+-----------------+-----------------+------------------+
+| Box                  |    Yes [#nv]_   |     WebDAV      |                  |
++----------------------+-----------------+-----------------+------------------+
+| Dropbox              |       No        |     RClone      | `Dropbox`_       |
++----------------------+-----------------+-----------------+------------------+
+| FTP                  |       Yes       |      FTP        |                  |
++----------------------+-----------------+-----------------+------------------+
+| Google Cloud Storage |    No [#nv]_    |     RClone      |                  |
++----------------------+-----------------+-----------------+------------------+
+| Google Drive         |       No        |   GoogleDrive   | `Google Drive`_  |
++----------------------+-----------------+-----------------+------------------+
+| Microsoft OneDrive   |    No [#nv]_    |     RClone      |                  |
++----------------------+-----------------+-----------------+------------------+
+| Yandex.Disk          |       Yes       |     WebDAV      | `Yandex.Disk`_   |
++----------------------+-----------------+-----------------+------------------+
 
 
 
 .. [#nv] not verified
-.. [#dr] on top of the `drive`_ utility
 
 
 .. _Dropbox: Dropbox.html

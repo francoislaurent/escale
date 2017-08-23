@@ -472,6 +472,7 @@ class Manager(Reporter):
 		t = time.time()
 		self.relay.remoteListing()
 		dur = time.time() - t
-		msg = 'remote repository crawled in {:.0f} seconds'.format(dur)
-		self.logger.debug(msg)
+		if 10 < dur:
+			msg = 'remote repository crawled in {:.0f} seconds'.format(dur)
+			self.logger.debug(msg)
 
