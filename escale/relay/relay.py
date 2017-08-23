@@ -591,7 +591,7 @@ class Relay(AbstractRelay):
 		raise NotImplementedError('abstract method')
 
 	def remoteListing(self):
-		self.listing_cache = self._list('', recursive=True, stats=('mtime',))
+		self.listing_cache = list(self._list('', recursive=True, stats=('mtime',)))
 
 	def listReady(self, remote_dir='', recursive=True):
 		"""
