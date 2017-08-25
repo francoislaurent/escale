@@ -30,7 +30,7 @@ if sys.version_info[0] == 3: # Python 3
 
 
 pwd = os.path.abspath(os.path.dirname(__file__))
-readme = os.path.join(pwd, 'README.md')
+readme = os.path.join(pwd, 'README.rst')
 try:
 	with codecs.open(readme, 'r', encoding='utf-8') as f:
 		long_description = f.read()
