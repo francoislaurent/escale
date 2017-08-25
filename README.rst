@@ -40,7 +40,7 @@ Changelog
   * uncompleted transfer auto-fixing for `shared` and `conservative` synchronization mode (bug fix)
   * the configuration wizard offers a correct default passphrase filename (bug fix)
   * the configuration wizard understands '?' and prints optional help messages
-  * generic backend based on [rclone](https://rclone.org); the ``protocol`` configuration option admits values ``rclone``, ``dropbox``, ``googlecloud``, ``amazoncloud``, ``s3`` and ``onedrive``
+  * generic backend based on `rclone <https://rclone.org>`_; the ``protocol`` configuration option admits values ``rclone``, ``dropbox``, ``googlecloud``, ``amazoncloud``, ``s3`` and ``onedrive``
 
 * `0.5` (including `0.5-rc*`):
 

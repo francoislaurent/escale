@@ -152,7 +152,7 @@ Parameters that can only be global are:
 Other parameters are:
 
 * ``local path`` (or ``path``): path to the local repository
-* ``protocol``: either ``ftp``, ``ftps``, ``webdav``, ``http``, ``https`` or ``file``. See `Relay backends`_
+* ``protocol``: either ``ftp``, ``ftps``, ``webdav``, ``http``, ``https``, ``file``, ``rclone``, ``dropbox``, ``googlecloud``, ``googledrive``, ``amazoncloud``, ``s3`` or ``onedrive``. See `Relay backends`_
 * ``host address`` (or ``relay address``, ``remote address``, ``address``): address of the remote host
 * ``host directory`` (or ... + ``dir`` variants): directory of the repository on the remote host
 * ``username``: username on the remote host
@@ -194,7 +194,7 @@ This is especially useful when no native client is available for a given service
 
 For example Dropbox is not yet natively supported by |escale| but the Dropbox proprietary client can synchronize a directory and |escale| can use this or any synchronized subdirectory.
 
-In the case of Dropbox, however, using ``protocol = rclone`` instead is recommended.
+In the case of Dropbox, however, using ``protocol = rclone`` instead or equivalently ``protocol = dropbox`` is recommended.
 
 
 Synchronization modes
