@@ -71,6 +71,7 @@ setup(
 			'relay',
 			'relay.webdav',
 			'relay.google',
+			'relay.generic',
 			'log',
 			'encryption',
 			'cli',
