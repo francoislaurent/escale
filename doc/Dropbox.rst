@@ -5,7 +5,7 @@ Dropbox
 Two options are available to synchronize over a Dropbox storage space:
 
 * you can either use the |dropbox| proprietary client, mount your account space as a folder and run |escale| on a subdirectory in that folder (see the `Mounting locally`_ section)
-* or you can use the |rclone| backend provided in |escale| (see the `Synchronizing with rclone`_ section)
+* or you can use the `rclone`_ backend provided in |escale| (see the `Synchronizing with rclone`_ section)
 
 Mounting locally
 ----------------
@@ -50,8 +50,8 @@ Respectivelly answer ``y`` and ``~/Dropbox/Escale Repository`` to the next two q
 Synchronizing with rclone
 -------------------------
 
-This section details how to use the partially-native client for Dropbox. 
-This approach has the inconvenient of requiring the `rclone <https://rclone.org>`_ utility that in turn depends on the `Go toolchain <https://golang.org/doc/install>`_.
+This section details how to use the partially-native client for |dropbox|. 
+This approach has the inconvenient of requiring the `rclone`_ utility that in turn depends on the `Go toolchain <https://golang.org/doc/install>`_.
 
 Installing the Go toolchain may add a significant amount of used space (like 160MB on Linux for example). 
 

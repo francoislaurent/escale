@@ -31,7 +31,7 @@ You must accept the terms of the license if you want to use |escale|.
 	Carriage returns are indicated by |enter|.
 
 
-If you set-up |escale| for the first time, you will first be requested the path of the folder you want to synchronize:
+If you set |escale| up for the first time, you will first be requested the path of the folder you want to synchronize:
 
 .. parsed-literal::
 

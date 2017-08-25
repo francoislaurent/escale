@@ -3,7 +3,7 @@ If you want to encrypt the data before they are sent to the relay storage, you w
 need to share a same encryption key between all the clients that synchronize over
 the same relay repository.
 
-The first client to be set-up can generate a key. 
+The first client to be set up can generate a key. 
 This key will be available in a file that can be copied into the other clients.
 
 The first client would perform the following steps:

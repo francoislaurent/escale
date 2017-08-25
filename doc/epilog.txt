@@ -11,4 +11,5 @@
 .. _onetimesecret.com: https://onetimesecret.com
 .. _python-daemon: https://pypi.python.org/pypi/python-daemon/
 .. _lockfile: https://pypi.python.org/pypi/lockfile/
+.. _rclone: https://rclone.org
 

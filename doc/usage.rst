@@ -181,6 +181,9 @@ Relay backends
 --------------
 
 |escale| features FTP (``ftp``, ``ftps``) and WebDAV (``http``, ``https``, ``webdav``) native clients. 
+
+It relies on `rclone`_ (``rclone``) for Dropbox, Google Cloud Storage, Google Drive, Amazon Cloud Storage, Amazon S3, Microsoft OneDrive and others. 
+
 There is also Google Drive client (``googledrive``) that requires the `drive`_ utility. 
 
 This is governed by the ``protocol`` configuration option.
@@ -191,6 +194,8 @@ This is especially useful when no native client is available for a given service
 
 For example Dropbox is not yet natively supported by |escale| but the Dropbox proprietary client can synchronize a directory and |escale| can use this or any synchronized subdirectory.
 
+In the case of Dropbox, however, using ``protocol = rclone`` instead is recommended.
+
 
 Synchronization modes
 ---------------------
@@ -200,6 +205,10 @@ Synchronization modes
 
 Multi-client and multi-puller regimes
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+For now, multi-client/multi-puller scenarios may lead to conflicts or inconsistensies in the local and remote repositories.
+
+Use it at your own risk.
 
 .. todo:: make doc
 

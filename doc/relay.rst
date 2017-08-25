@@ -83,3 +83,21 @@ escale.relay.google.drive module
     :undoc-members:
     :show-inheritance:
 
+
+escale.relay.generic module
+---------------------------
+
+.. automodule:: escale.relay.generic
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+
+escale.relay.generic.rclone module
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. automodule:: escale.relay.generic.rclone
+    :members:
+    :undoc-members:
+    :show-inheritance:
+

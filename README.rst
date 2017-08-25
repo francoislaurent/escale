@@ -1,10 +1,11 @@
-# Escale
+Escale
+======
 
-*Escale* (French: stop, halt, stopover) synchronizes files between clients that operate behind restrictive firewalls.
+**Escale** (French: stop, halt, stopover) synchronizes files between clients that operate behind restrictive firewalls.
 
 It makes use of common file transfer solutions (FTP) and popular cloud solutions such as Dropbox, Google Drive and WebDAV servers including Yandex Disk.
 
-*Escale* maintains a relay repository in a folder inside the remote or cloud storage space and frees memory as soon as copies of the shared files have been propagated to all the clients.
+**Escale** maintains a relay repository in a folder inside the remote or cloud storage space and frees memory as soon as copies of the shared files have been propagated to all the clients.
 File modifications are also propagated.
 
 It features end-to-end encryption, quota management, filename filters, access control and adaptive transmission latencies. 
@@ -12,34 +13,39 @@ It features end-to-end encryption, quota management, filename filters, access co
 It can run as a daemon and simultaneously synchronize several repositories between multiple clients.
 
 
-## License
+License
+-------
 
-*Escale* is governed by the [CeCILL-C](http://cecill.info/licences/Licence_CeCILL-C_V1-en.html) license.
+**Escale** is governed by the `CeCILL-C <http://cecill.info/licences/Licence_CeCILL-C_V1-en.html>`_ license.
 
-It derivates from a work called *Syncacre* distributed under the terms of the ISC license. See release 0.4.3 for a copy of that former work.
-
-
-## Documentation
-
-Please find the extended documentation at [escale.readthedocs.io](http://escale.readthedocs.io/en/latest/).
+It derivates from a work called **Syncacre** distributed under the terms of the ISC license. See release 0.4.3 for a copy of that former work.
 
 
-## Changelog:
+Documentation
+-------------
+
+Please find the extended documentation at `escale.readthedocs.io <http://escale.readthedocs.io/en/latest/>`_.
+
+
+Changelog
+---------
 
 * `0.6` (including `0.6-rc*`):
 
   * new placeholder format with checksum support
   * ``checksum``/``hash algorithm`` configuration option
   * the checksum mechanism is active by default
+  * parcimonious listing of relay repositories
   * easywebdav dependency removed
   * uncompleted transfer auto-fixing for `shared` and `conservative` synchronization mode (bug fix)
   * the configuration wizard offers a correct default passphrase filename (bug fix)
   * the configuration wizard understands '?' and prints optional help messages
+  * generic backend based on [rclone](https://rclone.org); the ``protocol`` configuration option admits values ``rclone``, ``dropbox``, ``googlecloud``, ``amazoncloud``, ``s3`` and ``onedrive``
 
 * `0.5` (including `0.5-rc*`):
 
-  * project name becomes *Escale*
-  * license becomes [CeCILL-C](http://cecill.info/licences/Licence_CeCILL-C_V1-en.html)
+  * project name becomes **Escale**
+  * license becomes `CeCILL-C <http://cecill.info/licences/Licence_CeCILL-C_V1-en.html>`_
   * license acceptance requested on the command-line
   * the `syncacre` script is renamed `escale`
   * `escalectl` script
@@ -61,7 +67,7 @@ Please find the extended documentation at [escale.readthedocs.io](http://escale.
   * relay backend for Google Drive; the ``protocol`` configuration option admits value ``google`` and ``googledrive``
   * the ``encryption`` configuration option admits value ``native`` for ``google``/``googledrive`` repositories
   * ``-q`` command-line option deprecated
-  * [python-daemon](https://pypi.python.org/pypi/python-daemon/) becomes a non-optional dependency
+  * `python-daemon <https://pypi.python.org/pypi/python-daemon/>`_ becomes a non-optional dependency
   * the documentation can be compiled by the Python2 version of Sphinx
   * documentation extensively redesigned
   * various bugfixes
@@ -111,15 +117,15 @@ Please find the extended documentation at [escale.readthedocs.io](http://escale.
   * ``ssl version`` and ``verify ssl`` configuration options
 
 
-## Roadmap
+Roadmap
+-------
 
 Coming features are:
 
 * file auto-destruction when several pullers have been defined and one takes too much time to get its copy of the file
+* more robust multi-puller logic
 * split and recombine big files
 * more (symmetric) cryptographic algorithms and more cryptographic options
-* rclone-based generic backend
-* SSH backend
 * google-api-python-client backend for Google Drive
 * F\*EX/SEX backend?
 * configuration wizard with explicit switch of commercial services
