@@ -38,7 +38,7 @@ class LocalMount(Relay):
 
 	def storageSpace(self):
 		used = 0
-		files = self._safe(self._list, recursive=True, stats=['size'])
+		files = self._list(recursive=True, stats=['size'])
 		if files:
 			files, sizes = zip(*files)
 			used = float(sum(sizes)) / 1048576 # in MB

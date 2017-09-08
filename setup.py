@@ -9,9 +9,9 @@ import sys
 import codecs
 from escale import PROGRAM_NAME, __version__
 
-install_requires = ['python-daemon']
+install_requires = ['requests', 'python-daemon']
 extras_require = {
-	'WebDAV':	[],
+	'WebDAV':	['requests'],
 #	'SSH':		['paramiko'],
 	'Blowfish':	['cryptography'],
 	'Fernet':	['cryptography']}

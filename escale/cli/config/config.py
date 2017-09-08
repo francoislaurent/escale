@@ -6,7 +6,7 @@
 #    Contributor: François Laurent
 #    Contribution: query_local_repository, query_relay_address,
 #                  add_section rewrite, edit_section, edit_config,
-#                  section_common
+#                  section_common, simplified_add
 
 # This file is part of the Escale software available at
 # "https://github.com/francoislaurent/escale" and is distributed under
@@ -19,6 +19,7 @@
 
 from ..format import *
 from escale.base.essential import copyfile, quote_join
+from escale.base.exceptions import *
 from escale.base.config import *
 from escale.relay import __multi_path_protocols__
 from escale.manager.config import *
@@ -361,10 +362,15 @@ def edit_config(cfg_file, msgs=[]):
 				if section == help_cmd:
 					print_help(help, space=False)
 					section = None
-		if section in sections:
-			config, msgs = edit_section(config, cfg_dir, section, msgs)
+		mode = input(decorate_line("run in simplified mode: [Y/n] "))
+		if mode and mode[0].lower() == 'n':
+			if section in sections:
+				config, msgs = edit_section(config, cfg_dir, section, msgs)
+			else:
+				config, msgs = add_section(config, cfg_dir, section, msgs)
 		else:
-			config, msgs = add_section(config, cfg_dir, section, msgs)
+			config, msgs = simplified_add(config, cfg_dir, section, msgs)
+			break
 		## stop
 		if not input(decorate_line('do you want to add/edit another section? [N/y] ')).lower().startswith('y'):
 			break
@@ -817,4 +823,217 @@ def edit_section(config, cfg_dir, section, msgs=[]):
 	remote = protocol not in path_only_protocols
 	config, kwargs, msgs = query_relay_address(config, section, remote, msgs)
 	return section_common(config, cfg_dir, section, kwargs['protocol'], msgs)
+
+
+
+
+class Service(object):
+
+	__slots__ = [ 'label', 'name', 'protocol', 'address', 'auth', 'rclone_docs', \
+		'__dependencies__' ]
+
+	def __init__(self, label, name, protocol=None, address=None, auth=False, rclone_docs=None):
+		self.label = label
+		self.name = name
+		if protocol:
+			self.protocol = protocol
+		else:
+			self.protocol = name
+		self.address = address
+		self.auth = auth
+		if rclone_docs:
+			self.rclone_docs = rclone_docs
+		else:
+			self.rclone_docs = name
+		self.__dependencies__ = ['rclone', 'drive']
+
+	def __str__(self):
+		requires = self.requires
+		if requires:
+			entry = '{}\t(requires {})'.format(self.label, quote_join(requires, quote=''))
+		else:
+			entry = self.label
+		return entry
+
+	@property
+	def requires(self):
+		if isinstance(self.protocol, (tuple, list)):
+			return [ p for p in self.protocol if p in self.__dependencies__ ]
+		else:
+			return [self.protocol] if self.protocol in self.__dependencies__ else []
+
+
+
+def simplified_add(config, cfg_dir, section=None, msgs=[]):
+	'''
+	Add a configuration section.
+
+	Asks for information in the following order:
+
+	* local repository (path)
+	* relay service or protocol (display list)
+		* if protocol, address of the service
+	* disk quota for the relay space
+	
+	Some parameters are set or let undefined so that they default to the following settings:
+
+	* no encryption
+	* 'shared' synchronization mode
+	* refresh time 10s
+	* 2GB disk limit for the relay repository
+
+	Arguments:
+
+		config (ConfigParser): configuration object.
+
+		cfg_dir (str): configuration directory.
+
+		section (str): configuration section name.
+
+		msgs (list): pending messages.
+
+	Returns:
+
+		(ConfigParser, list): updated configuration object and pending messages.
+	'''
+	_local_, local, msgs = query_local_repository(config, section, msgs)
+	## service or protocol
+	services = [
+		Service('Amazon Drive', 'amazoncloud', 'rclone', rclone_docs='amazonclouddrive'),
+		Service('Amazon S3', 's3', 'rclone'),
+		Service('Backblaze B2', 'b2', 'rclone'),
+		Service('Dropbox', 'dropbox', 'rclone'),
+		Service('FTP server', 'ftp', auth=True),
+		Service('FTPS server', 'ftps', auth=True),
+		Service('Google Cloud Storage', 'googlecloud', 'rclone', rclone_docs='googlecloudstorage'),
+		Service('Google Drive', 'googledrive', ['rclone', 'drive'], rclone_docs='drive'),
+		Service('Hubic', 'hubic', 'rclone'),
+		Service('Local disk', 'file', address='localhost'),
+		Service('Microsoft OneDrive', 'onedrive', 'rclone'),
+		Service('Openstack Swift', 'swift', 'rclone'),
+		Service('SSH/SFTP server', 'sftp', 'rclone'),
+		Service('WebDAV service', 'https', auth=True),
+		Service('Yandex.Disk', 'yandex', 'https', address='webdav.yandex.ru', auth=True),
+		]
+	multiline_print('choose a number from below:')
+	for k, service in enumerate(services):
+		print('{:2d} - {}'.format(k+1, service))
+	while True:
+		service = input(decorate_line('service: '))
+		if service:
+			try:
+				service = services[int(service) - 1]
+			except:
+				pass
+			else:
+				break
+	if not section:
+		section = '{}'.format(service.name)
+	address = None
+	extra = {}
+	if service.requires:
+		if not config.has_section(section):
+			config.add_section(section)
+		existing = dict(config.items(section)) # may include global items
+		protocol = None
+		for s in service.requires:
+			try:
+				rclone = importlib.import_module('escale.cli.config.'+s)
+				config = rclone.setup(config, section, service=service)
+			except ExpressInterrupt:
+				raise
+			except Exception as e:
+				raise
+				pass
+			else:
+				protocol = s
+				break
+		if protocol is None:
+			raise e
+		extra = dict(config.items(section))
+		for option in existing:
+			try:
+				if extra[option] == existing[option]:
+					del extra[option] 
+			except AttributeError:
+				pass
+	else:
+		protocol = service.protocol
+		if service.address:
+			address = service.address
+		else:
+			address = None
+			while not address:
+				address = input(decorate_line('relay host address (required): '))
+	if protocol is 'file':
+		repository = None
+		while not repository:
+			repository = input(decorate_line('path to local relay repository (required): '))
+	else:
+		default = 'Escale Repository'
+		repository = input(decorate_line("path to relay repository: [{}] ".format(default)))
+		if not repository:
+			repository = default
+	if service.auth:
+		# username
+		username = None
+		while not username:
+			username = input(decorate_line("username for '{}' (required): ".format(address)))
+		# password
+		password = None
+		while not password:
+			password = getpass(decorate_line("password for '{}@{}' (required): ".format(username, address)))
+		# secret filename
+		basename = section
+		suffix = 0
+		ext = '.credential'
+		secret_file = os.path.join(cfg_dir, basename + ext)
+		while os.path.exists(secret_file):
+			# look for non-existing <basename>-<n>.<ext> filename
+			# where <n> is a positive integer
+			secret_file = os.path.join(cfg_dir,
+				'{}-{}{}'.format(basename, suffix, ext))
+			suffix += 1
+		# writing secret file
+		msg = "writing new credential file '{}'".format(secret_file)
+		if os.path.isfile(secret_file): # should no longer happen
+			msg = 'over' + msg
+		msgs.append((logging.DEBUG, msg))
+		debug_print(msg)
+		if PYTHON_VERSION == 2: # handle unicode
+			if isinstance(username, unicode):
+				username = username.encode('utf-8')
+			if isinstance(password, unicode):
+				password = password.encode('utf-8')
+		credential = '{}:{}'.format(username, password)
+		with open(secret_file, 'w') as f:
+			f.write(credential)
+		# changing permissions for secret file
+		try:
+			os.chmod(secret_file, stat.S_IRUSR | stat.S_IWUSR)
+		except OSError as e:
+			msg = 'could not change permissions on credential file'
+			msgs.append((logging.DEBUG, e))
+			msgs.append((logging.DEBUG, msg))
+			debug_print(msg)
+	# writing configuration file
+	if config.has_section(section):
+		msg = "overwriting section '{}'".format(section)
+		msgs.append((logging.DEBUG, msg))
+		debug_print(msg)
+		config.remove_section(section)
+	config.add_section(section)
+	config.set(section, _local_, local)
+	config.set(section, default_option('protocol'), protocol)
+	if address:
+		config.set(section, default_option('address'), address)
+	for option in extra:
+		config.set(section, option, extra[option])
+	config.set(section, default_option('directory'), repository)
+	if service.auth:
+		config.set(section, 'secret file', secret_file)
+	config.set(section, default_option('mode'), 'shared')
+	config.set(section, default_option('refresh'), '10')
+	config.set(section, default_option('quota'), '2')
+	return config, msgs
 
