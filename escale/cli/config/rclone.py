@@ -104,10 +104,13 @@ def setup(config, section, service=None):
 
 
 
-def set_remote(config, section, service=None):
+def set_remote(config, section, service=None, rclone_conf='~/.config/rclone/rclone.conf'):
 	rclone_bin = config.get(section, rclone_option)
-	remote = None
-	rclone_cfg_file = os.path.expanduser('~/.config/rclone/rclone.conf')
+	if service and service.name == 'rclone':
+		remote = 'remote'
+	else:
+		remote = section
+	rclone_cfg_file = os.path.expanduser(rclone_conf)
 	rclone_config = ConfigParser()
 	if os.path.isfile(rclone_cfg_file):
 		try:
@@ -116,10 +119,8 @@ def set_remote(config, section, service=None):
 			print(e)
 			pass
 		else:
-			if not rclone_config.has_section(section):
+			if not rclone_config.has_section(remote):
 				remote = input("rclone \"remote\"'s name: [{}] ".format(section))
-	if not remote:
-		remote = section
 	if not rclone_config.has_section(remote):
 		multiline_print("running 'rclone config'")
 		if service and service.rclone_docs:

@@ -911,6 +911,7 @@ def simplified_add(config, cfg_dir, section=None, msgs=[]):
 		Service('Local disk', 'file', address='localhost'),
 		Service('Microsoft OneDrive', 'onedrive', 'rclone'),
 		Service('Openstack Swift', 'swift', 'rclone'),
+		Service('RClone, any remote', 'rclone', rclone_docs='docs')
 		Service('SSH/SFTP server', 'sftp', 'rclone'),
 		Service('WebDAV service', 'https', auth=True),
 		Service('Yandex.Disk', 'yandex', 'https', address='webdav.yandex.ru', auth=True),
