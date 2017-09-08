@@ -120,7 +120,11 @@ def set_remote(config, section, service=None, rclone_conf='~/.config/rclone/rclo
 			pass
 		else:
 			if not rclone_config.has_section(remote):
-				remote = input("rclone \"remote\"'s name: [{}] ".format(section))
+				_, answer = query_field(config, section, 'address', \
+					description="rclone \"remote\"'s name", \
+					suggestion=remote)
+				if answer:
+					remote = answer
 	if not rclone_config.has_section(remote):
 		multiline_print("running 'rclone config'")
 		if service and service.rclone_docs:
