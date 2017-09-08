@@ -354,7 +354,11 @@ class Manager(Reporter):
 				# generate checksum of the local file
 				checksum = self.checksum(local_file)
 				# check for modifications
-				if not meta.fileModified(local_file, checksum, remote=True, debug=self.logger.debug):
+				if not meta:
+					self.logger.info("missing meta information for file '%s'; deleting file", remote_file)
+					self.relay.delete(remote_file)
+					continue
+				elif not meta.fileModified(local_file, checksum, remote=True, debug=self.logger.debug):
 					if self.count == 1:
 						# no one else will ever download the current copy of the regular file
 						# on the relay; delete it
