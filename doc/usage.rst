@@ -152,7 +152,7 @@ Parameters that can only be global are:
 Other parameters are:
 
 * ``local path`` (or ``path``): path to the local repository
-* ``protocol``: either ``ftp``, ``ftps``, ``webdav``, ``http``, ``https``, ``file``, ``rclone``, ``dropbox``, ``googlecloud``, ``googledrive``, ``amazoncloud``, ``s3`` or ``onedrive``. See `Relay backends`_
+* ``protocol``: either ``ftp``, ``ftps``, ``webdav``, ``http``, ``https``, ``file``, ``rclone``, ``dropbox``, ``googlecloud``, ``googledrive``, ``amazoncloud``, ``s3``, ``onedrive``, ``b2``, ``hubic``, ``sftp`` or ``swift``. See `Relay backends`_
 * ``host address`` (or ``relay address``, ``remote address``, ``address``): address of the remote host
 * ``host directory`` (or ... + ``dir`` variants): directory of the repository on the remote host
 * ``username``: username on the remote host

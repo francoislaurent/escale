@@ -14,7 +14,7 @@ Your attention is drawn to the fact that the shared access to a single account m
 
 |escale| features several native clients. You may instead use an external client provided that this client lets you browse/access your data as a repository mounted in your local file system.
 
-Below follows a list of solutions classified as whether they are or may be supported by a native client, or they can be operated with some external client such as `rclone <https://rclone.org/>`_.
+Below follows a list of solutions classified as whether they are or may be supported by a native client, or they can be operated with some external client such as `rclone`_.
 
 The information below may not be up-to-date and is very far from being exhaustive.
 
@@ -27,15 +27,25 @@ The information below may not be up-to-date and is very far from being exhaustiv
 +----------------------+-----------------+-----------------+------------------+
 | Box                  |    Yes [#nv]_   |     WebDAV      |                  |
 +----------------------+-----------------+-----------------+------------------+
+| Blackblaze B2        |    No [#nv]_    |     WebDAV      |                  |
++----------------------+-----------------+-----------------+------------------+
 | Dropbox              |       No        |     RClone      | `Dropbox`_       |
 +----------------------+-----------------+-----------------+------------------+
-| FTP                  |       Yes       |      FTP        |                  |
+| FTP/FTPS             |       Yes       |      FTP        |                  |
 +----------------------+-----------------+-----------------+------------------+
 | Google Cloud Storage |    No [#nv]_    |     RClone      |                  |
 +----------------------+-----------------+-----------------+------------------+
 | Google Drive         |       No        |   GoogleDrive   | `Google Drive`_  |
 +----------------------+-----------------+-----------------+------------------+
+| Hubic                |    No [#nv]_    |     RClone      |                  |
++----------------------+-----------------+-----------------+------------------+
 | Microsoft OneDrive   |    No [#nv]_    |     RClone      |                  |
++----------------------+-----------------+-----------------+------------------+
+| SFTP                 |    No [#nv]_    |     RClone      |                  |
++----------------------+-----------------+-----------------+------------------+
+| Swift                |    No [#nv]_    |     RClone      |                  |
++----------------------+-----------------+-----------------+------------------+
+| WebDAV               |       Yes       |     WebDAV      |                  |
 +----------------------+-----------------+-----------------+------------------+
 | Yandex.Disk          |       Yes       |     WebDAV      | `Yandex.Disk`_   |
 +----------------------+-----------------+-----------------+------------------+
