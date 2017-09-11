@@ -6,7 +6,7 @@ Three options are available to synchronize over a Google Drive storage space.
 
 * you can either mount your |googledrive| storage space in your local file system with an external tool (see the `Mounting locally`_ section; not recommended)
 * or you can use the |googledrive| backend provided in |escale| (see the `Synchronizing with drive`_ section)
-* or else you can use the |rclone| backend provided in |escale| (see the `Synchronizing with rclone`_ section)
+* or else you can use the `rclone`_ backend provided in |escale| (see the `Synchronizing with rclone`_ section)
 
 
 Mounting locally
@@ -20,7 +20,7 @@ The approach described in this section consists of mounting your Google Drive st
 However Linux users may fall back on the following open-source solutions:
 
 * `google-drive-ocamlfuse <https://github.com/astrada/google-drive-ocamlfuse>`_
-* `rclone <https://rclone.org>`_ mount
+* `rclone`_ mount
 * maybe gnome-control-center + gnome-online-accounts
 
 You may find the following `guide <https://linuxnewbieguide.org/how-to-use-google-drive-in-linux/>`_ interesting.

@@ -30,6 +30,13 @@ Please find the extended documentation at `escale.readthedocs.io <http://escale.
 Changelog
 ---------
 
+* `0.6.1`:
+
+  * alternative simplified configuration wizard
+  * rclone backend supported by the configuration wizard
+  * `error.log` file
+  * the ``protocol`` configuration option admits more aliases for ``rclone``: ``b2``, ``hubic``, ``sftp``, ``swift``
+
 * `0.6` (including `0.6-rc*`):
 
   * new placeholder format with checksum support
@@ -126,7 +133,5 @@ Coming features are:
 * more robust multi-puller logic
 * split and recombine big files
 * more (symmetric) cryptographic algorithms and more cryptographic options
-* google-api-python-client backend for Google Drive
 * F\*EX/SEX backend?
-* configuration wizard with explicit switch of commercial services
 

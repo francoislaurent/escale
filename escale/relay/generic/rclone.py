@@ -48,7 +48,7 @@ def rclone_binary(name=None):
 	return None
 
 
-_supported_protocols = [ 'dropbox', 'googlecloud', 'amazoncloud', 's3', 'onedrive' ]
+_supported_protocols = [ 'amazoncloud', 'b2', 'dropbox', 'googlecloud', 'hubic', 'onedrive', 'sftp', 'swift', 's3' ]
 
 
 class RClone(Relay):

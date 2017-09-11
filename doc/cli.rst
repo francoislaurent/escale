@@ -78,3 +78,12 @@ escale.cli.config.googledrive module
     :undoc-members:
     :show-inheritance:
 
+
+escale.cli.config.rclone module
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. automodule:: escale.cli.config.rclone
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
