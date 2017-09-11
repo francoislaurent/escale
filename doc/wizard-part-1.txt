@@ -1,9 +1,11 @@
 
 If not already done, install |escale| as detailled `elsewhere <install.html>`_:
 
-.. .. parsed-literal::
+.. parsed-literal::
 
-..        $ :strong:`pip install --user escale`
+        $ :strong:`pip install --user escale`
+
+or:
 
 .. parsed-literal::
 
@@ -30,15 +32,24 @@ You must accept the terms of the license if you want to use |escale|.
 
 	Carriage returns are indicated by |enter|.
 
+The configuration wizard offers an expert mode and a simplified mode.
+
+The simplified mode is considered self-explanatory and most users may safely follow the steps of this mode.
+
+This tutorial covers the expert mode. 
+
+.. parsed-literal::
+
+	Run in simplified mode: [Y/n] :strong:`n` |enter|
 
 If you set |escale| up for the first time, you will first be requested the path of the folder you want to synchronize:
 
 .. parsed-literal::
 
 	Editing configuration file '$HOME/.config/escale/escale.conf'
-	Path of your local repository (required): :strong:`~/Documents` |enter|
+	Path of your local repository (required): :strong:`~/Shared Files` |enter|
 
-where ``~/Documents`` is the folder which content will be synchronized in this example.
+where ``~/Shared Files`` is the folder which content will be synchronized in this example.
 
 If the directory you specify does not exist, |escale| will make it for you.
 

@@ -2,10 +2,92 @@
 Dropbox
 =======
 
-Two options are available to synchronize over a Dropbox storage space:
+Two options are available to synchronize over a Dropbox storage space.
 
-* you can either use the |dropbox| proprietary client, mount your account space as a folder and run |escale| on a subdirectory in that folder (see the `Mounting locally`_ section)
-* or you can use the `rclone`_ backend provided in |escale| (see the `Synchronizing with rclone`_ section)
+The recommended approach consists of using the `rclone`_-based backend provided in |escale|. See the `Synchronizing with rclone`_ section.
+
+You can also use the |dropbox| proprietary client, mount your account space as a folder and run |escale| on a subdirectory in that folder. See the `Mounting locally`_ section.
+
+
+Synchronizing with rclone
+-------------------------
+
+This section details how to use the partially-native client for |dropbox|. 
+This approach has the disadvantage of requiring the `rclone`_ utility that in turn depends on the `Go toolchain <https://golang.org/doc/install>`_.
+
+Installing the Go toolchain may add a significant amount of used space (like 160MB on Linux for example). 
+
+The backend in |escale| that makes use of the rclone utility is referred to as a native backend because data are not buffered and all file transfers and accesses to your remote data are performed at call time.
+
+
+Requirements
+^^^^^^^^^^^^
+
+You can either install and set up rclone following `this tutorial <https://rclone.org/dropbox/>`_ or let escale's configuration wizard do it for you. 
+
+Note however that escale will not install the Go toolchain for you. 
+Ensure that the go command is available:
+
+.. parsed-literal::
+
+	$ :strong:`go version`
+
+This should show the version number of your installed Go distribution.
+Otherwise please `install Go <https://golang.org/doc/install>`_.
+
+
+You will also need a dedicated folder in your |dropbox| storage space. 
+It will temporarily accommodate the files to be transfered and will permanently accommodate some meta files.
+
+In this tutorial we make an ``Escale Repository`` folder at the root of the storage space.
+
+
+Configuring Escale
+^^^^^^^^^^^^^^^^^^
+
+.. include:: wizard-part-1.txt
+
+
+Answer ``dropbox://remote/Escale Repository`` to the second question, 
+where ``remote`` is the remote name as defined for rclone 
+and ``Escale Repository`` is the name of the folder that will accommodate the relay repository in your |dropbox| space:
+
+.. parsed-literal::
+
+	Is the relay repository locally mounted in the file system? [N/y] |enter|
+	Request help with '?'
+	Path of the locally accessible relay repository (required): :strong:`dropbox://remote/Escale Repository` |enter|
+
+
+.. include:: wizard-part-2.txt
+
+.. include:: wizard-part-4.txt
+
+
+The wizard will now assist you in installing the rclone utility, if missing.
+
+.. parsed-literal::
+
+        If you don't have 'rclone' installed, leave it empty:
+        RClone binary: |enter|
+        The 'rclone' Go package is going to be installed.
+        Do you want to continue? [Y/n] |enter|
+        Cannot find the 'GOPATH' environment variable.
+        Where do you want Go packages to be installed? [~/golang] |enter|
+        go get -u github.com/ncw/rclone
+        ...
+        'rclone' installed.
+	Running 'rclone config'
+	See also: https://rclone.org/dropbox/
+	...
+
+From the last ellipsis begins the output of the ``rclone config`` command.
+As instructed, please follow the steps described in the `tutorial for Dropbox <https://rclone.org/dropbox/>`_.
+
+
+.. include:: wizard-part-5.txt
+
+
 
 Mounting locally
 ----------------
@@ -45,43 +127,3 @@ Respectivelly answer ``y`` and ``~/Dropbox/Escale Repository`` to the next two q
 .. include:: wizard-part-4.txt
 
 .. include:: wizard-part-5.txt
-
-
-Synchronizing with rclone
--------------------------
-
-This section details how to use the partially-native client for |dropbox|. 
-This approach has the inconvenient of requiring the `rclone`_ utility that in turn depends on the `Go toolchain <https://golang.org/doc/install>`_.
-
-Installing the Go toolchain may add a significant amount of used space (like 160MB on Linux for example). 
-
-The backend in |escale| that makes use of the rclone utility is referred to as a native backend because data are not buffered and all file transfers and accesses to your remote data are performed at call time.
-
-Configuring RClone
-^^^^^^^^^^^^^^^^^^
-
-Install rclone and follow `this tutorial <https://rclone.org/drive/>`_ to set up rclone.
-
-Note that instead of *remote* as a remote name, you can use any alternative name, e.g. *dropbox*.
-
-Configuring Escale
-^^^^^^^^^^^^^^^^^^
-
-.. include:: wizard-part-1.txt
-
-
-Respectivelly answer ``y`` and ``rclone://remote/Escale Repository`` to the next two questions, where ``remote`` is the remote name as defined for rclone:
-
-.. parsed-literal::
-
-	Is the relay repository locally mounted in the file system? [N/y] :strong:`y` |enter|
-	Request help with '?'
-	Path of the locally accessible relay repository (required): :strong:`rclone://remote/Escale Repository` |enter|
-
-
-.. include:: wizard-part-2.txt
-
-.. include:: wizard-part-4.txt
-
-.. include:: wizard-part-5.txt
-

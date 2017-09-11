@@ -53,14 +53,16 @@ Especially, if you want to implement a simple backup setup, you may have two cli
 * the other one that accommodates the backup copy will be set in *download* mode.
 
 
-The last few steps are straightforward:
+The next few steps are straightforward:
 
 .. parsed-literal::
 
 	Refresh interval (in seconds): [10] |enter|
 	Request help with '?'
 	Disk quota: [] :strong:`1` |enter|
-	Do you want to add/edit another section? [N/y] |enter|
 
 Setting disk quota to ``1`` will make |escale| use no more than one gigabyte in your Dropbox space.
+
+Note that larger files will not be transferred due to insufficient space, as long as |escale| does not feature automatic split-and-recombine mechanics.
+This value should be large enough so that your files can be piped through. It can be arbitrarily large but will usually be smaller that the available storage space.
 

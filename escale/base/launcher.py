@@ -14,6 +14,7 @@
 import logging, logging.handlers
 from multiprocessing import Process, Queue
 import threading
+import traceback
 
 from .exceptions import *
 from .essential import *
@@ -35,6 +36,14 @@ def make_client(config, repository, log_handler=None, ui_connector=None):
 	if log_handler is not None:
 		logger.propagate = False
 		logger.addHandler(log_handler)
+	# check arguments
+	if repository in ['error']:
+		msg = "'{}' is a reserved keyword; please set another name for your repository in '{}'".format(repository, config.filename)
+		try:
+			logger.critical(msg)
+		except:
+			pass
+		raise ValueError(msg)
 	# ui
 	if ui_connector is None:
 		ui_controller = DirectController(logger=logger)
@@ -83,13 +92,13 @@ def escale(config, repository, log_handler=None, ui_connector=None):
 
 		ui_connector (?): connector to user-interface controller.
 	"""
-	manager = make_client(config, repository, log_handler=None, ui_connector=None)
+	manager = make_client(config, repository, log_handler=log_handler, ui_connector=ui_connector)
 	try:
 		result = manager.run()
 	except ExpressInterrupt:
 		raise
 	except Exception as exc:
-		if not manager.ui_controller.failure(repository, exc):
+		if not manager.ui_controller.failure(repository, exc, traceback.format_exc()):
 			raise
 	else:
 		manager.ui_controller.success(repository, result)

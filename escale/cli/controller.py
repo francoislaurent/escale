@@ -11,7 +11,7 @@
 # knowledge of the CeCILL-C license and that you accept its terms.
 
 
-from escale.base.essential import PROGRAM_NAME
+from escale.base.essential import PROGRAM_NAME, join
 from escale.base.exceptions import *
 from escale.log.log import Listener, ListenerAbort
 from multiprocessing import Lock, Queue
@@ -23,6 +23,7 @@ except ImportError:
 import traceback
 import time
 import importlib
+import os.path
 
 
 cli_switch = {
@@ -42,6 +43,22 @@ class DirectController(object):
 	def __init__(self, logger=None, maintainer=None):
 		self.logger = logger
 		self.maintainer = maintainer
+
+	@property
+	def error_file(self):
+		error_file = None
+		try:
+			for handle in self.logger.handlers:
+				try:
+					logfile = handle.baseFilename
+				except:
+					pass
+				else:
+					error_file = join(os.path.dirname(logfile), 'error.log')
+					break
+		except (AttributeError, TypeError):
+			pass
+		return error_file
 
 	def requestCredential(self, hostname=None, username=None):
 		"""
@@ -97,20 +114,35 @@ class DirectController(object):
 
 	def failure(self, repository, exception, backtrace=None):
 		"""
-		Notify client termination on error.
+		Log and notify client about termination on error.
 		"""
+		if self.error_file:
+			t = time.strftime('%d/%m %H:%M', time.localtime())
+			try:
+				with open(self.error_file, 'a') as f:
+					if f.tell() == 0:
+						nl = ''
+					else:
+						nl = '\n'
+					f.write('{}{} {}:\t{}'.format(nl, t, repository, exception))
+					if backtrace:
+						f.write('\n{}'.format(backtrace))
+			except ExpressInterrupt:
+				pass
+			except:
+				self.logger.error('failed to log error')
 		if self.maintainer:
 			self.notifyMaintainer(exception, backtrace)
 
 	def success(self, repository, result):
 		"""
-		Notify client termination on task completion.
+		Notify client about task completion.
 		"""
 		pass
 
 	def restartWorker(self, repository, sleep_time=None):
 		"""
-		Notify client automatic restart.
+		Notify client about automatic restart.
 		"""
 		if sleep_time:
 			if 1 < sleep_time:
@@ -225,10 +257,10 @@ class UIController(Listener, DirectController):
 		return response
 
 	def failure(self, *args):
-		DirectController.failure(self, *args)
 		return self.__signal__('_failure', args)
 
 	def _failure(self, *args):
+		DirectController.failure(self, *args)
 		self.parent.put(args)
 		return True
 

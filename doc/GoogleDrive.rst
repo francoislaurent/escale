@@ -2,9 +2,9 @@
 Google Drive
 ============
 
-Three options are available to synchronize over a Google Drive storage space:
+Three options are available to synchronize over a Google Drive storage space.
 
-* you can either mount your |googledrive| storage space in your local file system with an external tool (see the `Mounting locally`_ section)
+* you can either mount your |googledrive| storage space in your local file system with an external tool (see the `Mounting locally`_ section; not recommended)
 * or you can use the |googledrive| backend provided in |escale| (see the `Synchronizing with drive`_ section)
 * or else you can use the |rclone| backend provided in |escale| (see the `Synchronizing with rclone`_ section)
 
@@ -79,11 +79,11 @@ On Ubuntu 17 or later, this is as simple as:
 .. include:: wizard-part-1.txt
 
 
-Respectivelly answer ``y`` and ``googledrive://Escale Repository`` to the next two questions:
+Answer ``googledrive://Escale Repository`` to the second question:
 
 .. parsed-literal::
 
-	Is the relay repository locally mounted in the file system? [N/y] :strong:`y` |enter|
+	Is the relay repository locally mounted in the file system? [N/y] |enter|
 	Request help with '?'
 	Path of the locally accessible relay repository (required): :strong:`googledrive://Escale Repository` |enter|
 
@@ -120,6 +120,7 @@ command-line.
 This will permit |escale| to connect to your |googledrive| space.
 
 
+
 Synchronizing with rclone
 -------------------------
 
@@ -130,12 +131,28 @@ Installing the Go toolchain may add a significant amount of used space (like 160
 
 The backend in |escale| that makes use of the rclone utility is referred to as a native backend because data are not buffered and all file transfers and accesses to your remote data are performed at call time.
 
-Configuring RClone
-^^^^^^^^^^^^^^^^^^
 
-Install rclone and follow `this tutorial <https://rclone.org/drive/>`_ to set up rclone.
+Requirements
+^^^^^^^^^^^^
 
-Note that instead of *remote* as a remote name, you can use any alternative name, e.g. *drive*.
+You can either install and set up rclone following `this tutorial <https://rclone.org/drive/>`_ or let escale's configuration wizard do it for you. 
+
+Note however that escale will not install the Go toolchain for you. 
+Ensure that the go command is available:
+
+.. parsed-literal::
+
+	$ :strong:`go version`
+
+This should show the version number of your installed Go distribution.
+Otherwise please `install Go <https://golang.org/doc/install>`_.
+
+
+You will also need a dedicated folder in your |googledrive| storage space. 
+It will temporarily accommodate the files to be transfered and will permanently accommodate some meta files.
+
+In this tutorial we make an ``Escale Repository`` folder at the root of the storage space.
+
 
 Configuring Escale
 ^^^^^^^^^^^^^^^^^^
@@ -143,11 +160,13 @@ Configuring Escale
 .. include:: wizard-part-1.txt
 
 
-Respectivelly answer ``y`` and ``rclone://remote/Escale Repository`` to the next two questions, where ``remote`` is the remote name as defined for rclone:
+Answer ``rclone://remote/Escale Repository`` to the second question, 
+where ``remote`` is the remote name as defined for rclone
+and ``Escale Repository`` is the name of the folder that will accommodate the relay repository in your |googledrive| space:
 
 .. parsed-literal::
 
-	Is the relay repository locally mounted in the file system? [N/y] :strong:`y` |enter|
+	Is the relay repository locally mounted in the file system? [N/y] |enter|
 	Request help with '?'
 	Path of the locally accessible relay repository (required): :strong:`rclone://remote/Escale Repository` |enter|
 
@@ -155,6 +174,28 @@ Respectivelly answer ``y`` and ``rclone://remote/Escale Repository`` to the next
 .. include:: wizard-part-2.txt
 
 .. include:: wizard-part-4.txt
+
+
+The wizard will now assist you in installing the rclone utility, if missing.
+
+.. parsed-literal::
+
+        If you don't have 'rclone' installed, leave it empty:
+        RClone binary: |enter|
+        The 'rclone' Go package is going to be installed.
+        Do you want to continue? [Y/n] |enter|
+        Cannot find the 'GOPATH' environment variable.
+        Where do you want Go packages to be installed? [~/golang] |enter|
+        go get -u github.com/ncw/rclone
+        ...
+        'rclone' installed.
+	Running 'rclone config'
+	See also: https://rclone.org/drive/
+	...
+
+From the last ellipsis begins the output of the ``rclone config`` command.
+As instructed, please follow the steps described in the `tutorial for Google Drive <https://rclone.org/drive/>`_.
+
 
 .. include:: wizard-part-5.txt
 

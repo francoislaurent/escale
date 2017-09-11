@@ -15,6 +15,8 @@ Here we choose ``Escale Repository`` as a name:
 	Request help with '?'
         Address of the relay repository (required): :strong:`https://webdav.yandex.ru/Escale Repository` |enter|
 
+Note that you will need to manually make this directory, for example from the web interface to your `Yandex.Disk space <https://disk.yandex.ru/client/disk>`_.
+
 .. include:: wizard-part-2.txt
 
 .. include:: wizard-part-3.txt

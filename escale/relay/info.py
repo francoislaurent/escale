@@ -117,7 +117,7 @@ class Metadata(object):
 	def __repr__(self):
 		if self.version:
 			if not (self.timestamp or self.checksum):
-				raise ValueError("neither 'timestamp' nor 'checksum' are not defined")
+				raise ValueError("neither 'timestamp' nor 'checksum' are defined")
 			info = [self.header, '%', self.version]
 			#if self.target:
 			#	info += ['\ntarget: ', self.target]

@@ -1,3 +1,9 @@
+Exit the configuration wizard:
+
+.. parsed-literal::
+
+	Do you want to add/edit another section? [N/y] |enter|
+
 
 Your client is ready and can be launched with:
 
