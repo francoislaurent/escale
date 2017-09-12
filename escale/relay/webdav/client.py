@@ -25,7 +25,7 @@
 # 		THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
 
-from escale.base.essential import asstr, quote_join
+from escale.base.essential import asstr, quote_join, relpath
 from escale.base.ssl import *
 from collections import namedtuple
 import os.path
@@ -263,7 +263,7 @@ class Client(object):
 		entries = [ _elem2file(elem, self.basepath)
 				for elem in doctree.findall('{DAV:}response') ]
 		return [ entry for entry in entries if entry.name and entry.name != '.'
-				and os.path.relpath(entry.name, remote_path) != '.' ]
+				and relpath(entry.name, remote_path) != '.' ]
 
 	def exists(self, remote_path):
 		codes = (200, 301, 404, 423)

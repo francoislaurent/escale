@@ -184,7 +184,8 @@ def escale_launcher(cfg_file, msgs=[], verbosity=logging.NOTSET, keep_alive=Fals
 			else:
 				for worker in workers.values():
 					worker.join()
-		except ExpressInterrupt:
+		except ExpressInterrupt as exc:
+			logger.debug('%s', type(exc).__name__)
 			for section, worker in workers.items():
 				try:
 					worker.terminate()
@@ -202,6 +203,10 @@ def escale_launcher(cfg_file, msgs=[], verbosity=logging.NOTSET, keep_alive=Fals
 		ui_thread.join(1)
 		logger_thread.join(1)
 	else:
-		escale(config, sections[0])
+		try:
+			escale(config, sections[0])
+		except ExpressInterrupt as exc:
+			logger.debug('%s', type(exc).__name)
+			raise
 
 

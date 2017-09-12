@@ -128,6 +128,25 @@ def join(dirname, *extranames):
 		return asstr(dirname)
 
 
+def relpath(path, start):
+	'''
+	Call os.path.relpath and handle "OSError: [Errno 2] No such file or directory" 
+	exceptions on os.getcwd().
+
+	If the `start` directory is not defined, `path` is returned.
+	'''
+	if not start:
+		if path:
+			return path
+		else:
+			return '.'
+	while True:
+		try:
+			return os.path.relpath(path, start)
+		except OSError:
+			pass
+
+
 def copyfile(from_file, to_file):
 	# from_file is assumed to exist.
 	# if to_file is from_file, then it exists.

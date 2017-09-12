@@ -387,6 +387,13 @@ class Manager(Reporter):
 					self.logger.error("failed to download '%s'", remote_file)
 				self.encryption.decrypt(temp_file, local_file)
 				if last_modified:
+					# handle delay on file creation
+					first_time = True
+					while not os.path.exists(local_file):
+						if first_time:
+							self.logger.debug('local file not ready: %s', local_file)
+							first_time = False
+					# set last modification time
 					os.utime(local_file, (time.time(), last_modified))
 		return new
 
