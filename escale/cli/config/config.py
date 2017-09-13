@@ -1035,6 +1035,6 @@ def simplified_add(config, cfg_dir, section=None, msgs=[]):
 		config.set(section, 'secret file', secret_file)
 	config.set(section, default_option('mode'), 'shared')
 	config.set(section, default_option('refresh'), '10')
-	config.set(section, default_option('quota'), '2')
+	config.set(section, default_option('quota'), '2GB')
 	return config, msgs
 
