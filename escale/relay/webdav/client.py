@@ -210,7 +210,7 @@ class Client(object):
 				self.send('MKCOL', dirname, (201, 301, 405, 423), subsequent_errors_on_retry=(423,))
 
 	def delete(self, target):
-		self.send('DELETE', target, (200, 204), subsequent_errors_on_retry=(404, 423))
+		self.send('DELETE', target, (200, 204, 302), subsequent_errors_on_retry=(404, 423))
 
 	def rmdir(self, dirname):
 		if not (dirname and dirname[-1] == '/'):
@@ -219,7 +219,8 @@ class Client(object):
 
 	def upload(self, local_path, remote_path):
 		with open(local_path, 'rb') as f:
-			r = self.send('PUT', remote_path, (200, 201, 204), data=f)
+			r = self.send('PUT', remote_path, (200, 201, 204), data=f, \
+				retry_on_status_code=(302, 503, 504))
 
 	def download(self, remote_path, local_path):
 		r = self.send('GET', remote_path, (200,), context=True)
@@ -266,7 +267,7 @@ class Client(object):
 				and relpath(entry.name, remote_path) != '.' ]
 
 	def exists(self, remote_path):
-		codes = (200, 301, 404, 423)
+		codes = (200, 301, 302, 404, 423) # 302 Moved Temporarily
 		response = self.send('HEAD', remote_path, codes)
-		return response.status_code != 404
+		return response.status_code not in [302, 404]
 
