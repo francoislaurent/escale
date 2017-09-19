@@ -12,7 +12,7 @@
 # knowledge of the CeCILL-C license and that you accept its terms.
 
 
-from escale.base.essential import *
+from escale.base import *
 from .relay import *
 from .info import *
 import time
@@ -146,9 +146,10 @@ class CompactRelay(AbstractRelay):
 						raise RuntimeError(msg)
 					return update[0]
 				else:
-					msg = "no update index for page '{}'".format(page)
-					self.logger.critical(msg)
-					raise RuntimeError(msg)
+					return None
+					#msg = "no update index for page '{}'".format(page)
+					#self.logger.critical(msg)
+					#raise RuntimeError(msg)
 			else:
 				msg = "mode should be either 'upload' or 'download'"
 				self.logger.critical(msg)
@@ -280,6 +281,9 @@ class CompactRelay(AbstractRelay):
 		self.locked_pages[page][remote_file] = metadata
 
 	def push(self, local_file, remote_dest, last_modified=None, checksum=None, blocking=True):
+		if self.updateIndex(self.page(local_file), mode='r'):
+			raise PostponeRequest
+			return False
 		if not self.acquireLock(remote_dest, mode='w', blocking=blocking):
 			return False
 		self.setMetadata(remote_dest, last_modified=last_modified, checksum=checksum)

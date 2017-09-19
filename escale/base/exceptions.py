@@ -55,3 +55,8 @@ class LicenseError(ValueError):
 
 ExpressInterrupt = (KeyboardInterrupt, SystemExit)
 
+
+class PostponeRequest(Exception):
+	pass
+
+
