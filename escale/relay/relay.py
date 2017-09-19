@@ -133,9 +133,9 @@ class AbstractRelay(Reporter):
 		else:
 			return []
 
-	def listTransfered(self, remote_dir='', end2end=True, recursive=True):
+	def listTransferred(self, remote_dir='', end2end=True, recursive=True):
 		"""
-		List the files on the remote host that have been transfered.
+		List the files on the remote host that have been transferred.
 		All paths are relative to the repository root.
 
 		Arguments:
@@ -654,7 +654,7 @@ class Relay(AbstractRelay):
 						locks.append(lock)
 		return locks
 
-	def listTransfered(self, remote_dir='', end2end=True, recursive=True):
+	def listTransferred(self, remote_dir='', end2end=True, recursive=True):
 		"""
 		The default implementation manipulates placeholders and locks as individual files.
 		"""

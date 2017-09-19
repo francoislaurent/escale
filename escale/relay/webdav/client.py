@@ -157,7 +157,8 @@ class Client(object):
 		self.download_chunk_size = 1048576
 
 	def send(self, method, target, expected_codes, context=False, allow_redirects=False,
-			retry_on_status_codes=[503,504], retry_on_errno=[110], subsequent_errors_on_retry=[], **kwargs):
+			retry_on_status_codes=[503,504], retry_on_errno=[32,110],
+			subsequent_errors_on_retry=[], **kwargs):
 		url = os.path.join(self.baseurl, quote(asstr(target)))
 		counter = 0
 		while True:
@@ -176,7 +177,24 @@ class Client(object):
 						except AttributeError:
 							pass
 						raise e1
-				#print("in %s.Client.send: %s".format(__module__, e))
+				elif e.args:
+					# BrokenPipeError: [Errno 32] Broken pipe is Yandex speciality
+					e1 = e.args[0] # requests.packages.urllib3.exceptions.ProtocolError
+					try:
+						e1 = e1.args[1] # BrokenPipeError
+					except AttributeError:
+						pass
+					else:
+						if isinstance(e1, OSError):
+							try:
+								if e1.args[0] in retry_on_errno:
+									if hasattr(self, 'logger'):
+										self.logger.debug('ignoring %s error', e1.args[0])
+									continue
+							except AttributeError:
+								pass
+							raise e1
+					raise e
 				raise
 			status_code = response.status_code
 			if status_code in retry_on_status_codes:
@@ -218,9 +236,13 @@ class Client(object):
 		self.delete(dirname)
 
 	def upload(self, local_path, remote_path):
-		with open(local_path, 'rb') as f:
-			r = self.send('PUT', remote_path, (200, 201, 204), data=f, \
-				retry_on_status_codes=(302, 503, 504))
+		while True:
+			with open(local_path, 'rb') as f:
+				r = self.send('PUT', remote_path, (200, 201, 204, 400), data=f, \
+					retry_on_status_codes=(302, 503, 504))
+			if r.status_code != 400:
+				# 400 Bad Request is Yandesk speciality
+				break
 
 	def download(self, remote_path, local_path):
 		r = self.send('GET', remote_path, (200,), context=True)

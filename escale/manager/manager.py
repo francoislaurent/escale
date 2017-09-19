@@ -385,6 +385,7 @@ class Manager(Reporter):
 					self.logger.debug("file '%s' successfully downloaded", remote_file)
 				elif ok is not None:
 					self.logger.error("failed to download '%s'", remote_file)
+					continue
 				self.encryption.decrypt(temp_file, local_file)
 				if last_modified:
 					# handle delay on file creation
@@ -406,7 +407,7 @@ class Manager(Reporter):
 			if self.max_pending_transfers <= self.relay.listReady():
 				return new
 		local = self.localFiles()
-		remote = self.relay.listTransfered('', end2end=False)
+		remote = self.relay.listTransferred('', end2end=False)
 		for local_file in local:
 			remote_file = os.path.relpath(local_file, self.path) # relative path
 			if PYTHON_VERSION == 2 and isinstance(remote_file, unicode) and \

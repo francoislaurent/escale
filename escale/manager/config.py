@@ -179,7 +179,8 @@ def parse_section(config, repository, logger):
 		else:
 			args['encryption'] = cipher(args['passphrase'])
 	import escale.relay as relay
-	relay_class = relay.by_protocol(args['protocol'])
+	relay_class = relay.by_protocol(args['protocol'], logger=logger,
+		**{a:v for a,v in args.items() if a!='protocol'})
 	return (relay_class, args)
 
 

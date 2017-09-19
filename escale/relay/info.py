@@ -230,9 +230,12 @@ class Metadata(object):
 
 def parse_metadata(lines, target=None, timestamp_format=None, log=None):
 	# read file if not already done
-	if not isinstance(lines, (tuple, list)) and os.path.isfile(lines):
-		with open(lines, 'r') as f:
-			lines = f.readlines()
+	if not isinstance(lines, (tuple, list)):
+		if os.path.isfile(lines):
+			with open(lines, 'r') as f:
+				lines = f.readlines()
+		else:
+			lines = lines.splitlines()
 	# define a few helpers
 	def invalid(line):
 		return ValueError("invalid meta attribute: '{}'".format(line))
@@ -248,7 +251,7 @@ def parse_metadata(lines, target=None, timestamp_format=None, log=None):
 		line = lines[0].rstrip()
 		if line:
 			try:
-				header, version = line.split('%', 2)
+				header, version = line.rsplit('%', 1)
 			except ValueError:
 				# former format
 				meta['timestamp'] = line
