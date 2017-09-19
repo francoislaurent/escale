@@ -281,7 +281,7 @@ class CompactRelay(AbstractRelay):
 		self.locked_pages[page][remote_file] = metadata
 
 	def push(self, local_file, remote_dest, last_modified=None, checksum=None, blocking=True):
-		if self.updateData(page) in [ f for f, _ in self.listing_cache ]:
+		if self.updateData(self.page(local_file)) in [ f for f, _ in self.listing_cache ]:
 			raise PostponeRequest
 			return False
 		if not self.acquireLock(remote_dest, mode='w', blocking=blocking):
