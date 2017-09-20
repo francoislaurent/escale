@@ -235,7 +235,6 @@ class Manager(Reporter):
 			except ExpressInterrupt:
 				raise
 			except PostponeRequest:
-				self.logger.debug("%s", e)
 				self.tq_controller.wait()
 			except Exception as e:
 				t = time.time()

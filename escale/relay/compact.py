@@ -70,6 +70,7 @@ class CompactRelay(AbstractRelay):
 	def __init__(self, *args, **kwargs):
 		base = kwargs.pop('base', Relay)
 		mode = kwargs.get('mode', None)
+		max_archive_size = int(kwargs.get('config', {}).pop('maxarchivesize', 1024))
 		try:
 			mode = {'download': 'r', 'upload': 'w'}[mode]
 		except KeyError:
@@ -81,6 +82,7 @@ class CompactRelay(AbstractRelay):
 		self.last_update = {}
 		self.last_update_cache = {}
 		self.mode = mode
+		self.max_archive_size = max_archive_size
 		self.listing_cache = None
 		self.archive = {}
 		self.archive_size = {}
@@ -281,13 +283,15 @@ class CompactRelay(AbstractRelay):
 		self.locked_pages[page][remote_file] = metadata
 
 	def push(self, local_file, remote_dest, last_modified=None, checksum=None, blocking=True):
-		if self.updateData(self.page(local_file)) in [ f for f, _ in self.listing_cache ]:
+		page = self.page(remote_dest)
+		if self.updateData(page) in [ f for f, _ in self.listing_cache ]:
 			raise PostponeRequest
 			return False
 		if not self.acquireLock(remote_dest, mode='w', blocking=blocking):
 			return False
 		self.setMetadata(remote_dest, last_modified=last_modified, checksum=checksum)
-		self.addToArchive(local_file, remote_dest)
+		self.addToArchive(page, local_file, remote_dest)
+		self.checkSize(page)
 		return True
 
 	def isAvailable(self, remote_file, page=None):
@@ -335,8 +339,7 @@ class CompactRelay(AbstractRelay):
 		copyfile(join(self.archive[page], remote_file), local_dest)
 		return True
 
-	def addToArchive(self, local_file, remote_dest):
-		page = self.page(remote_dest)
+	def addToArchive(self, page, local_file, remote_dest):
 		if not self.archive.get(page, None):
 			self.archive[page] = tempfile.mkdtemp()
 			self.archive_size[page] = 0
@@ -394,6 +397,7 @@ class CompactRelay(AbstractRelay):
 			if self.locked_pages[page] is None:
 				self.logger.warning("releasing page '%s'", page)
 			else:
+				self.logger.info("committing page '%s'", page)
 				self.setUpdateData(page)
 				self.setIndices(page)
 			if self.base_relay.hasLock(page):
@@ -411,8 +415,18 @@ class CompactRelay(AbstractRelay):
 		self.locked_pages = {}
 		self.transaction_timestamp = None
 
+	def checkSize(self, page):
+		size = self.archive_size.get(page, None)
+		if size:
+			size = float(size) / 1048576 # in MB
+			if self.max_archive_size < size:
+				self.commit()
+				self.listing_cache = list(self.base_relay._list('', recursive=False, stats=('mtime',)))
+
 	def storageSpace(self):
 		used, quota = self.base_relay.storageSpace()
+		if used is None:
+			used = 0
 		for size in self.archive_size.values():
 			if size:
 				used += float(size) / 1048576 # in MB
