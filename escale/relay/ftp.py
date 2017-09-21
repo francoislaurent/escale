@@ -397,7 +397,7 @@ class FTP(Relay):
 					raise
 			ls = []
 			try:
-				self.ftp.retrlines('LIST -a', ls.append)
+				self.ftp.retrlines('LIST -a', ls.append) # --full-time
 			except ftplib.error_perm as e:
 				err_code = e.args[0][:3]
 				if err_code == '522': # [vsftpd] 522 SSL connection failed: session reuse required
@@ -420,7 +420,13 @@ class FTP(Relay):
 					elif line[0] == '-':
 						file = _join(filename)
 						if stats: # ['mtime']
-							file = (file, None)
+							mtime = None
+							#try:
+							#	# with minute precision, timestamping is not reliable
+							#	mtime = time.strptime(' '.join(line.split()[5:8]), '%b %d %H:%M')
+							#except:
+							#	pass
+							file = (file, mtime)
 						files.append(file)
 		if recursive and dirs:
 			if dirs[0] == '.':
