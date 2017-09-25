@@ -69,7 +69,7 @@ def parse_section(config, repository, logger):
 
 	Returns:
 
-		(AbstractRelay, dict): relay class and dictionnary of parameters.
+		(escale.relay.AbstractRelay, dict): relay class and dictionnary of parameters.
 	"""
 	# moved from escale.base.launcher
 	# parse config

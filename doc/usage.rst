@@ -202,19 +202,19 @@ In the case of Dropbox, however, using ``protocol = rclone`` instead or equivale
 Synchronization modes
 ---------------------
 
-The synchronization mode can be 'upload', 'download', 'shared' or 'conservative':
+The synchronization mode can be ``upload``, ``download``, ``shared`` or ``conservative``:
 
-        'upload': local files are sent to the other clients; 
-                local files cannot be modified.
+* ``upload``: local files are sent to the other clients; 
+  local files cannot be modified.
 
-        'download': all new files or file modifications from other clients are admitted;
-		local files are not be sent over the internet but can be modified.
+* ``download``: all new files or file modifications from other clients are admitted;
+  local files are not be sent over the internet but can be modified.
 
-	'shared': files are fully synchronized; all file additions and modifications are propagated
-                and local files can be modified.
+* ``shared``: files are fully synchronized; all file additions and modifications are propagated
+  and local files can be modified.
 
-        'conservative': local files are sent to the relay repository but cannot be overwritten
-		except if they originate from another client and have never been locally modified.
+* ``conservative``: local files are sent to the relay repository but cannot be overwritten
+  except if they originate from another client and have never been locally modified.
 
 A one-way transfer link will typically define a client running in 'upload' mode and others running in 'download' mode.
 
