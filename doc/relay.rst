@@ -30,6 +30,16 @@ escale.relay.relay module
     :show-inheritance:
 
 
+escale.relay.index module
+-------------------------
+
+.. automodule:: escale.relay.index
+    :members:
+    :private-members:
+    :undoc-members:
+    :show-inheritance:
+
+
 escale.relay.localmount module
 ------------------------------
 

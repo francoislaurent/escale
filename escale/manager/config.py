@@ -174,10 +174,15 @@ def parse_section(config, repository, logger):
 			logger.warning(msg)
 			# again, do not let the user send plain data if she requested encryption:
 			raise ValueError(msg)
-		if cipher is None:
+		delegate_encryption = args.get('index', False)
+		if delegate_encryption or cipher is None:
 			del args['encryption']
-		else:
-			args['encryption'] = cipher(args['passphrase'])
+		if cipher is not None:
+			_cipher = cipher(args['passphrase'])
+			if delegate_encryption:
+				args['config']['encryption'] = _cipher
+			else:
+				args['encryption'] = _cipher
 	import escale.relay as relay
 	relay_class = relay.by_protocol(args['protocol'], logger=logger,
 		**{a:v for a,v in args.items() if a!='protocol'})

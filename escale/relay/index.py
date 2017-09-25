@@ -3,6 +3,9 @@
 # Copyright © 2017, Institut Pasteur
 #      Contributor: François Laurent
 
+# Copyright © 2017, François Laurent
+#      Contribution: documentation, update timestamp, encryption, listing cooldown
+
 # This file is part of the Escale software available at
 # "https://github.com/francoislaurent/escale" and is distributed under
 # the terms of the CeCILL-C license as circulated at the following URL
@@ -27,6 +30,9 @@ import shutil
 puller_breaker = '---pullers---'
 
 def write_index(filename, metadata, pullers=[]):
+	"""
+	Write index to file.
+	"""
 	with open(filename, 'w') as f:
 		for resource in metadata:
 			mdata = metadata[resource]
@@ -43,6 +49,9 @@ def write_index(filename, metadata, pullers=[]):
 				f.write('\n'+reader)
 
 def read_index(filename):
+	"""
+	Read index from file.
+	"""
 	metadata = {}
 	pullers = []
 	with open(filename, 'r') as f:
@@ -66,12 +75,29 @@ def read_index(filename):
 
 
 
-class CompactRelay(AbstractRelay):
+class RelayIndex(AbstractRelay):
+	"""
+	Index-based remote repository.
+
+	:class:`RelayIndex` plays both :class:`AbstractRelay` and (part of) :class:`Manager` roles.
+
+	Repository content is indexed.
+	It consists of a comprehensive index and an update.
+
+	An update stores files in a compressed archive and is accompanied by an index that lists the content
+	of the archive.
+
+	The total archive is encrypted instead of the individual files.
+
+	Indexing potentially supports paging. See also the :meth:`page` method.
+	"""
 
 	def __init__(self, *args, **kwargs):
 		base = kwargs.pop('base', Relay)
 		mode = kwargs.get('mode', None) # mode is actually not passed to Relay
-		max_archive_size = int(kwargs.get('config', {}).pop('maxarchivesize', 1024))
+		config = kwargs.get('config', {})
+		encryption = config.pop('encryption', None)
+		max_page_size, max_page_size_unit = kwargs.pop('maxpagesize', (1024, None))
 		try:
 			mode = {'download': 'r', 'upload': 'w'}[mode]
 		except KeyError:
@@ -83,8 +109,13 @@ class CompactRelay(AbstractRelay):
 		self.last_update = {}
 		self.last_update_cache = {}
 		self.mode = mode
-		self.max_archive_size = max_archive_size
+		if max_page_size_unit:
+			max_page_size = float(max_page_size) * storage_space_unit[max_page_size_unit]
+		self.max_page_size = max_page_size
+		self.encryption = encryption
+		self.listing_time = None
 		self.listing_cache = None
+		self.listing_cooldown = 5
 		self.archive = {}
 		self.archive_size = {}
 		self._persistent_index_prefix = '.'
@@ -117,6 +148,19 @@ class CompactRelay(AbstractRelay):
 		return self.base_relay.repository
 
 	def page(self, remote_file):
+		"""
+		Page key/name.
+
+		Hash function for paging of files by remote path.
+
+		Arguments:
+
+			remote_file (str): path to file.
+
+		Returns:
+
+			str: page key/name.
+		"""
 		return '0'
 
 	def persistentIndex(self, page):
@@ -146,7 +190,7 @@ class CompactRelay(AbstractRelay):
 		if mode is None:
 			mode = self.mode
 		if mode == 'r':
-			self.listing_cache = list(self.base_relay._list('', recursive=False, stats=('mtime',)))
+			self.refreshListing()
 		timestamp = None
 		if self._timestamp_index:
 			if mode == 'w':
@@ -182,6 +226,12 @@ class CompactRelay(AbstractRelay):
 				if filename == reffile:
 					timestamp = int(round(calendar.timegm(mtime)))
 		return timestamp
+
+	def refreshListing(self, remote_dir='', force=False):
+		now = time.time()
+		if force or not (self.listing_time and now - self.listing_time < self.listing_cooldown):
+			self.listing_cache = list(self.base_relay._list(remote_dir, recursive=False, stats=('mtime',)))
+			self.listing_time = now
 
 	def getPersistentIndex(self, page, mode=None, locked=False):
 		if mode is None:
@@ -306,6 +356,15 @@ class CompactRelay(AbstractRelay):
 		self.locked_pages[page][remote_file] = metadata
 
 	def push(self, local_file, remote_dest, last_modified=None, checksum=None, blocking=True):
+		"""
+		Send local file to the relay repository.
+
+		Files are added to a local archive.
+
+		Once the uncompressed archive reaches `max_page_size`, it is compressed, encrypted and sent
+		to the relay.
+		See also :meth:`checkSize`.
+		"""
 		self.mode = 'w'
 		page = self.page(remote_dest)
 		if self.updateData(page) in [ f for f, _ in self.listing_cache ]:
@@ -324,6 +383,14 @@ class CompactRelay(AbstractRelay):
 		return self.archive.get(page, None) and os.path.exists(join(self.archive[page], remote_file))
 
 	def pop(self, remote_file, local_dest, placeholder=True, blocking=True, **kwargs):
+		"""
+		Get a file from the relay repository.
+
+		The desired file should be available in the current update on the relay.
+
+		The archive is downloaded once, and then other files in the same archive are locally moved
+		from the local copy of the archive to the local repository.
+		"""
 		self.mode = 'r'
 		page = self.page(remote_file)
 		if not self.isAvailable(remote_file, page):
@@ -336,10 +403,16 @@ class CompactRelay(AbstractRelay):
 			else:
 				let = False
 			tmp = self.base_relay.newTemporaryFile()
+			if self.encryption:
+				_tmp = tmp
+				tmp = self.encryption.prepare(page)
 			if let:
 				self.base_relay._get(page, tmp)
 			else:
 				self.base_relay._pop(page, tmp)
+			if self.encryption:
+				self.encryption.decrypt(tmp, _tmp)
+				tmp = _tmp
 			if self.archive.get(page, None):
 				msg = "existing archive for page '{}'".format(page)
 				self.logger.debug(msg)
@@ -405,7 +478,13 @@ class CompactRelay(AbstractRelay):
 			msg = "empty archive '{}'".format(self.archive.get(page, None))
 			self.logger.critical(msg)
 			raise RuntimeError(msg)
+		if self.encryption:
+			_tmp = tmp
+			tmp = self.encryption.encrypt(_tmp)
 		self.base_relay._push(tmp, self.updateData(page))
+		if self.encryption:
+			self.encryption.finalize(tmp)
+			tmp = _tmp
 		self.base_relay.delTemporaryFile(tmp)
 		shutil.rmtree(self.archive[page])
 		self.archive[page] = None
@@ -432,6 +511,7 @@ class CompactRelay(AbstractRelay):
 			msg = 'any([ files is None for files in self.locked_pages.values() ])'
 			self.logger.critical(msg)
 			raise NotImplementedError(msg)
+		force_refresh = False
 		for page in list(self.locked_pages.keys()):
 			if self.locked_pages[page] is None:
 				self.logger.warning("releasing page '%s'", page)
@@ -439,6 +519,7 @@ class CompactRelay(AbstractRelay):
 				self.logger.info("committing page '%s'", page)
 				self.setUpdateData(page)
 				self.setIndices(page)
+				force_refresh = True
 			if self.base_relay.hasLock(page):
 				try:
 					self.releaseLock(page)
@@ -454,14 +535,15 @@ class CompactRelay(AbstractRelay):
 			self.archive_size[page] = 0
 		self.locked_pages = {}
 		self.transaction_timestamp = None
+		if force_refresh:
+			self.refreshListing(force=True)
 
 	def checkSize(self, page):
 		size = self.archive_size.get(page, None)
 		if size:
 			size = float(size) / 1048576 # in MB
-			if self.max_archive_size < size:
+			if self.max_page_size < size:
 				self.commit()
-				self.listing_cache = list(self.base_relay._list('', recursive=False, stats=('mtime',)))
 
 	def storageSpace(self):
 		used, quota = self.base_relay.storageSpace()
@@ -477,7 +559,7 @@ class CompactRelay(AbstractRelay):
 			self.commit()
 
 	def listPages(self, remote_dir=''):
-		self.listing_cache = list(self.base_relay._list(remote_dir, recursive=False, stats=('mtime',)))
+		self.refreshListing(remote_dir)
 		files = []
 		for filename, _ in self.listing_cache:
 			if self._persistent_index_prefix:

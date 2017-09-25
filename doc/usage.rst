@@ -175,6 +175,8 @@ Other parameters are:
 * ``lock timeout``: timeout for unclaimed locks, in seconds
 * ``puller count`` (or ``pullers``): number of puller nodes operating on the remote repository. See `Multi-client and multi-puller regimes`_
 * ``checksum`` (or ``hash algorithm``): boolean (default: true) or hash algorithm has supported by :func:`hashlib.new`. See also `hashlib.algorithms_available`
+* ``index`` (or ``compact``): boolean (default: false); index-based relay repository management; see also `Indexing`_
+* ``maxpagesize`` (or ``maxarchivesize``): a decimal number with optional storage space units such as ``KB``, ``MB``, ``GB``, etc (default value: 1 GB, default unit: MB)
 
 
 Relay backends
@@ -200,7 +202,23 @@ In the case of Dropbox, however, using ``protocol = rclone`` instead or equivale
 Synchronization modes
 ---------------------
 
-.. todo:: make doc
+The synchronization mode can be 'upload', 'download', 'shared' or 'conservative':
+
+        'upload': local files are sent to the other clients; 
+                local files cannot be modified.
+
+        'download': all new files or file modifications from other clients are admitted;
+		local files are not be sent over the internet but can be modified.
+
+	'shared': files are fully synchronized; all file additions and modifications are propagated
+                and local files can be modified.
+
+        'conservative': local files are sent to the relay repository but cannot be overwritten
+		except if they originate from another client and have never been locally modified.
+
+A one-way transfer link will typically define a client running in 'upload' mode and others running in 'download' mode.
+
+Full synchronization of two clients will be achieved setting both clients to run in 'shared' mode.
 
 
 Multi-client and multi-puller regimes
@@ -228,6 +246,25 @@ Note that ``blowfish.cryptography`` and ``blowfish.blowfish`` cannot interoperat
 Both algorithms require a passphrase that follow a specific format. It is advised that the first node lets ``escale -i`` generate a passphrase (available in the configuration directory) and then to communicate the generated passphrase to the other nodes.
 
 .. note:: never send credentials or passphrases by plain email. Consider encrypted email or services like `onetimesecret.com <https://onetimesecret.com>`_ instead.
+
+
+Indexing
+--------
+
+The files in a default repository are represented as individual files on the relay.
+This is suitable for directory structures with limited number of subdirectories and files.
+
+To synchronize thousands of small files, the indexing alternative is recommended.
+
+It is driven by the ``ìndex`` and ``maxpagesize`` configuration attributes.
+``index = 1`` sets indexing up.
+
+A comprehensive index file is made available in the relay repository.
+When files are to be transferred, they are bundled into a compressed archive and propagated 
+through the relay repository together with a limited index file that lists the content of the archive.
+
+The archive is compressed (and encrypted if encryption is on) once the total size of the pending files reaches the value defined by the ``maxpagesize`` configuration parameter, or no more files are to be sent.
+
 
 .. |escalecmd| replace:: *escale*
 .. |escalectl| replace:: *escalectl*

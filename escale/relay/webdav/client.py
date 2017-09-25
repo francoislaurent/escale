@@ -166,9 +166,9 @@ class Client(object):
 			try:
 				response = self.session.request(method, url, allow_redirects=allow_redirects, **kwargs)
 			except requests.exceptions.ConnectionError as e:
-				if e.args[1:] and e.args[1]:
-					e1 = e.args[1]
-					if isinstance(e1, OSError):
+				while isinstance(e, Exception) and e.args:
+					if e.args[1:] and isinstance(e.args[1], OSError):
+						e1 = e.args[1]
 						try:
 							if e1.args[0] in retry_on_errno:
 								if hasattr(self, 'logger'):
@@ -177,24 +177,8 @@ class Client(object):
 						except AttributeError:
 							pass
 						raise e1
-				elif e.args:
-					# BrokenPipeError: [Errno 32] Broken pipe is Yandex speciality
-					e1 = e.args[0] # requests.packages.urllib3.exceptions.ProtocolError
-					try:
-						e1 = e1.args[1] # BrokenPipeError
-					except AttributeError:
-						pass
 					else:
-						if isinstance(e1, OSError):
-							try:
-								if e1.args[0] in retry_on_errno:
-									if hasattr(self, 'logger'):
-										self.logger.debug('ignoring %s error', e1.args[0])
-									continue
-							except AttributeError:
-								pass
-							raise e1
-					raise e
+						e = e.args[0]
 				raise
 			status_code = response.status_code
 			if status_code in retry_on_status_codes:

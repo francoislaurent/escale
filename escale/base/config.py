@@ -67,7 +67,8 @@ default_cache_dirs = { user_cfg_dir: user_cache_dir,
 # 'checksum' added in version 0.5.1
 # 'minsplitsize' added in version 0.6rc2
 # 'maxpendingtransfers' added in version 0.6rc2
-# 'compact' added in version 0.7alpha
+# 'compact' added in version 0.7alpha, renamed 'index' in 0.7rc1
+# 'maxpagesize' added in version 0.7rc1
 fields = dict(path=('path', ['local path', 'path']),
 	address=['host address', 'relay address', 'remote address', 'address'],
 	directory=['host directory', 'relay directory', 'remote directory',
@@ -99,7 +100,8 @@ fields = dict(path=('path', ['local path', 'path']),
 	checksum=(('bool', 'str'), ['checksum', 'hash algorithm']),
 	minsplitsize=('int', ['min split size', 'split size', 'split']),
 	maxpendingtransfers=('int', ['max pending transfers']),
-	compact=('bool', ['compact']))
+	index=('bool', ['index', 'compact']),
+	maxpagesize=('number_unit', ['maxpagesize', 'maxarchivesize']))
 
 
 def default_option(field, all_options=False):
@@ -179,6 +181,9 @@ def getnum(config, section, attr):
 		(float, str): numeric value and unit.
 	'''
 	value = config.get(section, attr)
+	return parse_num(value)
+
+def parse_num(value):
 	m = re.match(r'(?P<num>[0-9]+([.,][0-9]+)?)\s*(?P<unit>[a-zA-Z]*)', value)
 	if not m:
 		raise ValueError("wrong number or unit format: '{}'".format(value))

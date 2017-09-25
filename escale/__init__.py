@@ -1,5 +1,5 @@
 
 PROGRAM_NAME = 'escale'
 
-__version__ = '0.7alpha'
+__version__ = '0.7rc1'
 

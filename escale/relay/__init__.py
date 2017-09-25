@@ -18,7 +18,7 @@
 from .info import *
 from .relay import AbstractRelay, Relay
 from escale.base.exceptions import MissingSetupFeature
-from .compact import CompactRelay
+from .index import RelayIndex
 
 __all__ = ['LockInfo', 'parse_lock_file', 'AbstractRelay', 'Relay']
 
@@ -102,7 +102,7 @@ else:
 		pass
 
 
-def by_protocol(protocol, compact=False, **ignored):
+def by_protocol(protocol, index=False, **ignored):
 	ps = []
 	for p in __protocols__[::-1]:
 		if isinstance(p.__protocol__, list):
@@ -111,16 +111,16 @@ def by_protocol(protocol, compact=False, **ignored):
 		elif protocol == p.__protocol__:
 			ps.append(p)
 	if ps:
-		if compact:
+		if index:
 			for p in ps:
-				if isinstance(p, CompactRelay):
+				if isinstance(p, RelayIndex):
 					return p
 			def new(*args, **kwargs):
 				kwargs['base'] = ps[0]
-				return CompactRelay(*args, **kwargs)
+				return RelayIndex(*args, **kwargs)
 			return new
 		for p in ps:
-			if not isinstance(p, CompactRelay):
+			if not isinstance(p, RelayIndex):
 				return p
 	try:
 		extra_requires = __extra_protocols__[protocol]
