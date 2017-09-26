@@ -318,14 +318,21 @@ class RelayIndex(AbstractRelay):
 			mode = self.mode
 		location = self.persistentIndex(page)
 		if location in [ filename for filename, _ in self.listing_cache ]:#self.base_relay.exists(location):
+			release_lock = False
 			timestamp = self.updateTimestamp(page, mode)
 			if page in self.index:
 				if mode == 'w' or not timestamp:
 					return
 				if page not in self.last_update or self.last_update[page] < timestamp:
 					location = self.updateIndex(page, mode)
-					tmp = self.base_relay.newTemporaryFile()
+					if not locked:
+						if self.acquireLock(page, mode=mode):
+							release_lock = False # do not release lock now!!
+						else:
+							self.logger.debug("failed to lock page '%s'", page)
+							return
 					self.logger.info("downloading index update '%s' for page '%s'", timestamp, page)
+					tmp = self.base_relay.newTemporaryFile()
 					self.base_relay._get(location, tmp)
 					metadata, pullers = read_index(tmp)
 					self.last_update_cache[page] = (metadata, pullers)
@@ -333,25 +340,29 @@ class RelayIndex(AbstractRelay):
 						self.index[page][resource] = mdata
 					self.base_relay.delTemporaryFile(tmp)
 			else:
-				if not locked and not self.acquireLock(page, mode=mode, blocking=mode=='w'):
-					return
-				tmp = self.base_relay.newTemporaryFile()
-				self.logger.info("downloading index for page '%s'", page)
-				self.base_relay._get(location, tmp)
 				if not locked:
-					try:
-						self.releaseLock(page)
-					except ExpressInterrupt:
-						raise
-					except:
-						# handle missing lock exceptions that happen on test platforms
-						# with multiple clients supposed to run on different machines
-						pass
+					if self.acquireLock(page, mode=mode):
+						release_lock = True
+					else:
+						self.logger.debug("failed to lock page '%s'", page)
+						return
+				self.logger.info("downloading index for page '%s'", page)
+				tmp = self.base_relay.newTemporaryFile()
+				self.base_relay._get(location, tmp)
 				metadata, _ = read_index(tmp, groupby=self.metadata_group_by, compress=True)
 				self.index[page] = metadata
 				self.base_relay.delTemporaryFile(tmp)
 			if timestamp:
 				self.last_update[page] = timestamp
+			if release_lock:
+				try:
+					self.releaseLock(page)
+				except ExpressInterrupt:
+					raise
+				except:
+					# handle missing lock exceptions that happen on test platforms
+					# with multiple clients supposed to run on different machines
+					pass
 
 	def setIndices(self, page):
 		assert page in self.locked_pages # already locked
@@ -463,7 +474,8 @@ class RelayIndex(AbstractRelay):
 			page = self.page(remote_file)
 		return self.archive.get(page, None) and os.path.exists(join(self.archive[page], remote_file))
 
-	def pop(self, remote_file, local_dest, placeholder=True, blocking=True, **kwargs):
+	def pop(self, remote_file, local_dest, placeholder=True, blocking=True, refresh_index=True,
+		**kwargs):
 		"""
 		Get a file from the relay repository.
 
@@ -477,7 +489,8 @@ class RelayIndex(AbstractRelay):
 		if not self.isAvailable(remote_file, page):
 			if not self.acquireLock(page, resource=remote_file, blocking=blocking):
 				 return False
-			self.getPersistentIndex(page, mode='r', locked=True)
+			if refresh_index:
+				self.getPersistentIndex(page, mode='r', locked=True)
 			if placeholder:
 				index, pullers = self.last_update_cache.get(page, ({}, []))
 				let = len(pullers) < placeholder - 1
@@ -522,14 +535,34 @@ class RelayIndex(AbstractRelay):
 			self.base_relay.delTemporaryFile(tmp)
 			if not self.isAvailable(remote_file, page):
 				msg = "missing file '{}' in archive '{}'".format(remote_file, self.archive[page])
-				self.logger.critical(msg)
-				raise RuntimeError(msg)
+				self.logger.debug(msg)
+				self.request(remote_file, page)
 			self.releaseLock(page)
+			if not let:
+				self.refreshListing(force=True)
 		dirname = os.path.dirname(local_dest)
 		if dirname and not os.path.isdir(dirname):
 			os.makedirs(dirname)
-		copyfile(join(self.archive[page], remote_file), local_dest)
-		return True
+		new_file = join(self.archive[page], remote_file)
+		ok = os.path.isfile(new_file)
+		if ok:
+			copyfile(new_file, local_dest)
+		else:
+			self.logger.warning("missing '%s' file", new_file)
+		return ok
+
+	def delete(self, remote_file):
+		# force update deletion;
+		# flagging the full update as duplicate is a valid strategy as long as 
+		# files were transferred by the same update
+		if self.isAvailable(remote_file):
+			# TODO: check the update data file has been removed from the relay
+			pass
+		else:
+			# pop with placeholder=1 so that the update data is removed from the relay
+			tmp = self.base_relay.newTemporaryFile()
+			self.pop(remote_file, tmp, placeholder=1, refresh_index=False)
+			self.base_relay.delTemporaryFile(tmp)
 
 	def addToArchive(self, page, local_file, remote_dest):
 		if not self.archive.get(page, None):
@@ -658,11 +691,16 @@ class RelayIndex(AbstractRelay):
 
 	def listReady(self, remote_dir='', recursive=True):
 		ready = []
-		tmp = self.base_relay.newTemporaryFile()
+		tmp = None
 		for page in self.listPages(remote_dir):
+			if self.updateData(page) not in [ f for f, _ in self.listing_cache ]:
+				# if no update data are available, skip page
+				continue
 			self.getPersistentIndex(page, mode='r')
 			update_index = self.updateIndex(page, mode='r')
 			if update_index and self.base_relay.exists(update_index):
+				if tmp is None:
+					tmp = self.base_relay.newTemporaryFile()
 				try:
 					self.base_relay._get(update_index, tmp)
 				except ExpressInterrupt:
@@ -677,7 +715,8 @@ class RelayIndex(AbstractRelay):
 					ready.append(files.keys())
 			else:
 				ready.append(self.index[page].keys())
-		self.base_relay.delTemporaryFile(tmp)
+		if tmp:
+			self.base_relay.delTemporaryFile(tmp)
 		if ready:
 			return list(itertools.chain(*ready))
 		else:
@@ -723,4 +762,12 @@ class RelayIndex(AbstractRelay):
 				# the update index may also exist, 
 				# but it is ignored in the absence of data
 		self.base_relay.releaseLock(update_data)
+
+	def request(self, remote_file, page=None):
+		if page is None:
+			page = self.page(remote_file)
+		# TODO urgently: request missing file
+		msg = "file  '{}' will be missing\nCurrently the best solution consists of manually editing the '{}' file \nin the relay repository and remove the record corresponding to \n'{}'\nThis will be fixed very soon".format(remote_file, self.persistentIndex(page), remote_file)
+		self.logger.warning(msg)
+		#raise NotImplementedError(msg)
 

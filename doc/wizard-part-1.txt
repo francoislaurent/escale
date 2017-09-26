@@ -11,7 +11,7 @@ or:
 
 	$ :strong:`git clone https://github.com/francoislaurent/escale`
 	$ :strong:`cd escale`
-	$ :strong:`pip install --user -e .`
+	$ :strong:`pip install --user .`
 
 Run the |escale| configuration wizard in a terminal:
 

@@ -257,7 +257,7 @@ This is suitable for directory structures with limited number of subdirectories 
 To synchronize thousands of small files, the indexing alternative is recommended.
 
 It is driven by the ``ìndex`` and ``maxpagesize`` configuration attributes.
-``index = 1`` sets indexing up.
+``index = 1`` sets indexing on.
 
 A comprehensive index file is made available in the relay repository.
 When files are to be transferred, they are bundled into a compressed archive and propagated 
