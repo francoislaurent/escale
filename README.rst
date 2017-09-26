@@ -30,6 +30,15 @@ Please find the extended documentation at `escale.readthedocs.io <http://escale.
 Changelog
 ---------
 
+* `0.7` (including `0.7-rc*`):
+
+  * index-based relay repository management
+  * ``index`` and ``maxpagesize`` configuration option
+
+* `0.6.2`:
+
+  * various bugfixes
+
 * `0.6.1`:
 
   * alternative simplified configuration wizard

@@ -25,51 +25,129 @@ import traceback
 import tarfile
 import tempfile
 import shutil
+import bz2
+from collections import defaultdict
 
+
+group_begin_breaker = '---group---'
+group_end_breaker = '-----------'
 
 puller_breaker = '---pullers---'
 
-def write_index(filename, metadata, pullers=[]):
+
+def write_index(filename, metadata, pullers=[], compress=False, groupby=[]):
 	"""
 	Write index to file.
 	"""
-	with open(filename, 'w') as f:
+	if compress:
+		_open = bz2.BZ2File
+	else:
+		_open = open
+	if groupby:
+		_metadata = defaultdict(dict)
 		for resource in metadata:
 			mdata = metadata[resource]
-			if mdata:
-				if not mdata.endswith('\n'):
-					mdata += '\n'
-			else:
-				mdata = '' # string
-			nchars = len(mdata)
-			f.write('{} {}\n{}'.format(resource, nchars, mdata))
+			if isinstance(mdata, Metadata):
+				mdata = repr(mdata)
+			if not isinstance(mdata, (tuple, list)):
+				mdata = mdata.splitlines()
+			# sort out grouping keys
+			_mdata = []
+			group = {}
+			for line in mdata:
+				_groupby = None
+				for g in groupby:
+					if line.startswith(g):
+						_groupby = g
+						break
+				if _groupby:
+					group[_groupby] = line
+				else:
+					_mdata.append(line)
+			# sort grouping keys
+			_group = []
+			for g in groupby:
+				try:
+					_group.append(group[g])
+				except KeyError:
+					pass
+			#
+			_metadata[tuple(_group)][resource] = '\n'.join(_mdata)
+	else:
+		_metadata = dict(default=metadata)
+	with _open(filename, 'w') as f:
+		if compress:
+			def write(s):
+				f.write(asbytes(s))
+		else:
+			write = f.write
+		for group in _metadata:
+			if groupby:
+				write(group_begin_breaker+'\n')
+				for line in group:
+					write(line+'\n')
+				write(group_end_breaker+'\n')
+			metadata = _metadata[group]
+			for resource in metadata:
+				mdata = metadata[resource]
+				if mdata:
+					if not mdata.endswith('\n'):
+						mdata += '\n'
+				else:
+					mdata = '' # string
+				nchars = len(mdata)
+				write('{} {}\n{}'.format(resource, nchars, mdata))
 		if pullers:
-			f.write(puller_breaker)
+			write(puller_breaker)
 			for reader in pullers:
-				f.write('\n'+reader)
+				write('\n'+reader)
 
-def read_index(filename):
+def read_index(filename, compress=False, groupby=[]):
 	"""
 	Read index from file.
 	"""
 	metadata = {}
+	if groupby:
+		read_group_def = False
+	else:
+		group = ''
 	pullers = []
-	with open(filename, 'r') as f:
+	if compress:
+		_open = bz2.BZ2File
+	else:
+		_open = open
+	with _open(filename, 'r') as f:
 		while True:
-			line = f.readline().rstrip()
-			has_pullers = line == puller_breaker
-			if line and not has_pullers:
-				resource, nchars = line.rsplit(None, 1)
-				nchars = int(nchars)
-				if nchars:
-					metadata[resource] = f.read(nchars)
-				else:
-					metadata[resource] = None
-			else:
+			line = asstr(f.readline().rstrip()) # asstr is necessary with compression
+			if not line:
 				break
+			if groupby:
+				if line == group_begin_breaker:
+					read_group_def = True
+					group = []
+					continue
+				elif line == group_end_breaker:
+					read_group_def = False
+					if group:
+						group = '\n'.join(group)+'\n'
+					else:
+						group = ''
+					continue
+				elif read_group_def:
+					group.append(line)
+					continue
+			has_pullers = line == puller_breaker
+			if has_pullers:
+				break
+			resource, nchars = line.rsplit(None, 1)
+			nchars = int(nchars)
+			if nchars:
+				metadata[resource] = group+asstr(f.read(nchars))
+			else:
+				metadata[resource] = None
 		if has_pullers:
 			while line:
-				line = f.readline()
+				line = asstr(f.readline())
 				pullers.append(line.rstrip())
 	return (metadata, pullers)
 
@@ -126,6 +204,8 @@ class RelayIndex(AbstractRelay):
 		self._update_data_prefix = ''
 		self._update_data_suffix = ''
 		self._timestamp_data = False
+		# compress index
+		self.metadata_group_by = ['placeholder', 'pusher']
 
 	@property
 	def logger(self):
@@ -267,10 +347,11 @@ class RelayIndex(AbstractRelay):
 						# handle missing lock exceptions that happen on test platforms
 						# with multiple clients supposed to run on different machines
 						pass
-				metadata, _ = read_index(tmp)
+				metadata, _ = read_index(tmp, groupby=self.metadata_group_by, compress=True)
 				self.index[page] = metadata
 				self.base_relay.delTemporaryFile(tmp)
-			self.last_update[page] = timestamp
+			if timestamp:
+				self.last_update[page] = timestamp
 
 	def setIndices(self, page):
 		assert page in self.locked_pages # already locked
@@ -284,7 +365,7 @@ class RelayIndex(AbstractRelay):
 		tmp = self.base_relay.newTemporaryFile()
 		metadata = self.index[page]
 		self.logger.info("uploading index for page '%s'", page)
-		write_index(tmp, metadata)
+		write_index(tmp, metadata, groupby=self.metadata_group_by, compress=True)
 		self._force('update page index', page, self.base_relay._push, tmp, location)
 		if exists:
 			write_index(tmp, self.locked_pages[page])
@@ -635,5 +716,11 @@ class RelayIndex(AbstractRelay):
 		self.base_relay.close()
 
 	def repair(self, lock, local_file):
-		self.base_relay.repair(lock, local_file)
+		update_data = lock.target
+		if lock.mode == 'w':
+			if self.base_relay.exists(update_data):
+				self.base_relay.unlink(update_data)
+				# the update index may also exist, 
+				# but it is ignored in the absence of data
+		self.base_relay.releaseLock(update_data)
 

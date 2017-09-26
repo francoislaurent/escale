@@ -131,8 +131,8 @@ class Metadata(object):
 				info += ['\nparts: ', str(self.parts)]
 			for k in self.ignored:
 				info += [ '\n', k, ': ', self.ignored[k] ]
-			info.append('\n---pullers---')
 			if self.pullers:
+				info.append('\n---pullers---')
 				for reader in self.pullers:
 					info += ['\n', reader]
 			return ''.join(info)
