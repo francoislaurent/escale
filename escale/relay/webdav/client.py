@@ -44,6 +44,7 @@ try:
 except ImportError:
 	from urllib.parse import urlparse, quote, unquote
 import time
+import logging
 
 
 class UnexpectedResponse(Exception):
@@ -155,10 +156,13 @@ class Client(object):
 			self.session.mount('https://', make_https_adapter(parse_ssl_version(ssl_version))())
 		self.infinity_depth = None
 		self.download_chunk_size = 1048576
+		self.retry_on_errno = [32,104,110]
 
 	def send(self, method, target, expected_codes, context=False, allow_redirects=False,
-			retry_on_status_codes=[503,504], retry_on_errno=[32,110],
+			retry_on_status_codes=[503,504], retry_on_errno=None,
 			subsequent_errors_on_retry=[], **kwargs):
+		if retry_on_errno is None:
+			retry_on_errno = self.retry_on_errno
 		url = os.path.join(self.baseurl, quote(asstr(target)))
 		counter = 0
 		while True:
@@ -172,7 +176,10 @@ class Client(object):
 						try:
 							if e1.args[0] in retry_on_errno:
 								if hasattr(self, 'logger'):
-									self.logger.debug('ignoring %s error', e1.args[0])
+									logger = self.logger
+								else:
+									logging.getLogger()
+								logger.debug('ignoring %s error: %s', e1.args[0], e1)
 								continue
 						except AttributeError:
 							pass

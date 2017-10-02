@@ -24,6 +24,7 @@ from escale.log import *
 # single import breaks Sphinx
 from escale.manager.config import *
 from escale.manager.manager import Manager
+from escale.manager.index import IndexManager
 from escale.manager.access import AccessController, access_modifier_prefix
 from escale.manager.history import History, usage_statistics_prefix
 from escale.cli.controller import DirectController, UIController
@@ -69,7 +70,12 @@ def make_client(config, repository, log_handler=None, ui_connector=None):
 	# extra UI options
 	ui_controller.maintainer = args.pop('maintainer', None)
 	# ready
-	manager = Manager(relay,
+	index = args.pop('index', False)
+	if index:
+		Mngr = IndexManager
+	else:
+		Mngr = Manager
+	manager = Mngr(relay,
 			repository=lr_controller,
 			ui_controller=ui_controller,
 			tq_controller=tq_controller,

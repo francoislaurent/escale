@@ -174,7 +174,7 @@ def parse_section(config, repository, logger):
 			logger.warning(msg)
 			# again, do not let the user send plain data if she requested encryption:
 			raise ValueError(msg)
-		delegate_encryption = args.get('index', False)
+		delegate_encryption = False#args.get('index', False)
 		if delegate_encryption or cipher is None:
 			del args['encryption']
 		if cipher is not None:

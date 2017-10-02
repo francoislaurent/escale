@@ -18,7 +18,7 @@
 from .info import *
 from .relay import AbstractRelay, Relay
 from escale.base.exceptions import MissingSetupFeature
-from .index import RelayIndex
+from .index import IndexRelay
 
 __all__ = ['LockInfo', 'parse_lock_file', 'AbstractRelay', 'Relay']
 
@@ -113,14 +113,14 @@ def by_protocol(protocol, index=False, **ignored):
 	if ps:
 		if index:
 			for p in ps:
-				if isinstance(p, RelayIndex):
+				if isinstance(p, IndexRelay):
 					return p
 			def new(*args, **kwargs):
 				kwargs['base'] = ps[0]
-				return RelayIndex(*args, **kwargs)
+				return IndexRelay(*args, **kwargs)
 			return new
 		for p in ps:
-			if not isinstance(p, RelayIndex):
+			if not isinstance(p, IndexRelay):
 				return p
 	try:
 		extra_requires = __extra_protocols__[protocol]
