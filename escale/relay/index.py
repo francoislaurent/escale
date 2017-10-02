@@ -475,8 +475,7 @@ class IndexRelay(AbstractIndexRelay):
 				try:
 					self.releasePageLock(page)
 				except:
-					self.logger.warning("missing lock for page '%s'", page)
-		self.fresh = True
+					self.logger.debug("missing lock for page '%s'", page)
 
 	def acquirePageLock(self, page, mode):
 		blocking = self.lock_args.get('blocking', 5)
