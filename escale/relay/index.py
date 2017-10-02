@@ -41,6 +41,9 @@ class AbstractIndexRelay(AbstractRelay):
 	def getPageIndex(self, page):
 		raise NotImplementedError('abstract method')
 
+	def hasUpdate(self, page):
+		raise NotImplementedError('abstract method')
+
 	def getUpdate(self, page, terminate=None):
 		return UpdateRead(self, page, terminate)
 
@@ -59,7 +62,7 @@ class AbstractIndexRelay(AbstractRelay):
 	def setUpdateData(self, page, data):
 		raise NotImplementedError('abstract method')
 
-	def consumeUpdate(self, page, **kwargs):
+	def consumeUpdate(self, page, terminate):
 		raise NotImplementedError('abstract method')
 
 	#def requestMissing(self, remote_file):
@@ -82,6 +85,10 @@ class IndexUpdate(MutableMapping):
 		self.page = page
 		self.content = {}
 		self.mode = mode
+
+	@property
+	def logger(self):
+		return self.relay.logger
 
 	def __enter__(self):
 		if not self.relay.acquirePageLock(self.page, self.mode):
@@ -120,15 +127,18 @@ class UpdateRead(IndexUpdate):
 		self.terminate = terminate
 
 	def __enter__(self):
-		IndexUpdate.__enter__(self)
-		self.content = self.relay.getUpdateIndex(self.page)
-		if not self.content:
-			raise PostponeRequest("no update for page '%s'", self.page)
+		if self.relay.hasUpdate(self.page):
+			IndexUpdate.__enter__(self)
+			self.content = self.relay.getUpdateIndex(self.page)
+			if not self.content:
+				IndexUpdate.__exit__(self, None, None, None)
+				raise PostponeRequest("no update for page '%s'", self.page)
+		else:
+			raise PostponeRequest
 		return self
 
 	def __exit__(self, exc_type, *args):
 		if exc_type is not None:
-			print((self.relay.client, exc_type))
 			return
 		self.relay.consumeUpdate(self.page, self.terminate)
 		IndexUpdate.__exit__(self, exc_type, *args)
@@ -139,9 +149,13 @@ class UpdateWrite(IndexUpdate):
 	def __init__(self, relay, page):
 		IndexUpdate.__init__(self, relay, page, 'w')
 
+	def __enter__(self):
+		if self.relay.hasUpdate(self.page):
+			raise PostponeRequest
+		return IndexUpdate.__enter__(self)
+
 	def __exit__(self, exc_type, *args):
 		if exc_type is not None:
-			print((self.relay.client, exc_type))
 			return
 		if self.content:
 			self.relay.setUpdateIndex(self.page, self.content)
@@ -300,7 +314,6 @@ class IndexRelay(AbstractIndexRelay):
 		self.base_relay = base(*args, **kwargs)
 		#self.lock_args = lock_args
 		self.lock_args = {}
-		self.fresh = True
 		self.locked = {}
 		self.missing_files = {}
 		self.transaction_timestamp = None
@@ -389,10 +402,6 @@ class IndexRelay(AbstractIndexRelay):
 		return '{}{}{}{}'.format(self._update_data_prefix, page, ts, self._update_data_suffix)
 
 	def updateTimestamp(self, page, mode=None):
-		#if mode is None:
-		#	mode = self.mode
-		#if mode == 'r':
-		#	self.refreshListing() # page should be locked
 		timestamp = None
 		if self._timestamp_index:
 			if mode == 'w':
@@ -472,11 +481,15 @@ class IndexRelay(AbstractIndexRelay):
 	def acquirePageLock(self, page, mode):
 		blocking = self.lock_args.get('blocking', 5)
 		has_lock = self.locked.get(page, False)
+		if has_lock and not self.base_relay.hasLock(page):
+			self.logger.warning("missing lock for page '%s'", page)
+			has_lock = False
 		if not has_lock:
 			has_lock = self.base_relay.acquireLock(page, mode, **self.lock_args)
 		if has_lock:
-			if not self.transaction_timestamp:
-				self.transaction_timestamp = int(round(time.time()))
+			#if not self.transaction_timestamp:
+			# no need for reentrant locks
+			self.transaction_timestamp = int(round(time.time()))
 			self.locked[page] = True
 		else:
 			raise PostponeRequest
@@ -485,10 +498,16 @@ class IndexRelay(AbstractIndexRelay):
 	def releasePageLock(self, page):
 		self.base_relay.releaseLock(page)
 		self.locked[page] = False
+		self.transaction_timestamp = None
 
 	def unlink(self, remote_file):
-		if self.base_relay.exists(remote_file):
+		#if self.base_relay.exists(remote_file):
+		try:
 			self.base_relay.unlink(remote_file)
+		except ExpressInterrupt:
+			raise
+		except Exception as e:
+			self.logger.debug("cannot remote file '%s': %s", remote_file, e)
 		self.listing_cache = [ (l,s) for l,s in self.listing_cache if l != remote_file ]
 
 	def setUpdateData(self, page, datafile):
@@ -560,12 +579,12 @@ class IndexRelay(AbstractIndexRelay):
 	def listTransferred(self, remote_dir='', end2end=True, recursive=True):
 		return self.skipIndexRelated(self.base_relay.listTransferred(remote_dir, end2end, recursive))
 
-	def skipIndexRelated(self, ls):
+	def skipIndexRelated(self, files_or_locks):
 		if not self._persistent_index_prefix.startswith('.') or \
 			not self._update_index_prefix.startswith('.') or \
 			not self._update_data_prefix.startswith('.'):
 			raise NotImplementedError
-		return ls
+		return files_or_locks
 
 	def open(self):
 		self.base_relay.open()
@@ -589,6 +608,7 @@ class IndexRelay(AbstractIndexRelay):
 								files.append(f)
 						for f in files:
 							self.unlink(f)
+					self.logger.info("releasing remnant lock for page '%s'", page)
 					self.releasePageLock(page)
 
 	def request(self, page, remote_file, local_dest=None):
@@ -623,6 +643,13 @@ class IndexRelay(AbstractIndexRelay):
 						for resource, mdata in index.items():
 							self.index[page][resource] = mdata
 					self.base_relay.delTemporaryFile(tmp)
+				elif self.last_update[page] == timestamp:
+					# updates are not always consumed at the first getUpdate call;
+					# setUpdate will not call getUpdateIndex and will ignore the value below
+					try:
+						index, _ = self.last_update_cache[page]
+					except KeyError:
+						pass
 			else:
 				self.logger.info("downloading index for page '%s'", page)
 				tmp = self.base_relay.newTemporaryFile()
@@ -714,13 +741,11 @@ class IndexRelay(AbstractIndexRelay):
 				return parse_metadata(self.index[self.page(remote_file)][remote_file])
 			except KeyError:
 				self.logger.warning("missing file '%s' in index page '%s'", remote_file, self.page(remote_file))
-				#print((remote_file, list(self.index[self.page(remote_file)].keys())))
 				raise
 		else:
 			return self.base_relay.getMetadata(remote_file, *args, **kwargs)
 
-	def setUpdate(self, page):
-		if self.updateTimestamp(page, mode='r'):
-			raise PostponeRequest
-		return AbstractIndexRelay.setUpdate(self, page)
+	def hasUpdate(self, page):
+		self.remoteListing()
+		return self.updateTimestamp(page, mode='r') is not None
 

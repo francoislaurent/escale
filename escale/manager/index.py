@@ -35,6 +35,7 @@ class IndexManager(Manager):
 		Manager.__init__(self, relay, *args, **kwargs)
 		self.max_page_size = max_page_size
 		self.extraction_repository = tempfile.mkdtemp()
+		self.local_cache = []
 
 	def terminate(self, pullers):
 		return self.count <= len(pullers)
@@ -46,9 +47,9 @@ class IndexManager(Manager):
 			# exception raised in __init__
 			pass
 
-	def sanityCheck(self):
+	def sanityChecks(self):
 		self.relay.repairUpdates()
-		Manager.sanityCheck(self)
+		Manager.sanityChecks(self)
 		self.relay.reloadIndex()
 
 	def download(self):
@@ -81,6 +82,7 @@ class IndexManager(Manager):
 						# check for modifications
 						if not metadata.fileModified(local_file, checksum, remote=True, debug=self.logger.debug):
 							extracted_file = join(self.extraction_repository, remote_file)
+							self.logger.info("deleting duplicate or outdated file '%s'", remote_file)
 							try:
 								os.unlink(extracted_file)
 							except FileNotFoundError:
@@ -121,15 +123,19 @@ class IndexManager(Manager):
 		return new
 
 	def upload(self):
+		new = False
+		#if not self.relay.anyChange() and not self.anyLocalChange():
+		#	return new
+		#
 		indexed = defaultdict(dict)
 		not_indexed = []
-		for local_file in self.localFiles():
+		for local_file in self.localFiles():#[ l for l,_ in self.local_cache ]:#
 			remote_file = os.path.relpath(local_file, self.path) # relative path
 			if self.relay.indexed(remote_file):
 				indexed[self.relay.page(remote_file)][local_file] = remote_file
 			else:
 				not_indexed.append((local_file, remote_file))
-		new = False
+		#
 		for page in indexed:
 			try:
 				push = []
@@ -148,11 +154,11 @@ class IndexManager(Manager):
 							if (self.timestamp or self.hash_function) and \
 								not page_metadata.fileModified(local_file, checksum, remote=False, debug=self.logger.debug):
 								continue
-						new = True
 						last_modified = os.path.getmtime(local_file)
 						metadata = Metadata(target=remote_file, timestamp=last_modified, checksum=checksum, pusher=self.relay.client)
 						push.append((local_file, remote_file, metadata))
 					if push:
+						new = True
 						fd, archive = tempfile.mkstemp()
 						os.close(fd)
 						try:
@@ -186,6 +192,7 @@ class IndexManager(Manager):
 					self.logger.info("file '%s' successfully uploaded", remote_file)
 			except PostponeRequest:
 				continue
+		#
 		remote = self.relay.listTransferred('', end2end=False)
 		for local_file, remote_file in not_indexed:
 			if PYTHON_VERSION == 2 and isinstance(remote_file, unicode) and \
@@ -224,4 +231,14 @@ class IndexManager(Manager):
 						elif ok is not None:
 							self.logger.warning("failed to upload '%s'", remote_file)
 		return new
+
+	def anyLocalChange(self):
+		previous_cache = self.local_cache
+		self.localFiles()
+		return previous_cache != self.local_cache
+
+	def localFiles(self, path=None):
+		ls = Manager.localFiles(self, path)
+		#self.local_cache = [ (l, os.path.getmtime(l)) for l in ls ]
+		return ls
 

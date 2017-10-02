@@ -217,7 +217,7 @@ class Manager(Reporter):
 			try:
 				self.remoteListing()
 				if _check_sanity:
-					self.sanityCheck()
+					self.sanityChecks()
 					_check_sanity = False
 				if self.mode != 'upload':
 					new |= self.download()
@@ -234,7 +234,9 @@ class Manager(Reporter):
 					break
 			except ExpressInterrupt:
 				raise
-			except PostponeRequest:
+			except PostponeRequest as e:
+				if e.args:
+					self.logger.debug(*e.args)
 				self.tq_controller.wait()
 			except Exception as e:
 				t = time.time()
@@ -322,7 +324,7 @@ class Manager(Reporter):
 			ok = not any([ exp.match(f) for exp in self.exclude ])
 		return ok
 
-	def sanityCheck(self):
+	def sanityChecks(self):
 		"""
 		Performs sanity checks and fixes the corrupted files.
 		"""

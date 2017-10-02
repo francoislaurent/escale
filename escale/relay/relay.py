@@ -691,7 +691,7 @@ class Relay(AbstractRelay):
 			for file in ls:
 				if self.isLock(file):
 					locks.append(self.fromLock(file))
-				else:
+				elif not file.startswith('.'):
 					others.append(file)
 			return others + placeholders + locks
 
