@@ -11,10 +11,10 @@
 # knowledge of the CeCILL-C license and that you accept its terms.
 
 
-from escale.base.exceptions import PostponeRequest
+from escale.base import *
 from .manager import Manager
 from ..base.config import storage_space_unit
-from ..relay.info import Metadata
+from ..relay.info import Metadata, parse_metadata
 from ..relay.index import AbstractIndexRelay
 import os
 import bz2
@@ -33,12 +33,11 @@ class IndexManager(Manager):
 		if max_page_size_unit:
 			max_page_size = max_page_size * storage_space_unit[max_page_size_unit] * 1048576
 		Manager.__init__(self, relay, *args, **kwargs)
-		self.relay.lock_args = self.pop_args
 		self.max_page_size = max_page_size
 		self.extraction_repository = tempfile.mkdtemp()
 
-	def terminate(self, count):
-		return self.count <= count
+	def terminate(self, pullers):
+		return self.count <= len(pullers)
 
 	def __del__(self):
 		try:
@@ -49,8 +48,8 @@ class IndexManager(Manager):
 
 	def sanityCheck(self):
 		self.relay.repairUpdates()
-		self.relay.reloadIndex()
 		Manager.sanityCheck(self)
+		self.relay.reloadIndex()
 
 	def download(self):
 		new = False
@@ -64,7 +63,7 @@ class IndexManager(Manager):
 					if not local_file:
 						# update not allowed
 						continue
-					metadata = update[remote_file]
+					metadata = parse_metadata(update[remote_file])
 					last_modified = None
 					if self.timestamp:
 						if metadata and metadata.timestamp:
@@ -82,29 +81,42 @@ class IndexManager(Manager):
 						# check for modifications
 						if not metadata.fileModified(local_file, checksum, remote=True, debug=self.logger.debug):
 							extracted_file = join(self.extraction_repository, remote_file)
-							os.unlink(extracted_file)
+							try:
+								os.unlink(extracted_file)
+							except FileNotFoundError:
+								self.logger.debug("file '%s' not found", extracted_file)
 							continue
 					get_files.append((remote_file, local_file, last_modified))
 				if get_files:
 					new = True
 					try:
-						with tempfile.NamedTemporaryFile(delete=False) as archive:
-							encrypted = self.encryption.prepare(archive.name)
-							with self.tq_controller.pull(encrypted):
-								self.logger.debug("downloading update data for page '%s'", page)
-								self.relay.getUpdateData(page, encrypted)
-							self.encryption.decrypt(encrypted, archive.name)
-							with tarfile.open(archive, mode='r:bz2') as tar:
-								tar.extractall(self.extraction_repository)
+						fd, archive = tempfile.mkstemp()
+						os.close(fd)
+						encrypted = self.encryption.prepare(archive)
+						with self.tq_controller.pull(encrypted):
+							self.logger.debug("downloading update data for page '%s'", page)
+							self.relay.getUpdateData(page, encrypted)
+						while not os.path.exists(encrypted):
+							pass
+						self.encryption.decrypt(encrypted, archive)
+						with tarfile.open(archive, mode='r:bz2') as tar:
+							tar.extractall(self.extraction_repository)
 					finally:
 						os.unlink(archive)
 					for remote, local, mtime in get_files:
+						dirname = os.path.dirname(local)
+						if dirname and not os.path.isdir(dirname):
+							os.makedirs(dirname)
 						extracted = join(self.extraction_repository, remote)
-						shutil.rename(extracted, local)
-						self.logger.info("file '%s' successfully downloaded", remote)
-						if mtime:
-							# set last modification time
-							os.utime(local, (time.time(), mtime))
+						try:
+							shutil.move(extracted, local)
+						except FileNotFoundError as e:
+							self.logger.info("failed to download file '%s'", remote)
+						else:
+							self.logger.info("file '%s' successfully downloaded", remote)
+							if mtime:
+								# set last modification time
+								os.utime(local, (time.time(), mtime))
 		new |= Manager.download(self)
 		return new
 
@@ -121,13 +133,15 @@ class IndexManager(Manager):
 		for page in indexed:
 			try:
 				push = []
+				pushed = []
 				with self.relay.setUpdate(page) as update:
 					page_index = self.relay.getPageIndex(page)
+					update_index = {}
 					for local_file in indexed[page]:
 						remote_file = indexed[page][local_file]
 						checksum = self.checksum(local_file)
 						try:
-							page_metadata = page_index[remote_file]
+							page_metadata = parse_metadata(page_index[remote_file])
 						except KeyError:
 							pass
 						else:
@@ -136,18 +150,18 @@ class IndexManager(Manager):
 								continue
 						new = True
 						last_modified = os.path.getmtime(local_file)
-						update_metadata = Metadata(target=remote_file, timestamp=last_modified, checksum=checksum, pusher=self.client)
-						update[remote_file] = update_metadata
-						push.append((local_file, remote_file))
+						metadata = Metadata(target=remote_file, timestamp=last_modified, checksum=checksum, pusher=self.relay.client)
+						push.append((local_file, remote_file, metadata))
 					if push:
-						assert update
 						fd, archive = tempfile.mkstemp()
 						os.close(fd)
 						try:
 							size = 0
 							with tarfile.open(archive, mode='w:bz2') as tar:
-								for local_file, remote_file in push:
+								for local_file, remote_file, metadata in push:
 									tar.add(local_file, arcname=remote_file, recursive=True)
+									update[remote_file] = metadata
+									pushed.append((local_file, remote_file))
 									size += os.stat(local_file).st_size
 									if self.max_page_size < size:
 										break
@@ -168,7 +182,7 @@ class IndexManager(Manager):
 							os.unlink(archive)
 					else:
 						assert not update
-				for _, remote_file in push:
+				for _, remote_file in pushed:
 					self.logger.info("file '%s' successfully uploaded", remote_file)
 			except PostponeRequest:
 				continue

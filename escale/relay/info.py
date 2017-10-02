@@ -229,6 +229,8 @@ class Metadata(object):
 
 
 def parse_metadata(lines, target=None, timestamp_format=None, log=None):
+	if isinstance(lines, Metadata):
+		return lines
 	# read file if not already done
 	if not isinstance(lines, (tuple, list)):
 		if os.path.isfile(lines):

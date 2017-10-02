@@ -621,7 +621,7 @@ class Relay(AbstractRelay):
 					except KeyError:
 						meta = None
 					self.placeholder_cache[regular_file] = (mtime, meta)
-			elif not self._isMessage(filename):
+			elif not filename.startswith('.'):#self._isMessage(filename):
 				lock_file = join(filedir, self._lock(filename))
 				regular_files.append((file, lock_file))
 		ready = [ regular_file
