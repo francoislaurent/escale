@@ -85,8 +85,12 @@ class IndexManager(Manager):
 							self.logger.info("deleting duplicate or outdated file '%s'", remote_file)
 							try:
 								os.unlink(extracted_file)
-							except FileNotFoundError:
-								self.logger.debug("file '%s' not found", extracted_file)
+							except IOError as e:#FileNotFoundError:
+								# catch FileNotFoundError (does not exist in Python2)
+								if e.errno == errno.ENOENT:
+									self.logger.debug("file '%s' not found", extracted_file)
+								else:
+									raise
 							continue
 					get_files.append((remote_file, local_file, last_modified))
 				if get_files:
@@ -112,8 +116,13 @@ class IndexManager(Manager):
 						extracted = join(self.extraction_repository, remote)
 						try:
 							shutil.move(extracted, local)
-						except FileNotFoundError as e:
-							self.logger.info("failed to download file '%s'", remote)
+						except IOError as e:#FileNotFoundError:
+							# catch FileNotFoundError (does not exist in Python2)
+							if e.errno == errno.ENOENT:
+								self.logger.debug("file '%s' not found", extracted_file)
+								self.logger.info("failed to download file '%s'", remote)
+							else:
+								raise
 						else:
 							self.logger.info("file '%s' successfully downloaded", remote)
 							if mtime:

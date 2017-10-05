@@ -606,6 +606,7 @@ class IndexRelay(AbstractIndexRelay):
 								(not self._update_data_suffix or f.endswith(self._update_data_suffix)):
 								files.append(f)
 						for f in files:
+							self.logger.info("releasing remnant update file '%s'", f)
 							self.unlink(f)
 					self.logger.info("releasing remnant lock for page '%s'", page)
 					self.releasePageLock(page)
