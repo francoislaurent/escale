@@ -85,7 +85,7 @@ class IndexManager(Manager):
 							self.logger.info("deleting duplicate or outdated file '%s'", remote_file)
 							try:
 								os.unlink(extracted_file)
-							except IOError as e:#FileNotFoundError:
+							except (IOError, OSError) as e:#FileNotFoundError:
 								# catch FileNotFoundError (does not exist in Python2)
 								if e.errno == errno.ENOENT:
 									self.logger.debug("file '%s' not found", extracted_file)

@@ -550,6 +550,9 @@ class IndexRelay(AbstractIndexRelay):
 		#		used += float(size) / 1048576 # in MB
 		return used, quota
 
+	def allPages(self):
+		return [ self.page('a') ]
+
 	def listPages(self, remote_dir=''):
 		self.refreshListing(remote_dir)
 		files = []
@@ -591,23 +594,42 @@ class IndexRelay(AbstractIndexRelay):
 	def close(self):
 		self.base_relay.close()
 
+	def updateRelated(self, page, filename):
+		filename = os.path.basename(filename)
+		prefix = self._persistent_index_prefix + page
+		suffix = self._persistent_index_suffix
+		may_be_global_index = filename.startswith(prefix) and (not suffix or filename.endswith(suffix))
+		prefixes = [self._update_index_prefix, self._update_data_prefix]
+		suffixes = [self._update_index_suffix, self._update_data_suffix]
+		timestamps = [self._timestamp_index, self._timestamp_data]
+		for prefix, suffix, timestamp in zip(prefixes, suffixes, timestamps):
+			prefix += page
+			if filename.startswith(prefix) and (not suffix or filename.endswith(suffix)):
+				if timestamp:
+					filename = filename[len(prefix):]
+					if suffix:
+						filename = filename[:len(suffix)]
+					if filename.startswith('.'):
+						return True
+					else:
+						continue
+				elif may_be_global_index:
+					raise ValueError("cannot differentiate between global and update indices: '%s'", filename)
+				else:
+					return True
+		return False
+
 	def repairUpdates(self):
-		for page in self.listPages():
+		self.refreshListing()
+		for page in self.allPages():
 			if self.base_relay.lock(page) in [ l for l,_ in self.listing_cache ]:
 				lock = self.base_relay.getLockInfo(page)
 				if not lock or not lock.owner or lock.owner == self.client:
 					if not lock or not lock.mode or lock.mode == 'w':
-						files = []
 						for f,_ in self.listing_cache:
-							if f.startswith(self._update_index_prefix+page) and \
-								(not self._update_index_suffix or f.endswith(self._update_index_suffix)):
-								files.append(f)
-							elif f.startswith(self._update_data_prefix+page) and \
-								(not self._update_data_suffix or f.endswith(self._update_data_suffix)):
-								files.append(f)
-						for f in files:
-							self.logger.info("releasing remnant update file '%s'", f)
-							self.unlink(f)
+							if self.updateRelated(page, f):
+								self.logger.info("releasing remnant update file '%s'", f)
+								self.unlink(f)
 					self.logger.info("releasing remnant lock for page '%s'", page)
 					self.releasePageLock(page)
 
