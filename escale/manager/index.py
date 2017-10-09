@@ -105,8 +105,14 @@ class IndexManager(Manager):
 						while not os.path.exists(encrypted):
 							pass
 						self.encryption.decrypt(encrypted, archive)
-						with tarfile.open(archive, mode='r:bz2') as tar:
-							tar.extractall(self.extraction_repository)
+						try:
+							with tarfile.open(archive, mode='r:bz2') as tar:
+								tar.extractall(self.extraction_repository)
+						except Exception as e: # ReadError: not a bzip2 file
+							self.logger.error("%s", e)
+							missing = [ m for m, _, _ in get_files ]
+							self.relay.requestMissing(page, missing)
+							continue
 					finally:
 						os.unlink(archive)
 					for remote, local, mtime in get_files:
