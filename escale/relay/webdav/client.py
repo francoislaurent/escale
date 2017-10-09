@@ -49,7 +49,8 @@ import OpenSSL.SSL
 
 
 class UnexpectedResponse(Exception):
-	def __init__(self, method, resource, actual_code, expected_codes=()):
+	def __init__(self, method=None, resource=None, actual_code=None, expected_codes=()):
+		# all input arguments should be optional to make the object serializable
 		self.method = method
 		self.resource = resource
 		if not isinstance(expected_codes, (list, tuple)):

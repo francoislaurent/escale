@@ -29,7 +29,7 @@ class IndexManager(Manager):
 	def __init__(self, relay, *args, **kwargs):
 		#if not isinstance(relay, AbstractIndexRelay):
 		#	raise TypeError("relay is not an IndexRelay")
-		max_page_size, max_page_size_unit = kwargs.pop('maxpagesize', (1024, None))
+		max_page_size, max_page_size_unit = kwargs.pop('maxpagesize', (200, None))
 		if max_page_size_unit:
 			max_page_size = max_page_size * storage_space_unit[max_page_size_unit] * 1048576
 		Manager.__init__(self, relay, *args, **kwargs)
@@ -50,11 +50,12 @@ class IndexManager(Manager):
 	def sanityChecks(self):
 		self.relay.repairUpdates()
 		Manager.sanityChecks(self)
-		self.relay.reloadIndex()
+		self.relay.clearIndex()
 
 	def download(self):
 		new = False
 		for page in self.relay.listPages():
+			index_loaded = self.relay.loaded(page)
 			with self.relay.getUpdate(page, self.terminate) as update:
 				get_files = []
 				for remote_file in update:
@@ -81,59 +82,66 @@ class IndexManager(Manager):
 						checksum = self.checksum(local_file)
 						# check for modifications
 						if not metadata.fileModified(local_file, checksum, remote=True, debug=self.logger.debug):
-							extracted_file = join(self.extraction_repository, remote_file)
-							self.logger.info("deleting duplicate or outdated file '%s'", remote_file)
-							try:
-								os.unlink(extracted_file)
-							except (IOError, OSError) as e:#FileNotFoundError:
-								# catch FileNotFoundError (does not exist in Python2)
-								if e.errno == errno.ENOENT:
-									self.logger.debug("file '%s' not found", extracted_file)
-								else:
-									raise
+							if index_loaded:
+								extracted_file = join(self.extraction_repository, remote_file)
+								self.logger.info("deleting duplicate or outdated file '%s'", remote_file)
+								try:
+									os.unlink(extracted_file)
+								except (IOError, OSError) as e:#FileNotFoundError:
+									# catch FileNotFoundError (does not exist in Python2)
+									if e.errno == errno.ENOENT:
+										self.logger.debug("file '%s' not found", extracted_file)
+									else:
+										raise
 							continue
 					get_files.append((remote_file, local_file, last_modified))
 				if get_files:
 					new = True
-					try:
-						fd, archive = tempfile.mkstemp()
-						os.close(fd)
-						encrypted = self.encryption.prepare(archive)
-						with self.tq_controller.pull(encrypted):
-							self.logger.debug("downloading update data for page '%s'", page)
-							self.relay.getUpdateData(page, encrypted)
-						while not os.path.exists(encrypted):
-							pass
-						self.encryption.decrypt(encrypted, archive)
+					missing = []
+					if self.relay.hasUpdate(page):
 						try:
-							with tarfile.open(archive, mode='r:bz2') as tar:
-								tar.extractall(self.extraction_repository)
-						except Exception as e: # ReadError: not a bzip2 file
-							self.logger.error("%s", e)
-							missing = [ m for m, _, _ in get_files ]
-							self.relay.requestMissing(page, missing)
-							continue
-					finally:
-						os.unlink(archive)
-					for remote, local, mtime in get_files:
-						dirname = os.path.dirname(local)
-						if dirname and not os.path.isdir(dirname):
-							os.makedirs(dirname)
-						extracted = join(self.extraction_repository, remote)
-						try:
-							shutil.move(extracted, local)
-						except IOError as e:#FileNotFoundError:
-							# catch FileNotFoundError (does not exist in Python2)
-							if e.errno == errno.ENOENT:
-								self.logger.debug("file '%s' not found", extracted_file)
-								self.logger.info("failed to download file '%s'", remote)
+							fd, archive = tempfile.mkstemp()
+							os.close(fd)
+							encrypted = self.encryption.prepare(archive)
+							with self.tq_controller.pull(encrypted):
+								self.logger.debug("downloading update data for page '%s'", page)
+								self.relay.getUpdateData(page, encrypted)
+							while not os.path.exists(encrypted):
+								pass
+							self.encryption.decrypt(encrypted, archive)
+							try:
+								with tarfile.open(archive, mode='r:bz2') as tar:
+									tar.extractall(self.extraction_repository)
+							except Exception as e: # ReadError: not a bzip2 file
+								self.logger.error("%s", e)
+								missing = [ m for m, _, _ in get_files ]
+						finally:
+							os.unlink(archive)
+					else:
+						missing = [ m for m, _, _ in get_files ]
+					if not missing:
+						for remote, local, mtime in get_files:
+							dirname = os.path.dirname(local)
+							if dirname and not os.path.isdir(dirname):
+								os.makedirs(dirname)
+							extracted = join(self.extraction_repository, remote)
+							try:
+								shutil.move(extracted, local)
+							except IOError as e:#FileNotFoundError:
+								# catch FileNotFoundError (does not exist in Python2)
+								if e.errno == errno.ENOENT:
+									self.logger.debug("file '%s' not found", extracted)
+									#self.logger.info("failed to download file '%s'", remote)
+									missing.append(remote)
+								else:
+									raise
 							else:
-								raise
-						else:
-							self.logger.info("file '%s' successfully downloaded", remote)
-							if mtime:
-								# set last modification time
-								os.utime(local, (time.time(), mtime))
+								self.logger.info("file '%s' successfully downloaded", remote)
+								if mtime:
+									# set last modification time
+									os.utime(local, (time.time(), mtime))
+					if missing:
+						self.relay.requestMissing(page, missing)
 		new |= Manager.download(self)
 		return new
 

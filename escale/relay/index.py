@@ -32,7 +32,10 @@ from collections import defaultdict, MutableMapping
 
 class AbstractIndexRelay(AbstractRelay):
 
-	def reloadIndex(self):
+	def loaded(self, page):
+		raise NotImplementedError('abstract method')
+
+	def clearIndex(self):
 		raise NotImplementedError('abstract method')
 
 	def listPages(self):
@@ -127,7 +130,7 @@ class UpdateRead(IndexUpdate):
 		self.terminate = terminate
 
 	def __enter__(self):
-		if self.relay.hasUpdate(self.page):
+		if not self.relay.loaded(self.page) or self.relay.hasUpdate(self.page):
 			IndexUpdate.__enter__(self)
 			self.content = self.relay.getUpdateIndex(self.page)
 			if not self.content:
@@ -317,7 +320,7 @@ class IndexRelay(AbstractIndexRelay):
 		self.locked = {}
 		self.transaction_timestamp = None
 		self.index = {}
-		self.index_atime = {}
+		self.index_mtime = {}
 		self.last_update = {}
 		self.last_update_cache = {}
 		self.listing_time = None
@@ -461,22 +464,60 @@ class IndexRelay(AbstractIndexRelay):
 			self.remoteListing()
 			self.listing_time = now
 
-	def reloadIndex(self):
+	def clearIndex(self):
 		for page in self.listPages():
-			if not self.acquirePageLock(page, 'r'):
-				self.logger.warning("cannot lock page '%s'", page)
-				continue
-			tmp = self.base_relay.newTemporaryFile()
+			#if not self.acquirePageLock(page, 'r'):
+			#	self.logger.warning("cannot lock page '%s'", page)
+			#	continue
+			#tmp = self.base_relay.newTemporaryFile()
 			try:
-				self.base_relay._get(self.persistentIndex(page), tmp)
-				self.index[page], _ = read_index(tmp, groupby=self.metadata_group_by, compress=True)
-				self.index_atime[page] = [ atime for name, atime in self.listing_cache if name == self.persistentIndex(page) ][0]
-			finally:
-				self.base_relay.delTemporaryFile(tmp)
-				try:
-					self.releasePageLock(page)
-				except:
-					self.logger.debug("missing lock for page '%s'", page)
+				#self.base_relay._get(self.persistentIndex(page), tmp)
+				#self.index[page], _ = read_index(tmp, groupby=self.metadata_group_by, compress=True)
+				#self.index_mtime[page] = [ mtime for name, mtime in self.listing_cache if name == self.persistentIndex(page) ][0]
+				del self.index[page]
+				del self.index_mtime[page]
+			except KeyError:
+				pass
+			#finally:
+			#	self.base_relay.delTemporaryFile(tmp)
+			#	try:
+			#		self.releasePageLock(page)
+			#	except:
+			#		self.logger.debug("missing lock for page '%s'", page)
+
+	def loaded(self, page, mtime=None, check_mtime=True):
+		if page in self.index:
+			if not check_mtime:
+				return True
+			persistent_index = self.persistentIndex(page)
+			if self.base_relay.exists(persistent_index):
+				assert self.index_mtime[page] is not None
+				if not mtime:
+					mtime = [ mtime for name, mtime in self.listing_cache \
+							if name == persistent_index ]
+					if mtime:
+						mtime = mtime[0]
+				if mtime:
+					t1 = mtime
+					t2 = self.index_mtime[page]
+					if isinstance(t1, time.struct_time):
+						t1 = calendar.timegm(t1)
+					if isinstance(t2, time.struct_time):
+						t2 = calendar.timegm(t2)
+					t1, t2 = int(t1), int(t2)
+					return t1 == t2
+				else:
+					# base relay does not provide modification times;
+					# False would make the client load the index at every getIndexChanges call;
+					# True would disable missing file management
+					return True
+			else:
+				self.logger.debug("missing index for page '%s'; clearing local cache", page)
+				del self.index[page]
+				del self.index_mtime[page]
+				return False
+		else:
+			return False
 
 	def acquirePageLock(self, page, mode):
 		blocking = self.lock_args.get('blocking', 5)
@@ -507,7 +548,7 @@ class IndexRelay(AbstractIndexRelay):
 		except ExpressInterrupt:
 			raise
 		except Exception as e:
-			self.logger.debug("cannot remote file '%s': %s", remote_file, e)
+			self.logger.debug("cannot delete file '%s': %s", remote_file, e)
 		self.listing_cache = [ (l,s) for l,s in self.listing_cache if l != remote_file ]
 
 	def setUpdateData(self, page, datafile):
@@ -520,7 +561,7 @@ class IndexRelay(AbstractIndexRelay):
 			except ExpressInterrupt:
 				raise
 			except Exception as exc:
-				self.logger.info("failed to %s '%s.%d'", operation, target, self.transaction_timestamp)
+				self.logger.warning("failed to %s '%s.%d'", operation, target, self.transaction_timestamp)
 				self.logger.debug("%s", exc)
 				self.logger.debug(traceback.format_exc())
 				raise # for debugging
@@ -587,7 +628,7 @@ class IndexRelay(AbstractIndexRelay):
 			not self._update_index_prefix.startswith('.') or \
 			not self._update_data_prefix.startswith('.'):
 			raise NotImplementedError
-		return [ f for f in files_or_locks if f is not None ] # fix a bug
+		return files_or_locks
 
 	def open(self):
 		self.base_relay.open()
@@ -629,9 +670,9 @@ class IndexRelay(AbstractIndexRelay):
 					if not lock or not lock.mode or lock.mode == 'w':
 						for f,_ in self.listing_cache:
 							if self.updateRelated(page, f):
-								self.logger.info("releasing remnant update file '%s'", f)
+								self.logger.debug("releasing remnant update file '%s'", f)
 								self.unlink(f)
-					self.logger.info("releasing remnant lock for page '%s'", page)
+					self.logger.debug("releasing remnant lock for page '%s'", page)
 					self.releasePageLock(page)
 
 	def requestMissing(self, page, remote_files):
@@ -652,30 +693,33 @@ class IndexRelay(AbstractIndexRelay):
 				else:
 					ok = True
 					self.logger.info("file '%s' reported missing", remote_file)
-			if ok:
+			if not ok:
+				return
+			if self.index[page]:
 				write_index(tmp, self.index[page], groupby=self.metadata_group_by, compress=True)
-				self.logger.info("updating index for page '%s'", page)
+				self.logger.debug("updating index for page '%s'", page)
 				self.base_relay._push(tmp, remote_index)
 				self.remoteListing()
-				self.index_atime[page] = [ atime for name, atime in self.listing_cache if name == remote_index ][0]
+				self.index_mtime[page] = [ mtime for name, mtime in self.listing_cache if name == remote_index ][0]
+			else:
+				self.unlink(remote_index)
 		finally:
 			self.base_relay.delTemporaryFile(tmp)
 
 
-	def getIndexChanges(self, page, sync=True):
+	def getIndexChanges(self, page, sync=True, check_mtime=False):
 		index = {}
 		location = self.persistentIndex(page)
-		index_atime = [ atime for name, atime in self.listing_cache if name == location ]
-		if index_atime:
-			index_atime = index_atime[0]
+		index_mtime = [ mtime for name, mtime in self.listing_cache if name == location ]
+		if index_mtime:
+			index_mtime = index_mtime[0]
 			timestamp = self.updateTimestamp(page, mode='r') # read last update timestamp on the relay
-			if page in self.index and \
-					(self.index_atime[page] is None or index_atime <= self.index_atime[page]):
+			if self.loaded(page, index_mtime, check_mtime):
 				if not timestamp:
 					return index
 				if page not in self.last_update or self.last_update[page] < timestamp:
 					location = self.updateIndex(page, mode='r')
-					self.logger.info("downloading index update '%s' for page '%s'", timestamp, page)
+					self.logger.debug("downloading index update '%s' for page '%s'", timestamp, page)
 					tmp = self.base_relay.newTemporaryFile()
 					self.base_relay._get(location, tmp)
 					index, pullers = read_index(tmp)
@@ -692,23 +736,23 @@ class IndexRelay(AbstractIndexRelay):
 					except KeyError:
 						pass
 			else:
-				self.logger.info("downloading index for page '%s'", page)
+				self.logger.debug("downloading index for page '%s'", page)
 				tmp = self.base_relay.newTemporaryFile()
 				self.base_relay._get(location, tmp)
 				index, _ = read_index(tmp, groupby=self.metadata_group_by, compress=True)
 				self.index[page] = index
-				self.index_atime[page] = index_atime
+				self.index_mtime[page] = index_mtime
 				self.base_relay.delTemporaryFile(tmp)
 			if timestamp:
 				self.last_update[page] = timestamp
 		return index
 
 	def getPageIndex(self, page):
-		self.getIndexChanges(page, True)
+		self.getIndexChanges(page, sync=True, check_mtime=True)
 		return self.index.get(page, {})
 
 	def getUpdateIndex(self, page, sync=True):
-		return self.getIndexChanges(page, sync)
+		return self.getIndexChanges(page, sync, check_mtime=False)
 
 	def getUpdateData(self, page, destination):
 		self.base_relay._get(self.updateData(page, mode='r'), destination)
@@ -731,22 +775,22 @@ class IndexRelay(AbstractIndexRelay):
 			if sync:
 				self.index[page] = index
 			#
-			self.logger.info("uploading index for page '%s'", page)
+			self.logger.debug("uploading index for page '%s'", page)
 			write_index(tmp, index, groupby=self.metadata_group_by, compress=True)
 			self._force('update page index', page, self.base_relay._push, tmp, index_location)
 		#
 		if True:#exists:
 			write_index(tmp, index_update)
-			upadte_location = self.updateIndex(page, mode='w')
+			update_location = self.updateIndex(page, mode='w')
 			if self._timestamp_index:
-				self.logger.info("uploading index update '%s' for page '%s'",
+				self.logger.debug("uploading index update '%s' for page '%s'",
 						self.updateTimestamp(page, mode='w'), page)
 			self._force('push update index', page, self.base_relay._push, tmp, update_location)
 		self.base_relay.delTemporaryFile(tmp)
 		#
 		self.remoteListing()
 		if upload_index:
-			self.index_atime[page] = [ atime for name, atime in self.listing_cache if name == index_location ][0]
+			self.index_mtime[page] = [ mtime for name, mtime in self.listing_cache if name == index_location ][0]
 
 	def setUpdateData(self, page, data):
 		self.base_relay._push(data, self.updateData(page, mode='w'))
@@ -772,7 +816,7 @@ class IndexRelay(AbstractIndexRelay):
 		#
 		tmp = self.base_relay.newTemporaryFile()
 		write_index(tmp, index, pullers)
-		self.logger.info("uploading index update for page '%s'", page)
+		self.logger.debug("uploading index update for page '%s'", page)
 		self._force('push update index', page, self.base_relay._push, tmp, location)
 		self.base_relay.delTemporaryFile(tmp)
 
