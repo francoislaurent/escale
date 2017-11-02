@@ -34,6 +34,7 @@ Changelog
 
   * index-based relay repository management
   * ``index`` and ``maxpagesize`` configuration option
+  * indexing is selected by default by the configuration wizard, except for ``ftp*`` and ``file`` protocols
 
 * `0.6.2`:
 

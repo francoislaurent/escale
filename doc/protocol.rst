@@ -4,18 +4,33 @@ Communication protocol
 
 This section describes the general communication logic between the nodes that operate on a common relay repository.
 
-The scheme described below applies to all the current backends that derivate from the |relay| class.
+The scheme described below applies to all the current backends that derivate from the |relay| class, except for *local file* and *FTP* relays.
 
-A |example-file| file, when uploaded to the relay repository, is accompanied by two hidden files: |example-lock| and |example-placeholder|.
+.. note:: The current (index-based) scheme was introduced with version *0.7*. The former scheme is still maintained and documented `here <placeholders.html>`_.
 
-Note that the '*.*' prefix and '*.lock*' and '*.placeholder*' suffixes are defined in the |relay| class.
-A valid backend does not need to handle locks and placholders as individual files. 
-It should instead implement the more general :class:`~escale.relay.relay.AbstractRelay` interface.
+The relay repository consists primarily of an index file.
+This index file contains meta information for files that were or are transferred.
+This primary index will be referred to as the persistent index.
+
+When new files or modified versions of files are to be sent to the relay, they are bundled together into a compressed archive (*.tar.bz2*).
+
+The archive is accompanied by an index similar to the persistent index, but limited to specifying the content of the archive.
+
+The archive and attached index form together an update, and they will be referred to as update data and update index respectively.
+
+In addition, the indexing mechanism supports paging, i.e. the total repository can be split down into several pages and each page consists of a persistent index and optionaly an update.
+By default, `escale` maintains a single page, but multi-paging could easily be introduced by overwriting the :meth:`~relay.index.IndexRelay.page` method of the :class:`~relay.index.IndexRelay` class.
+
+For each page, no more than a single update can be available for download on the relay.
+As a consequence, active clients cannot push a new update as long as the current available update has not been consumed by all the pullers.
+
+When a non-trivial read or write operation is to be performed on the relay, the client locks the page with a lock file.
+
 
 Lock files
 ~~~~~~~~~~
 
-|example-lock| is written at the beginning of any transfer (upload or download) and deleted once the transfer is completed. 
+A lock file is written at the beginning of any transfer (upload or download) and deleted once the transfer is completed. 
 When a lock file is associated to a regular file, only the owner of the lock can operate on the file.
 
 A lock file contains the name of the owner client and the type of operation ('*mode: w*' for uploads, '*mode: r*' for downloads).
@@ -23,60 +38,34 @@ A lock file contains the name of the owner client and the type of operation ('*m
 When a client fails during such an operation, it can later undo the commited modifications. 
 See also the `Recovery from failure`_ section.
 
-In earlier versions, lock files did not contain any information, hence the concept of unclaimed locks. 
-Unclaimed locks can be deleted by any client after some time has passed. 
-The |relay| class features a `lock_timeout` attribute. 
-However this is not relevant with versions starting even before `0.5` (first version released and promoted outside github).
 
-Placeholder files
-~~~~~~~~~~~~~~~~~
+Index files
+~~~~~~~~~~~
 
-Placeholder files are the most persistent files. 
-They stay forever in the relay repository. 
-They can be deleted under specific circumstances to request the corresponding regular file again.
+Index files contain lists of files together with meta information such as the last modified time and checksum of the corresponding regular file.
 
-In earlier versions, they were created once the corresponding regular file was deleted, hence the *placeholder* suffix.
+The persistent index is read by the clients only at startup time. 
+Pushers update this index each time they send an update.
 
-However they now contain meta information such as the last modified time of the corresponding regular file. 
-As a consequence, they are now created at upload time and already exist when the corresponding regular file is available in the relay repository.
+Update indices are duplicate information. 
+Their purpose is to make the pullers generate less traffic.
+Indeed pullers only need update indices.
 
-Each time a puller client gets a copy of the file, it marks the file as read by registering itself in the placeholder file. 
-This mechanism helps determining when a file can be deleted in a multi-puller setting.
+Each time a puller client gets a copy of an update, it marks the update as read/consumed by registering itself in the update index. 
+As a consequence pullers overwrite the update index on the relay.
+This mechanism helps determining when an update can be deleted from the relay in a multi-puller setting.
 
-Message files
-~~~~~~~~~~~~~
-
-.. note:: This feature is not yet implemented. It is exposed here as a support for discussion about inter-client communication in multi-puller settings.
-
-Message files exist only in multi-puller settings.
-
-These files can be created when the relay storage space is full. 
-Regular files that were pulled at least once can be deleted by a pusher that needs to upload more files, and each deleted regular file is replaced by a message file. 
-They are actual placeholders, but temporary ones.
-
-The pullers that didn't get their copy of a deleted regular file are "notified" by the existence of such message files. 
-As a consequence they can request the regular file again.
-
-This mechanism is supposed to overcome the problem of puller downtime. 
-Indeed, in multi-puller settings, regular files are cleared from the relay repository by the last puller, i.e. once all pullers got their respective copy of the regular file. 
-When a puller node gets down, the files that this client didn't download would stay in the relay repository as long as this client is down.
-
-Message filenames are in the form |example-message|. 
-They have a *message* extension and may have a subextension that remains to be defined (will probably be a timestamp).
-
-The subextension should change on any modification of the content of the message file. 
-This permits to let the other clients know when the message file should be read again.
-
-Indeed, the clients should read all the new message files each time they crawl the repository in search for changes. 
-The clients should locally cache these message files to avoid multiple downloads. 
-It is assumed here that every transfer is costly (e.g. API cost) and should be avoided if possible.
-
-The subextension can be omitted by relays that have access to last modified time of message files.
 
 Recovery from failure
 ~~~~~~~~~~~~~~~~~~~~~
 
-.. todo:: make doc
+On restart, a client may find a page lock that it is supposed to own.
+In this situation, depending on whether the failed transaction was a read or a write, the client tries to fix the state of the page before releasing the lock.
+
+Another misbehaviour can be detected when a puller client cannot find local copies of files that are referenced in the relay index.
+In this situation, the client updates the persistent index after removing the entries corresponding to the missing files.
+The pusher clients check whether the persistent index has been modified based on the last modified time of the file on the relay and downloads it if modified.
+
 
 Multi-puller scenarios
 ~~~~~~~~~~~~~~~~~~~~~~
@@ -84,8 +73,4 @@ Multi-puller scenarios
 .. todo:: make doc
 
 
-.. |example-file| replace:: *my-file*
-.. |example-lock| replace:: *.my-file.lock*
-.. |example-placeholder| replace:: *.my-file.placeholder*
-.. |example-message| replace:: *.my-file.<hash>.message*
 .. |relay| replace:: :class:`~escale.relay.relay.Relay`

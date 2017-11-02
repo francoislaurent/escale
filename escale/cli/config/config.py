@@ -49,6 +49,9 @@ standard_protocols = [ 'ftp', 'ftps', 'http', 'https', 'webdav' ]
 def show_protocols(ps):
 	return quote_join(ps)
 
+def _indexing(protocol):
+	return protocol not in [ 'ftp', 'ftps', 'file' ]
+
 
 def print_help(help, space=True):
 	if help:
@@ -393,6 +396,8 @@ def add_section(config, cfg_dir, section=None, msgs=[]):
 	
 	And then delegates to :func:`section_common`.
 
+	*new in 0.7:* indexing is set by default, with 200MB page size, for all relay backend but *FTP* and *local file*.
+
 	Arguments:
 
 		config (ConfigParser): configuration object.
@@ -428,10 +433,18 @@ def add_section(config, cfg_dir, section=None, msgs=[]):
 	for option, value in kwargs.items():
 		if value:
 			config.set(section, option, value)
-	return section_common(config, cfg_dir, section, kwargs['protocol'], msgs)
+	protocol = kwargs['protocol']
+	config, mode, msgs = section_common(config, cfg_dir, section, protocol, msgs,
+		return_mode=True)
+	if _indexing(protocol):
+		# new in 0.7: indexing is default
+		config.set(section, default_option('index'), '1')
+		if mode != 'download':
+			config.set(section, default_option('maxpagesize'), '200MB')
+	return config, msgs
 
 
-def section_common(config, cfg_dir, section, protocol, msgs):
+def section_common(config, cfg_dir, section, protocol, msgs, return_mode=False):
 	# code moved from `add_section`
 	## client name
 	help = [
@@ -588,15 +601,15 @@ def section_common(config, cfg_dir, section, protocol, msgs):
 	if not refresh:
 		refresh = default_refresh
 	config.set(section, _refresh_, refresh)
-	# disk quota for webdav
-	if mode != 'download':
-		help = [[
-			"quotas on the amount of sent data are recommended for pushers",
-			" examples:  2GB  4.5G  1To  (default unit is gigabyte)",
-			]]
-		_quota_, quota = query_field(config, section, 'quota', help=help)
-		if quota:
-			config.set(section, _quota_, quota)
+	## disk quota for webdav
+	#if mode != 'download':
+	#	help = [[
+	#		"quotas on the amount of sent data are recommended for pushers",
+	#		" examples:  2GB  4.5G  1To  (default unit is gigabyte)",
+	#		]]
+	#	_quota_, quota = query_field(config, section, 'quota', help=help)
+	#	if quota:
+	#		config.set(section, _quota_, quota)
 	# delegate to protocol dependent setup
 	try:
 		extra_mod = importlib.import_module('.'.join((__package__, protocol)))
@@ -613,7 +626,10 @@ def section_common(config, cfg_dir, section, protocol, msgs):
 		else:
 			if type(result) is type(config):
 				config = result
-	return config, msgs
+	if return_mode:
+		return config, mode, msgs
+	else:
+		return config, msgs
 
 
 def query_synchronization_mode(config, section, msgs=[]):
@@ -873,7 +889,8 @@ def simplified_add(config, cfg_dir, section=None, msgs=[]):
 	* local repository (path)
 	* relay service or protocol (display list)
 		* if protocol, address of the service
-	* disk quota for the relay space
+	* disk quota for the relay space (now of limited interest with indexing)
+	* indexing with 200MB page size
 	
 	Some parameters are set or let undefined so that they default to the following settings:
 
@@ -1036,5 +1053,9 @@ def simplified_add(config, cfg_dir, section=None, msgs=[]):
 	config.set(section, default_option('mode'), 'shared')
 	config.set(section, default_option('refresh'), '10')
 	config.set(section, default_option('quota'), '2GB')
+	if _indexing(protocol):
+		# new in 0.7: indexing is default
+		config.set(section, default_option('index'), '1')
+		config.set(section, default_option('maxpagesize'), '200MB')
 	return config, msgs
 
