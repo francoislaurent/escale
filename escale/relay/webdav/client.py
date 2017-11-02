@@ -45,10 +45,12 @@ except ImportError:
 	from urllib.parse import urlparse, quote, unquote
 import time
 import logging
+import OpenSSL.SSL
 
 
 class UnexpectedResponse(Exception):
-	def __init__(self, method, resource, actual_code, expected_codes=()):
+	def __init__(self, method=None, resource=None, actual_code=None, expected_codes=()):
+		# all input arguments should be optional to make the object serializable
 		self.method = method
 		self.resource = resource
 		if not isinstance(expected_codes, (list, tuple)):
@@ -182,6 +184,7 @@ class Client(object):
 									logger = self.logger
 								else:
 									logging.getLogger()
+								logger.debug('on %s %s', method, target)
 								logger.debug('ignoring %s error: %s', e1.args[0], e1)
 								continue
 						except AttributeError:
@@ -189,6 +192,16 @@ class Client(object):
 						raise e1
 					else:
 						e = e.args[0]
+				raise
+			except OpenSSL.SSL.SysCallError as e:
+				if e.args[0] in retry_on_errno:
+					if hasattr(self, 'logger'):
+						logger = self.logger
+					else:
+						logging.getLogger()
+					logger.debug('on %s %s', method, target)
+					logger.debug('ignoring %s error: %s', e.args[0], e)
+					continue
 				raise
 			status_code = response.status_code
 			if status_code in retry_on_status_codes:

@@ -330,9 +330,10 @@ class Manager(Reporter):
 		"""
 		for lock in self.relay.listCorrupted():
 			remote_file = lock.target
-			local_file = self.repository.accessor(remote_file)
-			self.logger.info("fixing uncompleted transfer: '%s'", remote_file)
-			self.relay.repair(lock, local_file)
+			if remote_file:
+				local_file = self.repository.accessor(remote_file)
+				self.logger.info("fixing uncompleted transfer: '%s'", remote_file)
+				self.relay.repair(lock, local_file)
 
 	def download(self):
 		"""

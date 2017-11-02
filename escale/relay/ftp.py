@@ -323,7 +323,7 @@ class FTP(Relay):
 					self.ftp.voidcmd('TYPE I') # set binary mode
 				f = 0
 				if self._size_support is None:
-					used = self.size(join(self.repository, files[f]), fail=True)
+					used = self.size(files[f], fail=True)
 					if self._size_support:
 						f += 1
 				if self._size_support:

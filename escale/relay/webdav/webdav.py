@@ -212,3 +212,13 @@ class WebDAV(Relay, Client):
 	def purge(self, remote_dir=''):
 		self.rmdir(remote_dir)
 
+	def acquireLock(self, remote_file, mode=None, blocking=True):
+		while True:
+			try:
+				return Relay.acquireLock(self, remote_file, mode, blocking)
+			except UnexpectedResponse as e:
+				if blocking and e.actual_code == 423:
+					continue
+				raise
+			break
+
