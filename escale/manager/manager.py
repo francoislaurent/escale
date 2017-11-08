@@ -69,6 +69,8 @@ class Manager(Reporter):
 
 		count (int): puller count.
 
+		excludedirectory (list of str): regular expressions to exclude directories by name.
+
 		pop_args (dict): extra keyword arguments for 
 			:meth:`~escale.relay.AbstractRelay.pop`.
 
@@ -76,7 +78,7 @@ class Manager(Reporter):
 	def __init__(self, relay, repository=None, address=None, directory=None, \
 		encryption=Plain(None), timestamp=True, refresh=True, clientname=None, \
 		filetype=[], include=None, exclude=None, tq_controller=None, count=None, \
-		checksum=True, **relay_args):
+		checksum=True, excludedirectory=None, **relay_args):
 		Reporter.__init__(self, **relay_args)
 		self.repository = repository
 		if directory:
@@ -147,6 +149,25 @@ class Manager(Reporter):
 					self.exclude.append(re.compile(exp))
 				except:
 					self.logger.error("wrong filename pattern '%s'", exp)
+					self.logger.debug(traceback.format_exc())
+		self.exclude_directory = None
+		if excludedirectory:
+			if not isinstance(excludedirectory, (tuple, list)):
+				excludedirectory = [ excludedirectory ]
+			self.exclude_directory = []
+			for exp in excludedirectory:
+				if exp[0] == '/':
+					if exp[-1] == '/':
+						exp = exp[1:-1]
+					else:
+						exp = exp[1:]
+				else:
+					exp = exp.replace('.', '\.').replace('*', '.*')
+				try:
+					
+					self.exclude_directory.append(re.compile(exp))
+				except:
+					self.logger.error("wrong directory name pattern '%s'", exp)
 					self.logger.debug(traceback.format_exc())
 		self.pop_args = {}
 		arg_map = [('locktimeout', 'lock_timeout'),
@@ -301,6 +322,8 @@ class Manager(Reporter):
 			files = [ f for f in files if any([ exp.match(os.path.basename(f)) for exp in self.include ]) ]
 		if self.exclude:
 			files = [ f for f in files if not any([ exp.match(os.path.basename(f)) for exp in self.exclude ]) ]
+		if self.exclude_directory:
+			files = [ f for f in files if not any([ exp.match(os.path.dirname(f)) for exp in self.exclude_directory ]) ]
 		return files
 
 	def _filter(self, f):
@@ -313,7 +336,7 @@ class Manager(Reporter):
 
 		Returns:
 
-			bool: selected if ``True``, rejected if ``False``.
+			bool: ``True`` if selected, ``False`` if rejected.
 		"""
 		ok = True
 		if self.filetype:
@@ -322,6 +345,23 @@ class Manager(Reporter):
 			ok = any([ exp.match(f) for exp in self.include ])
 		if ok and self.exclude:
 			ok = not any([ exp.match(f) for exp in self.exclude ])
+		return ok
+
+	def _filter_directory(self, dirname):
+		"""
+		Tell if a directory is to be crawled.
+
+		Arguments:
+
+			dirname (str): directory name (relative path).
+
+		Returns:
+
+			bool: ``True`` if selected, ``False`` if rejected.
+		"""
+		ok = True
+		if ok and self.exclude_directory:
+			ok = not any([ exp.match(dirname) for exp in self.exclude_directory ])
 		return ok
 
 	def sanityChecks(self):
@@ -458,7 +498,7 @@ class Manager(Reporter):
 
 		Use ``self.repository.readableFiles`` instead.
 		"""
-		return self.repository.readable(self.repository.listFiles(path, select=self._filter))
+		return self.repository.readable(self.repository.listFiles(path, dirname=self._filter_directory, basename=self._filter))
 
 	def checksum(self, local_file):
 		checksum = None

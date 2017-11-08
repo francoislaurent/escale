@@ -15,6 +15,7 @@ from escale.base import *
 from escale.log.log import *
 from escale.base.config import *
 from escale.manager.config import *
+from escale.relay.index import AbstractIndexRelay
 import os
 import logging
 try:
@@ -249,6 +250,40 @@ def inter_relay_copy(src_relay, dest_relay, safe=True, overwrite=False, files=[]
 	else:
 		src_safe = safe
 		dest_safe = safe
+	# index support (added in 0.7.1)
+	if isinstance(src_relay, AbstractIndexRelay) and isinstance(dest_relay, AbstractIndexRelay):
+		# with indices, `safe` should always be True, and `overwrite` is ignored (considered to be True)
+		if files:
+			raise NotImplementedError('cannot select a subset of files in indices')
+		for page in src_relay.listPages():
+			if src_safe and not src_relay.acquirePageLock(page):
+				# TODO: log failure
+				continue
+			try:
+				if dest_safe and not dest_relay.acquirePageLock(page):
+					# TODO: log failure
+					continue
+				fd, tmp = tempfile.mkstemp()
+				os.close(fd)
+				try:
+					# IndexRelay only
+					files = []
+					files.append(src_relay.persistentIndex(page))
+					if src_relay.hasUpdate(page):
+						files.append(src_relay.updateIndex(page, mode='r'))
+						files.append(src_relay.updateData(page, mode='r'))
+					for location in files:
+						src_relay.base_relay._get(location, tmp)
+						dest_relay.base_relay._push(tmp, location)
+				finally:
+					os.unlink(tmp)
+					if dest_safe:
+						dest_relay.releasePageLock(page)
+			finally:
+				if src_safe:
+					src_relay.releasePageLock(page)
+		return []
+	# standard (no index) relays
 	new_placeholders = not (src_relay._placeholder_prefix == dest_relay._placeholder_prefix \
 			and src_relay._placeholder_suffix == dest_relay._placeholder_suffix)
 	new_locks = not (src_relay._lock_prefix == dest_relay._lock_prefix \

@@ -70,6 +70,10 @@ if __name__ == '__main__':
 	_fix.add_argument('-u', '--update', action='store_true', help='do not overwrite')
 	_fix.add_argument('-f', '--fast', action='store_true', help='unsafe recovery; use this only if repository is inactive')
 	_fix.set_defaults(func=recover)
+	_rebase = parsers.add_parser('rebase', help='rebase an existing relay repository as a sub-directory in the new relay repository (index-based only)')
+	_rebase.add_argument('-r', '--repository', type=str, metavar='NAME', help='source repository')
+	_rebase.add_argument('extra_path', type=str, help='path elements to append as extra upper levels to the existing relay repository path')
+	_rebase.set_defaults(func=rebase)
 	args = parser.parse_args()
 	ret = 0
 	try:

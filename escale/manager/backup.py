@@ -47,6 +47,8 @@ def backup_manager(archive, repository, backup_or_restore='backup', safe=True, c
 	# flush messages
 	flush_init_messages(logger, msgs)
 	relay_class, relay_config = parse_section(config, repository, logger)
+	if relay_config.get('index', True):
+		raise NotImplementedError('cannot backup index-based relay repositories; please do so manually downloading all the index-related files')
 	client = relay_config.pop('clientname')
 	address = relay_config.pop('address')
 	directory = relay_config.pop('directory')

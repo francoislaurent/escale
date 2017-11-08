@@ -169,13 +169,14 @@ Other parameters are:
 * ``file extension`` (or ``file type``): a comma-separated list of file extensions (with or without the initial dot)
 * ``include`` (or ``include files``, ``pattern``, ``filter``): comma-separated list of regular expressions to filter in files by name
 * ``exclude`` (or ``exclude files``): comma-separated list of regular expressions to filter out files by name
+* ``exclude directories`` (or ``exclude directory``): comma-separated list of regular expressions to filter out directories
 * ``disk quota``: a decimal number with storage space units such as ``KB``, ``MB``, ``GB``, etc
 * ``maintainer``: an email address; if a client aborts and an SMTP server is available on the client machine, a notice email can be sent to this address
 * ``mode`` (or ``synchronization mode``): either ``download`` (synonym of ``pull only = yes``), ``upload`` (synonym of ``push only = yes``), ``conservative``/``preservative`` or ``share``/``shared`` (default). See `Synchronization modes`_
 * ``lock timeout``: timeout for unclaimed locks, in seconds
 * ``puller count`` (or ``pullers``): number of puller nodes operating on the remote repository. See `Multi-client and multi-puller regimes`_
 * ``checksum`` (or ``hash algorithm``): boolean (default: true) or hash algorithm has supported by :func:`hashlib.new`. See also `hashlib.algorithms_available`
-* ``index`` (or ``compact``): boolean (default: false); index-based relay repository management; see also `Indexing`_
+* ``index`` (or ``compact``): boolean (default: false) or string; index-based relay repository management; see also `Indexing`_
 * ``maxpagesize`` (or ``maxarchivesize``): a decimal number with optional storage space units such as ``KB``, ``MB``, ``GB``, etc (default value: 1 GB, default unit: MB)
 
 
@@ -264,6 +265,8 @@ When files are to be transferred, they are bundled into a compressed archive and
 through the relay repository together with a limited index file that lists the content of the archive.
 
 The archive is compressed (and encrypted if encryption is on) once the total size of the pending files reaches the value defined by the ``maxpagesize`` configuration parameter, or no more files are to be sent.
+
+See also the `protocol <protocol.html>`_ section.
 
 
 .. |escalecmd| replace:: *escale*

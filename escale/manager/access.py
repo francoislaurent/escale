@@ -324,21 +324,35 @@ class AccessController(Reporter):
 			else:
 				raise ValueError("'{}' mode not supported".format(m))
 
-	def listFiles(self, path=None, select=None):
+	def listFiles(self, path=None, basename=None, dirname=None):
 		"""
 		List all visible files in the local repository.
 
 		Files which name begins with "." are ignored.
+
+		Arguments:
+
+			path (str): relative path to recursively crawl from.
+
+			basename (boolean function): returns True if the input file basename qualifies.
+
+			dirname (boolean function): returns True if the input file directory name qualifies.
+
+		Returns:
+
+			list of str: list of local files.
 		"""
 		if path is None:
 			path = self.path
 		# no improvement with os.walk compared to listdir...
-		if select is None:
-			select = lambda a: True
+		if dirname is None:
+			dirname = lambda a: True
+		if basename is None:
+			basename = lambda a: True
 		local = []
-		for dirname, _, filenames in os.walk(path):
-			local.append([ os.path.join(dirname, basename) for basename in filenames
-				if basename[0] != '.' and select(basename) ])
+		for _dirname, _, filenames in os.walk(path):
+			local.append([ os.path.join(_dirname, _basename) for _basename in filenames
+				if dirname(_dirname) and _basename[0] != '.' and basename(_basename) ])
 		local = itertools.chain(*local)
 		#ls = [ os.path.join(path, f) for f in os.listdir(path) if f[0] != '.' ]
 		#local = itertools.chain([ f for f in ls if os.path.isfile(f) ], \

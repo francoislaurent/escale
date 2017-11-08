@@ -19,7 +19,13 @@ The archive is accompanied by an index similar to the persistent index, but limi
 The archive and attached index form together an update, and they will be referred to as update data and update index respectively.
 
 In addition, the indexing mechanism supports paging, i.e. the total repository can be split down into several pages and each page consists of a persistent index and optionaly an update.
-By default, `escale` maintains a single page, but multi-paging could easily be introduced by overwriting the :meth:`~relay.index.IndexRelay.page` method of the :class:`~relay.index.IndexRelay` class.
+By default, `escale` maintains a single page, but multi-paging could easily be introduced by overwriting the :meth:`~relay.index.IndexRelay.page` and :meth:`~relay.index.IndexRelay.allPages` methods of the :class:`~relay.index.IndexRelay` class.
+
+An example of multi-page indexing can be found in the :class:`~relay.index.TopDirectoriesIndex` class.
+This class is used as a relay if ``index = topdir``.
+It maintains as many pages as there are top directories in the repository, plus a default "0" page for files that are not in these directories.
+In addition, this class can manage several levels of directories.
+For example, if ``index = topdir:2``, a distinct page will be maintained for each "A/B" sub-directory, where "A" is a top directory and "B" a sub-directory in "A".
 
 For each page, no more than a single update can be available for download on the relay.
 As a consequence, active clients cannot push a new update as long as the current available update has not been consumed by all the pullers.

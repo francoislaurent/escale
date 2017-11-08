@@ -27,6 +27,7 @@ import tarfile
 import tempfile
 import shutil
 import bz2
+import os
 from collections import defaultdict, MutableMapping
 
 
@@ -637,6 +638,7 @@ class IndexRelay(AbstractIndexRelay):
 		self.base_relay.close()
 
 	def updateRelated(self, page, filename):
+		# this may have never been tested
 		filename = os.path.basename(filename)
 		prefix = self._persistent_index_prefix + page
 		suffix = self._persistent_index_suffix
@@ -757,6 +759,17 @@ class IndexRelay(AbstractIndexRelay):
 	def getUpdateData(self, page, destination):
 		self.base_relay._get(self.updateData(page, mode='r'), destination)
 
+	def setPageIndex(self, page, index):
+		index_location = self.persistentIndex(page)
+		self.logger.debug("uploading index for page '%s'", page)
+		fd, tmp = tempfile.mkstemp()
+		try:
+			os.close(fd)
+			write_index(tmp, index, groupby=self.metadata_group_by, compress=True)
+			self._force('update page index', page, self.base_relay._push, tmp, index_location)
+		finally:
+			os.unlink(tmp)
+
 	def setUpdateIndex(self, page, index, sync=True):
 		if not index:
 			self.logger.warning("empty update index for page '%s'", page)
@@ -839,4 +852,26 @@ class IndexRelay(AbstractIndexRelay):
 	def hasUpdate(self, page):
 		self.remoteListing()
 		return self.updateTimestamp(page, mode='r') is not None
+
+
+
+class TopDirectoriesIndex(IndexRelay):
+	def __init__(self, *args, **kwargs): 
+		self.nlevels = kwargs.pop('nlevels', 1)
+		IndexRelay.__init__(self, *args, **kwargs)
+
+	def page(self, resource):
+		levels = []
+		dirname = os.path.dirname(resource)
+		while dirname:
+			dirname, level = os.path.split(dirname)
+			levels.append(level)
+		levels = levels[-1:-1-self.nlevels:-1]
+		if len(levels) == self.nlevels:
+			return '_'.join(levels).replace('.', '_')
+		else:
+			return IndexRelay.page(self, resource)
+
+	def allPages(self):
+		return set(IndexRelay.allPages(self) + self.listPages())
 

@@ -11,7 +11,6 @@
 # knowledge of the CeCILL-C license and that you accept its terms.
 
 
-import subprocess
 import sys
 import os
 import traceback
@@ -26,6 +25,11 @@ from escale.manager.access import *
 from escale.base.launcher import *
 from escale.manager.migration import *
 from escale.manager.backup import *
+from escale.relay.index import *
+
+import tarfile
+import shutil
+import subprocess # escale.manager.migration mysteriously overwrites subprocess, therefore subprocess should imported after
 
 
 def start(pidfile=None):
@@ -40,6 +44,7 @@ def start(pidfile=None):
 		print("{} is already running; if not, delete the '{}' file".format(PROGRAM_NAME, pidfile))
 		return 1
 	try:
+		raise ImportError # daemon.DaemonContext does not seem to work (at least in Python 2.7)
 		import daemon
 		import daemon.pidfile
 	except ImportError:
@@ -49,7 +54,7 @@ def start(pidfile=None):
 				python = 'python3'
 			else:
 				python = 'python'
-		sub = subprocess.Popen([python, '-m', PROGRAM_NAME, '-r'])
+		sub = subprocess.Popen([python, '-m', PROGRAM_NAME]) #, '-r'
 		with open(pidfile, 'w') as f:
 			f.write(str(sub.pid))
 	else:
@@ -215,7 +220,7 @@ def restore(repository=None, archive=None, fast=None):
 
 def recover(repository=None, timestamp=None, overwrite=True, update=None, fast=None):
 	"""
-	Make a relay repository with placeholder files as if the local repository
+	Make a relay repository with placeholder files or indices as if the local repository
 	resulted from a complete download of an existing repository with escale.
 	"""
 	if update is not None:
@@ -235,10 +240,34 @@ def recover(repository=None, timestamp=None, overwrite=True, update=None, fast=N
 	os.close(fd)
 	try:
 		for repository in repositories:
+			client = make_client(cfg, repository)
+			ls = client.localFiles()
+			client.relay.open()
 			try:
-				client = make_client(cfg, repository)
-				ls = client.localFiles()
-				client.relay.open()
+				# index relays
+				if isinstance(client.relay, IndexRelay):
+					tmp = local_placeholder # just a temporary file
+					index = {}
+					for local_file in ls:
+						resource = os.path.relpath(local_file, client.path)
+						page = client.relay.page(resource)
+						mtime = int(os.path.getmtime(local_file))
+						checksum = client.checksum(local_file)
+						metadata = Metadata(target=resource, timestamp=mtime,
+								checksum=checksum, pusher=client.relay.client)
+						if page not in index:
+							index[page] = {}
+						index[page][resource] = metadata
+					for page in index:
+						if fast or client.relay.acquirePageLock(page, 'w'):
+							try:
+								# this ignores `overwrite` (considers it as True)
+								client.relay.setPageIndex(page, index[page])
+							finally:
+								if not fast:
+									client.relay.releasePageLock(page)
+					continue
+				# standard (no index) relays
 				if fast:
 					client.logger.info('{} local files found'.format(len(ls)))
 					remote = client.relay.listTransfered()
@@ -286,9 +315,76 @@ def recover(repository=None, timestamp=None, overwrite=True, update=None, fast=N
 						progr = new_progr
 						clock = new_clock
 						client.logger.info('progress: {}%'.format(progr))
-				client.relay.close()
 			except:
 				print(traceback.format_exc())
+			finally:
+				client.relay.close()
 	finally:
 		os.unlink(local_placeholder)
+
+
+def rebase(repository=None, extra_path=None):
+	"""
+	Update the existing indices so that the former repository is a sub-directory of the new repository.
+	"""
+	if not extra_path:
+		return
+	cfg, cfg_file, msgs = parse_cfg()
+	logger, msgs = set_logger(cfg, cfg_file, msgs=msgs)
+	flush_init_messages(logger, msgs)
+	if not repository:
+		repository = cfg.sections()
+		if repository[1:]:
+			raise ValueError("several repositories defined; please specify with '--repository'")
+		repository = repository[0]
+	extra_path = os.path.expanduser(extra_path)
+	dirname = os.path.dirname(extra_path)
+	while True:
+		first_dir = os.path.dirname(dirname)
+		if first_dir == dirname:
+			break
+		dirname = first_dir
+	client = make_client(cfg, repository)
+	if isinstance(client.relay, TopDirectoriesIndex):
+		raise NotImplementedError('cannot add upper directories with directory-based indexing')
+	client.relay.open()
+	fd, tmp = tempfile.mkstemp()
+	try:
+		os.close(fd)
+		for page in client.relay.listPages():
+			if client.relay.acquirePageLock(page, 'w'):
+				try:
+					# persistent index
+					ix = client.relay.getPageIndex(page)
+					if ix:
+						ix = { join(extra_path, key): value for key, value in ix.items() }
+						client.relay.setPageIndex(page, ix)
+						if client.relay.hasUpdate(page):
+							# update index
+							ix = client.relay.getUpdateIndex(page, sync=False)
+							ix = { join(extra_path, key): value for key, value in ix.items() }
+							client.relay.setUpdateIndex(page, ix, sync=False)
+							# update data
+							encrypted = client.encryption.prepare(tmp)
+							client.relay.getUpdateData(page, encrypted)
+							client.encryption.decrypt(encrypted, tmp)
+							extraction_repository = tempfile.mkdtemp()
+							try:
+								os.makedirs(join(extraction_repository, extra_path))
+								with tarfile.open(tmp, mode='r:bz2') as tar:
+									tar.extractall(join(extraction_repository, extra_path))
+								os.unlink(tmp)
+								with tarfile.open(tmp, mode='w:bz2') as tar:
+									tar.add(join(extraction_repository, first_dir), arcname=first_dir,
+											recursive=True)
+								encrypted = client.encryption.encrypt(tmp)
+								client.relay.setUpdateData(page, encrypted)
+								client.encryption.finalize(encrypted)
+							finally:
+								shutil.rmtree(extraction_repository)
+				finally:
+					client.relay.releasePageLock(page)
+	finally:
+		os.unlink(tmp)
+		client.relay.close()
 

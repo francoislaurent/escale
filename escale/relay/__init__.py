@@ -18,7 +18,7 @@
 from .info import *
 from .relay import AbstractRelay, Relay
 from escale.base.exceptions import MissingSetupFeature
-from .index import IndexRelay
+from .index import IndexRelay, TopDirectoriesIndex
 
 __all__ = ['LockInfo', 'parse_lock_file', 'AbstractRelay', 'Relay']
 
@@ -112,12 +112,23 @@ def by_protocol(protocol, index=False, **ignored):
 			ps.append(p)
 	if ps:
 		if index:
+			_kwargs = {'base': ps[0]}
+			if isinstance(index, bool):
+				index_relay = IndexRelay
+			elif index.startswith('topdir') or index.startswith('top dir'):
+				try:
+					_kwargs['nlevels'] = int(index.split(':')[1])
+				except IndexError:
+					pass
+				index_relay = TopDirectoriesIndex
+			else:
+				raise ValueError('wrong `index` value: {}'.format(index))
 			for p in ps:
-				if isinstance(p, IndexRelay):
+				if isinstance(p, index_relay):
 					return p
 			def new(*args, **kwargs):
-				kwargs['base'] = ps[0]
-				return IndexRelay(*args, **kwargs)
+				kwargs.update(_kwargs)
+				return index_relay(*args, **kwargs)
 			return new
 		for p in ps:
 			if not isinstance(p, IndexRelay):
