@@ -271,6 +271,10 @@ def parse_metadata(lines, target=None, timestamp_format=None, log=None):
 					if section.startswith('puller') or section.startswith('reader'):
 						list_pullers = True
 					else:
+						# TODO: debug and remove the broken_metadata.txt file creation below
+						with open('broken_metadata.txt', 'w') as f
+							for _line in lines:
+								f.write(_line+'\n')
 						raise invalid(line)
 				else:
 					try:

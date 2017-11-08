@@ -342,21 +342,28 @@ class AccessController(Reporter):
 
 			list of str: list of local files.
 		"""
-		if path is None:
-			path = self.path
 		# no improvement with os.walk compared to listdir...
 		if dirname is None:
 			dirname = lambda a: True
 		if basename is None:
 			basename = lambda a: True
-		local = []
-		for _dirname, _, filenames in os.walk(path):
-			local.append([ os.path.join(_dirname, _basename) for _basename in filenames
-				if dirname(_dirname) and _basename[0] != '.' and basename(_basename) ])
-		local = itertools.chain(*local)
-		#ls = [ os.path.join(path, f) for f in os.listdir(path) if f[0] != '.' ]
-		#local = itertools.chain([ f for f in ls if os.path.isfile(f) ], \
-		#	*[ self.listFiles(f) for f in ls if os.path.isdir(f) ])
+		#if path is None:
+		#	path = self.path
+		#local = []
+		#for _dirname, _, filenames in os.walk(path):
+		#	local.append([ os.path.join(_dirname, _basename) for _basename in filenames
+		#		if dirname(_dirname) and _basename[0] != '.' and basename(_basename) ])
+		#local = itertools.chain(*local)
+		if path is None:
+			relative_path = lambda a: a
+		else:
+			relative_path = lambda a: os.path.join(path, a)
+		full_path = os.path.join(self.path, path)
+		ls = [ (os.path.join(full_path, f), relative_path(f), f) \
+				for f in os.listdir(full_path) if f[0] != '.' ]
+		local = itertools.chain( \
+			[ fp for fp, _, fn in ls if os.path.isfile(fp) and basename(fn) ], \
+			*[ self.listFiles(rp) for fp, rp, _ in ls if os.path.isdir(fp) and dirname(rp) ])
 		return list(local)
 
 	def readable(self, files):

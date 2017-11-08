@@ -9,7 +9,7 @@
 #     * `_item_separator`, `getlist`, `getunit`, `storage_space_unit` (dict() statement)
 #     * `list = getlist` and `number_unit = getnum` lines in `getter`
 #     * `checksum` in `fields`
-#     * `excludedirectory` in `fields`
+#     * `includedirectory` and `excludedirectory` in `fields`
 
 # This file is part of the Escale software available at
 # "https://github.com/francoislaurent/escale" and is distributed under
@@ -70,7 +70,7 @@ default_cache_dirs = { user_cfg_dir: user_cache_dir,
 # 'maxpendingtransfers' added in version 0.6rc2
 # 'compact' added in version 0.7alpha, renamed 'index' in 0.7rc1
 # 'maxpagesize' added in version 0.7rc1
-# 'excludedirectory' added in version 0.7.1
+# 'includedirectory' and 'excludedirectory' added in version 0.7.1
 fields = dict(path=('path', ['local path', 'path']),
 	address=['host address', 'relay address', 'remote address', 'address'],
 	directory=['host directory', 'relay directory', 'remote directory',
@@ -104,6 +104,7 @@ fields = dict(path=('path', ['local path', 'path']),
 	maxpendingtransfers=('int', ['max pending transfers']),
 	index=(('bool', 'str'), ['index', 'compact']),
 	maxpagesize=('number_unit', ['maxpagesize', 'maxarchivesize']),
+	includedirectory=('list', ['include directory', 'include directorys']),
 	excludedirectory=('list', ['exclude directory', 'exclude directorys']))
 
 
