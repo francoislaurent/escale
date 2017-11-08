@@ -247,8 +247,9 @@ def recover(repository=None, timestamp=None, overwrite=True, update=None, fast=N
 				# index relays
 				if isinstance(client.relay, IndexRelay):
 					tmp = local_placeholder # just a temporary file
+					nfiles = len(ls)
 					index = {}
-					for local_file in ls:
+					for n, local_file in enumerate(ls):
 						resource = os.path.relpath(local_file, client.path)
 						page = client.relay.page(resource)
 						mtime = int(os.path.getmtime(local_file))
@@ -258,6 +259,8 @@ def recover(repository=None, timestamp=None, overwrite=True, update=None, fast=N
 						if page not in index:
 							index[page] = {}
 						index[page][resource] = metadata
+						if nfiles < 100 or n % 10 == 9:
+							print('progress: {} of {} files'.format(n + 1, nfiles))
 					for page in index:
 						if fast or client.relay.acquirePageLock(page, 'w'):
 							try:
