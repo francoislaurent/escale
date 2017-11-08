@@ -356,9 +356,10 @@ class AccessController(Reporter):
 		#local = itertools.chain(*local)
 		if path is None:
 			relative_path = lambda a: a
+			full_path = self.path
 		else:
 			relative_path = lambda a: os.path.join(path, a)
-		full_path = os.path.join(self.path, path)
+			full_path = os.path.join(self.path, path)
 		ls = [ (os.path.join(full_path, f), relative_path(f), f) \
 				for f in os.listdir(full_path) if f[0] != '.' ]
 		local = itertools.chain( \

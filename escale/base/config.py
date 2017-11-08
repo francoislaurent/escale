@@ -104,8 +104,8 @@ fields = dict(path=('path', ['local path', 'path']),
 	maxpendingtransfers=('int', ['max pending transfers']),
 	index=(('bool', 'str'), ['index', 'compact']),
 	maxpagesize=('number_unit', ['maxpagesize', 'maxarchivesize']),
-	includedirectory=('list', ['include directory', 'include directorys']),
-	excludedirectory=('list', ['exclude directory', 'exclude directorys']))
+	includedirectory=('list', ['include directory', 'include directories']),
+	excludedirectory=('list', ['exclude directory', 'exclude directories']))
 
 
 def default_option(field, all_options=False):
