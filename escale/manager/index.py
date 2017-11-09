@@ -59,7 +59,10 @@ class IndexManager(Manager):
 			with self.relay.getUpdate(page, self.terminate) as update:
 				get_files = []
 				for remote_file in update:
-					if not self._filter(remote_file):
+					dirname, basename = os.path.split(remote_file)
+					if not self._filter(basename):
+						continue
+					if dirname and not self._filter_directory(dirname):
 						continue
 					local_file = self.repository.writable(remote_file)
 					if not local_file:

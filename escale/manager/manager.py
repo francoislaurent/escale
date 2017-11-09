@@ -523,7 +523,8 @@ class Manager(Reporter):
 
 		Use ``self.repository.readableFiles`` instead.
 		"""
-		return self.repository.readable(self.repository.listFiles(path, dirname=self._filter_directory, basename=self._filter))
+		return self.repository.readable(self.repository.listFiles(path,
+				dirname=self._filter_directory, basename=self._filter))
 
 	def checksum(self, local_file):
 		checksum = None

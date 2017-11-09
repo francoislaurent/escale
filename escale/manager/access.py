@@ -364,7 +364,8 @@ class AccessController(Reporter):
 				for f in os.listdir(full_path) if f[0] != '.' ]
 		local = itertools.chain( \
 			[ fp for fp, _, fn in ls if os.path.isfile(fp) and basename(fn) ], \
-			*[ self.listFiles(rp) for fp, rp, _ in ls if os.path.isdir(fp) and dirname(rp) ])
+			*[ self.listFiles(rp, basename=basename, dirname=dirname) \
+				for fp, rp, _ in ls if os.path.isdir(fp) and dirname(rp) ])
 		return list(local)
 
 	def readable(self, files):
