@@ -391,3 +391,70 @@ def rebase(repository=None, extra_path=None):
 		os.unlink(tmp)
 		client.relay.close()
 
+
+def suspend(repository=None, page=None):
+	cfg, cfg_file, msgs = parse_cfg()
+	logger, msgs = set_logger(cfg, cfg_file, msgs=msgs)
+	flush_init_messages(logger, msgs)
+	if repository:
+		if isinstance(repository, (tuple, list)):
+			repositories = repository
+		else:
+			repositories = [ repository ]
+	else:
+		repositories = cfg.sections()
+	if page and not isinstance(page, (tuple, list)):
+		page = [ page ]
+	for repository in repositories:
+		client = make_client(cfg, repository)
+		if not isinstance(client.relay, IndexRelay):
+			continue
+		client.relay.open()
+		try:
+			if page:
+				unlocked = list(page)
+			else:
+				unlocked = client.relay.listPages()
+			while unlocked:
+				_unlocked = []
+				for p in unlocked:
+					if client.relay.tryAcquirePageLock(p, 'w'):
+						print("in {}: page '{}' locked".format(repository, p))
+					else:
+						_unlocked.append(p)
+				unlocked = _unlocked
+		finally:
+			client.relay.close()
+
+
+def resume(repository=None, page=None):
+	cfg, cfg_file, msgs = parse_cfg()
+	logger, msgs = set_logger(cfg, cfg_file, msgs=msgs)
+	flush_init_messages(logger, msgs)
+	if repository:
+		if isinstance(repository, (tuple, list)):
+			repositories = repository
+		else:
+			repositories = [ repository ]
+	else:
+		repositories = cfg.sections()
+	if page and not isinstance(page, (tuple, list)):
+		page = [ page ]
+	for repository in repositories:
+		client = make_client(cfg, repository)
+		if not isinstance(client.relay, IndexRelay):
+			continue
+		client.relay.open()
+		try:
+			if page:
+				pages = list(page)
+			else:
+				pages = client.relay.listPages()
+			for p in locked:
+				try:
+					client.relay.releasePageLock(p)
+				except:
+					pass
+		finally:
+			client.relay.close()
+

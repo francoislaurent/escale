@@ -71,9 +71,17 @@ if __name__ == '__main__':
 	_fix.add_argument('-f', '--fast', action='store_true', help='unsafe recovery; use this only if repository is inactive')
 	_fix.set_defaults(func=recover)
 	_rebase = parsers.add_parser('rebase', help='rebase an existing relay repository as a sub-directory in the new relay repository (index-based only)')
-	_rebase.add_argument('-r', '--repository', type=str, metavar='NAME', help='source repository')
+	_rebase.add_argument('-r', '--repository', type=str, metavar='NAME', help='section in the default configuration file')
 	_rebase.add_argument('extra_path', type=str, help='path elements to append as extra upper levels to the existing relay repository path')
 	_rebase.set_defaults(func=rebase)
+	_suspend = parsers.add_parser('suspend', help='suspend synchronization of index-based repositories')
+	_suspend.add_argument('-r', '--repository', type=str, metavar='SECTION', help='section in the default configuration file')
+	_suspend.add_argument('-p', '--page', type=str, metavar='PAGE', help='specific index page')
+	_suspend.set_defaults(func=suspend)
+	_resume = parsers.add_parser('resume', help='resume synchronization of index-based repositories after suspend')
+	_resume.add_argument('-r', '--repository', type=str, metavar='SECTION', help='section in the default configuration file')
+	_resume.add_argument('-p', '--page', type=str, metavar='PAGE', help='specific index page')
+	_resume.set_defaults(func=resume)
 	args = parser.parse_args()
 	ret = 0
 	try:

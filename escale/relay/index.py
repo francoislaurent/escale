@@ -542,6 +542,25 @@ class IndexRelay(AbstractIndexRelay):
 		self.locked[page] = False
 		self.transaction_timestamp = None
 
+	def tryAcquirePageLock(self, page, mode):
+		"""
+		Non-blocking equivalent of `acquirePageLock`.
+		"""
+		has_lock = self.locked.get(page, False)
+		if has_lock and not self.base_relay.hasLock(page):
+			self.logger.warning("missing lock for page '%s'", page)
+			has_lock = False
+		if not has_lock:
+			lock_args = dict(self.lock_args)
+			lock_args['blocking'] = False
+			has_lock = self.base_relay.acquireLock(page, mode, **lock_args)
+		if has_lock:
+			#if not self.transaction_timestamp:
+			# no need for reentrant locks
+			self.transaction_timestamp = int(round(time.time()))
+			self.locked[page] = True
+		return has_lock
+
 	def unlink(self, remote_file):
 		#if self.base_relay.exists(remote_file):
 		try:
@@ -761,6 +780,10 @@ class IndexRelay(AbstractIndexRelay):
 
 	def setPageIndex(self, page, index):
 		index_location = self.persistentIndex(page)
+		if not index:
+			self.logger.debug("removing empty index for page '%s'", page)
+			self.base_relay.unlink(index_location)
+			return
 		self.logger.debug("uploading index for page '%s'", page)
 		fd, tmp = tempfile.mkstemp()
 		try:
