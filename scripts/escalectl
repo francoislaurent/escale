@@ -82,6 +82,12 @@ if __name__ == '__main__':
 	_resume.add_argument('-r', '--repository', type=str, metavar='SECTION', help='section in the default configuration file')
 	_resume.add_argument('-p', '--page', type=str, metavar='PAGE', help='specific index page')
 	_resume.set_defaults(func=resume)
+	_make_cache = parsers.add_parser('make-cache', help='make local checksum cache')
+	_make_cache.add_argument('-r', '--repository', type=str, metavar='SECTION', help='section in the default configuration file')
+	_make_cache.set_defaults(func=make_cache)
+	_clear_cache = parsers.add_parser('clear-cache', help='clear local checksum cache')
+	_clear_cache.add_argument('-r', '--repository', type=str, metavar='SECTION', help='section in the default configuration file')
+	_clear_cache.set_defaults(func=clear_cache)
 	args = parser.parse_args()
 	ret = 0
 	try:

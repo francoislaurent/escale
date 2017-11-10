@@ -29,6 +29,7 @@ from escale.base import *
 from escale.base.config import storage_space_unit
 from escale.encryption.encryption import Plain
 from .history import TimeQuotaController
+from .cache import *
 import hashlib
 
 
@@ -57,7 +58,10 @@ class Manager(Reporter):
 
 		checksum (str): hash algorithm name; see also the :mod:`hashlib` library.
 
-		checksum_cache (dict): cache of checksums for local files.
+		checksumcache (bool or str or dict): path to a checksum cache file (str) or cache (dict) 
+			of checksums for local files for relative filepaths as keys and 
+			(last modification time, checksum) pairs as elements.
+			If bool, then the cache path will be automatically determined.
 
 		filetype (list of str): list of file extensions.
 
@@ -76,11 +80,14 @@ class Manager(Reporter):
 		pop_args (dict): extra keyword arguments for 
 			:meth:`~escale.relay.AbstractRelay.pop`.
 
+	*new in 0.7.1:* `checksumcache`
+
 	"""
 	def __init__(self, relay, repository=None, address=None, directory=None, \
 		encryption=Plain(None), timestamp=True, refresh=True, clientname=None, \
 		filetype=[], include=None, exclude=None, tq_controller=None, count=None, \
-		checksum=True, includedirectory=None, excludedirectory=None, **relay_args):
+		checksum=True, checksumcache=True, includedirectory=None, excludedirectory=None, \
+		**relay_args):
 		Reporter.__init__(self, **relay_args)
 		self.repository = repository
 		if directory:
@@ -107,7 +114,21 @@ class Manager(Reporter):
 			self.hash_function = hash_function
 		else:
 			self.hash_function = None
-		self.checksum_cache = {} if self.hash_function else None
+		if self.hash_function:
+			self.checksum_cache_file = None
+			if checksumcache:
+				if isinstance(checksumcache, bool):
+					self.logger.debug("Warning! The checksum cache will be loaded following Escale's default configuration file")
+					checksumcache = find_checksum_cache(self.repository.name)
+				if isinstance(checksumcache, basestring):
+					self.checksum_cache_file = checksumcache
+					self.checksum_cache = read_checksum_cache(checksumcache, log=self.logger.debug)
+				else:
+					self.checksum_cache = checksumcache
+			else:
+				self.checksum_cache = {}
+		else:
+			self.checksum_cache = None
 		self.tq_controller = tq_controller
 		if filetype:
 			self.filetype = [ f if f[0] == '.' else '.' + f
@@ -203,6 +224,13 @@ class Manager(Reporter):
 		self.tq_controller.quota_read_callback = self.relay.storageSpace
 		if count:
 			self.pop_args['placeholder'] = count
+
+
+	def __del__(self):
+		if self.checksum_cache:
+			if self.checksum_cache_file:
+				self.logger.debug("saving checksum cache in '%s'", self.checksum_cache_file)
+				write_checksum_cache(self.checksum_cache_file, self.checksum_cache)
 
 
 	# transitional alias properties
@@ -394,6 +422,7 @@ class Manager(Reporter):
 		Performs sanity checks and fixes the corrupted files.
 		"""
 		for lock in self.relay.listCorrupted():
+			# `resource` and `remote_file` are synonym
 			remote_file = lock.target
 			if remote_file:
 				local_file = self.repository.accessor(remote_file)
@@ -407,7 +436,8 @@ class Manager(Reporter):
 		remote = self.filter(self.relay.listReady())
 		new = False
 		for remote_file in remote:
-			local_file = self.repository.writable(remote_file)
+			resource = remote_file
+			local_file = self.repository.writable(resource, absolute=True)
 			if not local_file:
 				# update not allowed
 				continue
@@ -422,7 +452,7 @@ class Manager(Reporter):
 					self.logger.warning("corrupt meta information for file '%s'", remote_file)
 			if os.path.isfile(local_file):
 				# generate checksum of the local file
-				checksum = self.checksum(local_file)
+				checksum = self.checksum(resource)
 				# check for modifications
 				if not meta:
 					self.logger.info("missing meta information for file '%s'; deleting file", remote_file)
@@ -440,10 +470,10 @@ class Manager(Reporter):
 				msg = "updating local file '%s'"
 			else:
 				msg = "downloading file '%s'"
-			with self.repository.confirmPull(local_file):
+			with self.repository.confirmPull(resource):
 				new = True
 				temp_file = self.encryption.prepare(local_file)
-				self.logger.info(msg, remote_file)
+				self.logger.info(msg, resource)
 				try:
 					with self.tq_controller.pull(temp_file):
 						ok = self.relay.pop(remote_file, temp_file, blocking=False, **self.pop_args)
@@ -452,9 +482,9 @@ class Manager(Reporter):
 				except RuntimeError: # TODO: define specific exceptions
 					ok = False
 				if ok:
-					self.logger.debug("file '%s' successfully downloaded", remote_file)
+					self.logger.debug("file '%s' successfully downloaded", resource)
 				elif ok is not None:
-					self.logger.error("failed to download '%s'", remote_file)
+					self.logger.error("failed to download '%s'", resource)
 					continue
 				self.encryption.decrypt(temp_file, local_file)
 				if last_modified:
@@ -478,12 +508,13 @@ class Manager(Reporter):
 				return new
 		local = self.localFiles()
 		remote = self.relay.listTransferred('', end2end=False)
-		for local_file in local:
-			remote_file = os.path.relpath(local_file, self.path) # relative path
+		for resource in local:
+			remote_file = resource
+			local_file = self.repository.absolute(resource)
 			if PYTHON_VERSION == 2 and isinstance(remote_file, unicode) and \
 				remote and isinstance(remote[0], str):
 				remote_file = remote_file.encode('utf-8')
-			checksum = self.checksum(local_file)
+			checksum = self.checksum(resource)
 			modified = False # if no remote copy, this is ignored
 			exists = remote_file in remote
 			if (self.timestamp or self.hash_function) and exists:
@@ -497,11 +528,11 @@ class Manager(Reporter):
 					# this may not be true, but this will update the meta
 					# information with a valid content.
 			if not exists or modified:
-				with self.repository.confirmPush(local_file):
+				with self.repository.confirmPush(resource):
 					new = True
 					last_modified = os.path.getmtime(local_file)
 					temp_file = self.encryption.encrypt(local_file)
-					self.logger.info("uploading file '%s'", remote_file)
+					self.logger.info("uploading file '%s'", resource)
 					try:
 						with self.tq_controller.push(local_file):
 							ok = self.relay.push(temp_file, remote_file, blocking=False,
@@ -512,9 +543,9 @@ class Manager(Reporter):
 					finally:
 						self.encryption.finalize(temp_file)
 					if ok:
-						self.logger.debug("file '%s' successfully uploaded", remote_file)
+						self.logger.debug("file '%s' successfully uploaded", resource)
 					elif ok is not None:
-						self.logger.warning("failed to upload '%s'", remote_file)
+						self.logger.warning("failed to upload '%s'", resource)
 		return new
 
 	def localFiles(self, path=None):
@@ -524,15 +555,17 @@ class Manager(Reporter):
 		Use ``self.repository.readableFiles`` instead.
 		"""
 		return self.repository.readable(self.repository.listFiles(path,
-				dirname=self._filter_directory, basename=self._filter))
+				dirname=self._filter_directory, basename=self._filter), \
+			unsafe=True)
 
-	def checksum(self, local_file):
+	def checksum(self, resource):
+		# `resource` should be a relative path!
+		local_file = self.repository.absolute(resource)
 		checksum = None
-		temp_file = None
 		if self.checksum_cache is not None:
 			mtime = int(os.path.getmtime(local_file))
 			try:
-				previous_mtime, checksum = self.checksum_cache[local_file]
+				previous_mtime, checksum = self.checksum_cache[resource]
 			except KeyError:
 				pass
 			else:
@@ -548,7 +581,7 @@ class Manager(Reporter):
 				#	"'{}'",
 				#	"last modified: {}",
 				#	"checksum: {}")).format(local_file, mtime, checksum))
-				self.checksum_cache[local_file] = (mtime, checksum)
+				self.checksum_cache[resource] = (mtime, checksum)
 		return checksum
 
 	def remoteListing(self):

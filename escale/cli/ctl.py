@@ -244,22 +244,25 @@ def recover(repository=None, timestamp=None, overwrite=True, update=None, fast=N
 			ls = client.localFiles()
 			client.relay.open()
 			try:
-				# index relays
+				# index relays.
+				# call to `remoteListing` should not be necessary here
+				# thanks to `acquirePageLock` call
 				if isinstance(client.relay, IndexRelay):
 					tmp = local_placeholder # just a temporary file
 					nfiles = len(ls)
 					index = {}
-					for n, local_file in enumerate(ls):
-						resource = os.path.relpath(local_file, client.path)
+					for n, resource in enumerate(ls):
+						local_file = client.repository.absolute(resource)
 						page = client.relay.page(resource)
-						mtime = int(os.path.getmtime(local_file))
-						checksum = client.checksum(local_file)
+						#mtime = int(os.path.getmtime(local_file))
+						client.checksum(resource)
+						mtime, checksum = client.checksum_cache[resource]
 						metadata = Metadata(target=resource, timestamp=mtime,
 								checksum=checksum, pusher=client.relay.client)
 						if page not in index:
 							index[page] = {}
 						index[page][resource] = metadata
-						if nfiles < 100 or n % 10 == 9:
+						if nfiles < 1000 or n % 20 == 19:
 							print('progress: {} of {} files'.format(n + 1, nfiles))
 					for page in index:
 						if fast or client.relay.acquirePageLock(page, 'w'):
@@ -275,16 +278,16 @@ def recover(repository=None, timestamp=None, overwrite=True, update=None, fast=N
 					client.logger.info('{} local files found'.format(len(ls)))
 					remote = client.relay.listTransfered()
 					client.logger.info('{} remote files found'.format(len(remote)))
-					ls = [ l for l in ls if os.path.relpath(l, client.repository.path) not in remote ]
+					ls = [ l for l in ls if l not in remote ]
 				N = len(ls)
 				client.logger.info('%s placeholder files to update', N)
 				clock = time.time()
 				progr = 0
 				N = float(N)
 				n = 0.0
-				for local in ls:
+				for remote in ls:
 					n += 1.0
-					remote = os.path.relpath(local, client.repository.path)
+					local = client.repository.absolute(remote)
 					remote_placeholder = client.relay.placeholder(remote)
 					if not fast and client.relay.hasPlaceholder(remote):
 						if overwrite:
@@ -351,6 +354,7 @@ def rebase(repository=None, extra_path=None):
 	if isinstance(client.relay, TopDirectoriesIndex):
 		raise NotImplementedError('cannot add upper directories with directory-based indexing')
 	client.relay.open()
+	client.remoteListing()
 	fd, tmp = tempfile.mkstemp()
 	try:
 		os.close(fd)
@@ -409,16 +413,20 @@ def suspend(repository=None, page=None):
 		client = make_client(cfg, repository)
 		if not isinstance(client.relay, IndexRelay):
 			continue
+		client.relay.client += '-suspend'
 		client.relay.open()
+		client.remoteListing()
 		try:
 			if page:
 				unlocked = list(page)
 			else:
 				unlocked = client.relay.listPages()
 			while unlocked:
+				client.remoteListing()
 				_unlocked = []
 				for p in unlocked:
-					if client.relay.tryAcquirePageLock(p, 'w'):
+					if not client.relay.hasLock(p) and \
+						client.relay.tryAcquirePageLock(p, 'w'):
 						print("in {}: page '{}' locked".format(repository, p))
 					else:
 						_unlocked.append(p)
@@ -444,17 +452,75 @@ def resume(repository=None, page=None):
 		client = make_client(cfg, repository)
 		if not isinstance(client.relay, IndexRelay):
 			continue
+		client.relay.client += '-suspend'
 		client.relay.open()
+		client.remoteListing()
 		try:
 			if page:
 				pages = list(page)
 			else:
 				pages = client.relay.listPages()
-			for p in locked:
-				try:
-					client.relay.releasePageLock(p)
-				except:
-					pass
+			for p in pages:
+				if client.relay.hasLock(p):
+					try:
+						client.relay.releasePageLock(p)
+					except:
+						pass
+					else:
+						print("in {}: page '{}' unlocked".format(repository, p))
+				else:
+					print("in {}: page '{}' locked by another client".format(repository, p))
 		finally:
 			client.relay.close()
+
+
+def make_cache(repository=None, prefix='cc'):
+	if prefix != 'cc':
+		raise NotImplementedError("'%s' not supported yet", prefix)
+	cfg, cfg_file, msgs = parse_cfg()
+	logger, msgs = set_logger(cfg, cfg_file, msgs=msgs)
+	flush_init_messages(logger, msgs)
+	if repository:
+		if isinstance(repository, (tuple, list)):
+			repositories = repository
+		else:
+			repositories = [ repository ]
+	else:
+		repositories = cfg.sections()
+	for repository in repositories:
+		client = make_client(cfg, repository)
+		if hasattr(client, 'checksum_cache_file') and client.checksum_cache_file:
+			ls = client.localFiles()
+			nfiles = len(ls)
+			print(nfiles)
+			try:
+				for n, resource in enumerate(ls):
+					client.checksum(resource)
+					if nfiles < 1000 or n % 20 == 19:
+						print('progress: {} of {} files'.format(n + 1, nfiles))
+			finally:
+				del client # writes down checksum cache file
+
+
+def clear_cache(repository=None, prefix='cc'):
+	if prefix != 'cc':
+		raise NotImplementedError("'%s' not supported yet", prefix)
+	cfg, cfg_file, msgs = parse_cfg()
+	logger, msgs = set_logger(cfg, cfg_file, msgs=msgs)
+	flush_init_messages(logger, msgs)
+	if repository:
+		if isinstance(repository, (tuple, list)):
+			repositories = repository
+		else:
+			repositories = [ repository ]
+	else:
+		repositories = cfg.sections()
+	for repository in repositories:
+		client = make_client(cfg, repository)
+		try:
+			os.unlink(client.checksum_cache_file)
+		except ExpressInterrupt:
+			raise
+		except:
+			pass
 

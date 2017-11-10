@@ -35,7 +35,6 @@ class IndexManager(Manager):
 		Manager.__init__(self, relay, *args, **kwargs)
 		self.max_page_size = max_page_size
 		self.extraction_repository = tempfile.mkdtemp()
-		self.local_cache = []
 
 	def terminate(self, pullers):
 		return self.count <= len(pullers)
@@ -64,7 +63,8 @@ class IndexManager(Manager):
 						continue
 					if dirname and not self._filter_directory(dirname):
 						continue
-					local_file = self.repository.writable(remote_file)
+					resource = remote_file
+					local_file = self.repository.writable(resource, absolute=True)
 					if not local_file:
 						# update not allowed
 						continue
@@ -82,7 +82,7 @@ class IndexManager(Manager):
 							self.logger.warning("missing meta information for file '%s'", remote_file)
 							continue
 						# generate checksum of the local file
-						checksum = self.checksum(local_file)
+						checksum = self.checksum(resource)
 						# check for modifications
 						if not metadata.fileModified(local_file, checksum, remote=True, debug=self.logger.debug):
 							if index_loaded:
@@ -150,17 +150,14 @@ class IndexManager(Manager):
 
 	def upload(self):
 		new = False
-		#if not self.relay.anyChange() and not self.anyLocalChange():
-		#	return new
-		#
-		indexed = defaultdict(dict)
+		indexed = defaultdict(list)
 		not_indexed = []
-		for local_file in self.localFiles():#[ l for l,_ in self.local_cache ]:#
-			remote_file = os.path.relpath(local_file, self.path) # relative path
+		for resource in self.localFiles():
+			remote_file = resource
 			if self.relay.indexed(remote_file):
-				indexed[self.relay.page(remote_file)][local_file] = remote_file
+				indexed[self.relay.page(remote_file)].append(resource)
 			else:
-				not_indexed.append((local_file, remote_file))
+				not_indexed.append(resource)
 		#
 		for page in indexed:
 			try:
@@ -169,9 +166,10 @@ class IndexManager(Manager):
 				with self.relay.setUpdate(page) as update:
 					page_index = self.relay.getPageIndex(page)
 					update_index = {}
-					for local_file in indexed[page]:
-						remote_file = indexed[page][local_file]
-						checksum = self.checksum(local_file)
+					for resource in indexed[page]:
+						remote_file = resource
+						local_file = self.repository.absolute(resource)
+						checksum = self.checksum(resource)
 						try:
 							page_metadata = parse_metadata(page_index[remote_file])
 						except KeyError:
@@ -180,7 +178,10 @@ class IndexManager(Manager):
 							if (self.timestamp or self.hash_function) and \
 								not page_metadata.fileModified(local_file, checksum, remote=False, debug=self.logger.debug):
 								continue
-						last_modified = os.path.getmtime(local_file)
+						try:
+							last_modified, _ = self.checksum_cache[resource]
+						except AttributeError:
+							last_modified = os.path.getmtime(local_file)
 						metadata = Metadata(target=remote_file, timestamp=last_modified, checksum=checksum, pusher=self.relay.client)
 						push.append((local_file, remote_file, metadata))
 					if push:
@@ -220,12 +221,14 @@ class IndexManager(Manager):
 				continue
 		#
 		remote = self.relay.listTransferred('', end2end=False)
-		for local_file, remote_file in not_indexed:
+		for resource in not_indexed:
+			remote_file = resource
+			local_file = self.repository.absolute(resource)
 			if PYTHON_VERSION == 2 and isinstance(remote_file, unicode) and \
 				remote and isinstance(remote[0], str):
 				remote_file = remote_file.encode('utf-8')
 			exists = remote_file in remote
-			checksum = self.checksum(local_file)
+			checksum = self.checksum(resource)
 			modified = False # if no remote copy, this is ignored
 			if (self.timestamp or self.hash_function) and exists:
 				# check file last modification time and checksum
@@ -238,7 +241,7 @@ class IndexManager(Manager):
 					# this may not be true, but this will update the meta
 					# information with a valid content.
 			if not exists or modified:
-					with self.repository.confirmPush(local_file):
+					with self.repository.confirmPush(resource):
 						new = True
 						last_modified = os.path.getmtime(local_file)
 						temp_file = self.encryption.encrypt(local_file)
@@ -258,13 +261,6 @@ class IndexManager(Manager):
 							self.logger.warning("failed to upload '%s'", remote_file)
 		return new
 
-	def anyLocalChange(self):
-		previous_cache = self.local_cache
-		self.localFiles()
-		return previous_cache != self.local_cache
-
 	def localFiles(self, path=None):
-		ls = Manager.localFiles(self, path)
-		#self.local_cache = [ (l, os.path.getmtime(l)) for l in ls ]
-		return ls
+		return Manager.localFiles(self, path)
 

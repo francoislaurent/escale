@@ -437,10 +437,12 @@ def add_section(config, cfg_dir, section=None, msgs=[]):
 	config, mode, msgs = section_common(config, cfg_dir, section, protocol, msgs,
 		return_mode=True)
 	if _indexing(protocol):
-		# new in 0.7: indexing is default
+		# new in 0.7: indexing is default behaviour
 		config.set(section, default_option('index'), '1')
 		if mode != 'download':
 			config.set(section, default_option('maxpagesize'), '200MB')
+		# new in 0.7.1: checksum caching is default behaviour
+		config.set(section, default_option('checksumcache'), 'on')
 	return config, msgs
 
 
@@ -1054,8 +1056,10 @@ def simplified_add(config, cfg_dir, section=None, msgs=[]):
 	config.set(section, default_option('refresh'), '10')
 	config.set(section, default_option('quota'), '2GB')
 	if _indexing(protocol):
-		# new in 0.7: indexing is default
+		# new in 0.7: indexing is default behaviour
 		config.set(section, default_option('index'), '1')
 		config.set(section, default_option('maxpagesize'), '200MB')
+		# new in 0.7.1: checksum caching is default behaviour
+		config.set(section, default_option('checksumcache'), 'on')
 	return config, msgs
 

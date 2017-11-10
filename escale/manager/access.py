@@ -324,7 +324,7 @@ class AccessController(Reporter):
 			else:
 				raise ValueError("'{}' mode not supported".format(m))
 
-	def listFiles(self, path=None, basename=None, dirname=None):
+	def listFiles(self, path=None, basename=None, dirname=None, absolute=False):
 		"""
 		List all visible files in the local repository.
 
@@ -338,6 +338,8 @@ class AccessController(Reporter):
 
 			dirname (boolean function): returns True if the input file directory name qualifies.
 
+			absolute (bool): if True, the returned paths are absolute, else relative.
+
 		Returns:
 
 			list of str: list of local files.
@@ -347,6 +349,10 @@ class AccessController(Reporter):
 			dirname = lambda a: True
 		if basename is None:
 			basename = lambda a: True
+		if absolute:
+			a_or_r = lambda a, b: a
+		else:
+			a_or_r = lambda a, b: b
 		#if path is None:
 		#	path = self.path
 		#local = []
@@ -363,12 +369,12 @@ class AccessController(Reporter):
 		ls = [ (os.path.join(full_path, f), relative_path(f), f) \
 				for f in os.listdir(full_path) if f[0] != '.' ]
 		local = itertools.chain( \
-			[ fp for fp, _, fn in ls if os.path.isfile(fp) and basename(fn) ], \
+			[ a_or_r(fp, rp) for fp, rp, fn in ls if os.path.isfile(fp) and basename(fn) ], \
 			*[ self.listFiles(rp, basename=basename, dirname=dirname) \
 				for fp, rp, _ in ls if os.path.isdir(fp) and dirname(rp) ])
 		return list(local)
 
-	def readable(self, files):
+	def readable(self, files, unsafe=False):
 		"""
 		Select filenames from the repository that can be uploaded.
 
@@ -383,12 +389,15 @@ class AccessController(Reporter):
 		if self.mode == 'download': # in principle `download` should not call `readable`
 			files = []
 		elif self.persistent is not None:
-			# assert that all files are in the repository with __safe__ (even those that
-			# are not readable) and filter readable files
-			files = [ f for f in files if self.__safe__(self.persistent.isReadable, f) ]
+			if unsafe:
+				files = [ f for f in files if self.persistent.isReadable(f) ]
+			else:
+				# assert that all files are in the repository with __safe__ (even
+				# those that are not readable) and filter readable files
+				files = [ f for f in files if self.__safe__(self.persistent.isReadable, f) ]
 		return files
 
-	def writable(self, filename):
+	def writable(self, filename, absolute=True):
 		"""
 		Get the local path corresponding to a remote resource if it can be downloaded.
 
@@ -396,9 +405,11 @@ class AccessController(Reporter):
 
 			filename (str): path to remote file.
 
+			absolute (bool): if True, the returned path is absolute, else relative.
+
 		Returns:
 
-			str or None: local absolute path, or ``None`` if the local resource is not writable.
+			str or None: local path, or ``None`` if the local resource is not writable.
 		"""
 		if self.mode == 'upload':
 			return None
@@ -409,7 +420,10 @@ class AccessController(Reporter):
 				if os.path.exists(f):
 					w = False
 			if self.persistent is None or self.persistent.isWritable(r, make_explicit=w):
-				return f
+				if absolute:
+					return f
+				else:
+					return r
 			else:
 				return None
 
@@ -431,6 +445,9 @@ class AccessController(Reporter):
 			def delete():
 				pass
 		return Accessor(exists=exists, delete=delete)
+
+	def absolute(self, filename):
+		return os.path.join(self.path, filename)
 
 	def _format(self, filename, return_absolute_path=False):
 		"""

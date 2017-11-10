@@ -364,6 +364,10 @@ class IndexRelay(AbstractIndexRelay):
 	def repository(self):
 		return self.base_relay.repository
 
+	@client.setter
+	def client(self, name):
+		self.base_relay.client = name
+
 	def page(self, remote_file):
 		"""
 		Page key/name.
@@ -538,7 +542,9 @@ class IndexRelay(AbstractIndexRelay):
 		return has_lock
 
 	def releasePageLock(self, page):
-		self.base_relay.releaseLock(page)
+		#self.base_relay.releaseLock(page)
+		# we need that base_relay.releaseLock uses self.unlink instead of base_relay.unlink
+		self.unlink(self.base_relay.lock(page))
 		self.locked[page] = False
 		self.transaction_timestamp = None
 
@@ -553,7 +559,13 @@ class IndexRelay(AbstractIndexRelay):
 		if not has_lock:
 			lock_args = dict(self.lock_args)
 			lock_args['blocking'] = False
-			has_lock = self.base_relay.acquireLock(page, mode, **lock_args)
+			try:
+				has_lock = self.base_relay.acquireLock(page, mode, **lock_args)
+			except ExpressInterrupt:
+				raise
+			except Exception as e:
+				self.logger.debug("failed to acquire lock: %s", e)
+				has_lock = False
 		if has_lock:
 			#if not self.transaction_timestamp:
 			# no need for reentrant locks
@@ -562,6 +574,8 @@ class IndexRelay(AbstractIndexRelay):
 		return has_lock
 
 	def unlink(self, remote_file):
+		if not remote_file:
+			raise ValueError
 		#if self.base_relay.exists(remote_file):
 		try:
 			self.base_relay.unlink(remote_file)
@@ -655,6 +669,9 @@ class IndexRelay(AbstractIndexRelay):
 
 	def close(self):
 		self.base_relay.close()
+
+	def hasLock(self, page):
+		return self.base_relay.hasLock(page)
 
 	def updateRelated(self, page, filename):
 		# this may have never been tested
@@ -842,7 +859,9 @@ class IndexRelay(AbstractIndexRelay):
 		if terminate and terminate(pullers):
 			if location:
 				self.unlink(location)
-			self.unlink(self.updateData(page, mode='r'))
+			location = self.updateData(page, mode='r')
+			if location:
+				self.unlink(location)
 			return
 		#
 		#if not location:
@@ -896,5 +915,12 @@ class TopDirectoriesIndex(IndexRelay):
 			return IndexRelay.page(self, resource)
 
 	def allPages(self):
-		return set(IndexRelay.allPages(self) + self.listPages())
+		self.refreshListing()
+		locks_and_indices = self.listPages()
+		for entry, _ in self.listing_cache:
+			if self.base_relay._isLock(entry):
+				page = self.base_relay._fromLock(entry)
+				if page not in [ l for l, _ in self.listing_cache ]:
+					locks_and_indices.append(page)
+		return set(IndexRelay.allPages(self) + locks_and_indices)
 
