@@ -490,9 +490,10 @@ def make_cache(repository=None, prefix='cc'):
 	for repository in repositories:
 		client = make_client(cfg, repository)
 		if hasattr(client, 'checksum_cache_file') and client.checksum_cache_file:
+			client.mode = 'upload'
 			ls = client.localFiles()
 			nfiles = len(ls)
-			print(nfiles)
+			print((repository, nfiles))
 			try:
 				for n, resource in enumerate(ls):
 					client.checksum(resource)

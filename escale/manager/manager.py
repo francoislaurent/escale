@@ -240,6 +240,9 @@ class Manager(Reporter):
 	@property
 	def mode(self):
 		return self.repository.mode
+	@mode.setter
+	def mode(self, m):
+		self.repository.mode = m
 	@property
 	def address(self):
 		return self.relay.address
