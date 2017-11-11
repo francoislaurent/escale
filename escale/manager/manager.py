@@ -230,7 +230,7 @@ class Manager(Reporter):
 		if self.checksum_cache:
 			if self.checksum_cache_file:
 				self.logger.debug("saving checksum cache in '%s'", self.checksum_cache_file)
-				write_checksum_cache(self.checksum_cache_file, self.checksum_cache)
+				write_checksum_cache(self.checksum_cache_file, self.checksum_cache, log=self.logger.debug)
 
 
 	# transitional alias properties

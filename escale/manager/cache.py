@@ -16,6 +16,7 @@ from collections import defaultdict
 
 
 def read_checksum_cache(path, log=None):
+	path = os.path.expanduser(path)
 	state = 0
 	cache = {}
 	try:
@@ -40,10 +41,19 @@ def read_checksum_cache(path, log=None):
 
 
 def write_checksum_cache(path, cache, log=None):
-	with open(path, 'w') as f:
-		for resource in cache:
-			mtime, checksum = cache[resource]
-			f.write('{}\n{}\n{}\n'.format(cache, mtime, checksum))
+	path = os.path.expanduser(path)
+	dirname = os.path.dirname(path)
+	if not os.path.isdir(dirname):
+		os.makedirs(dirname)
+	try:
+		with open(path, 'w') as f:
+			for resource in cache:
+				mtime, checksum = cache[resource]
+				f.write('{}\n{}\n{}\n'.format(resource, mtime, checksum))
+	except IOError as e:
+		if log is not None:
+			log(e)
+		raise
 
 
 def find_checksum_cache(section, config=None):

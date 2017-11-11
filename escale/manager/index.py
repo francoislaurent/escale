@@ -45,6 +45,7 @@ class IndexManager(Manager):
 		except AttributeError:
 			# exception raised in __init__
 			pass
+		Manager.__del__(self)
 
 	def sanityChecks(self):
 		self.relay.repairUpdates()

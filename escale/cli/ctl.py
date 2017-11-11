@@ -15,7 +15,7 @@ import sys
 import os
 import traceback
 import time
-from math import floor
+from math import *
 
 from escale import *
 from escale.base.essential import *
@@ -493,13 +493,17 @@ def make_cache(repository=None, prefix='cc'):
 			client.mode = 'upload'
 			ls = client.localFiles()
 			nfiles = len(ls)
-			print((repository, nfiles))
+			if 1000 < nfiles:
+				step = int(10 * (round(log10(nfiles)) - 1))
+			else:
+				step = None
 			try:
 				for n, resource in enumerate(ls):
 					client.checksum(resource)
-					if nfiles < 1000 or n % 20 == 19:
+					if step and n % step == step - 1:
 						print('progress: {} of {} files'.format(n + 1, nfiles))
 			finally:
+				print("writing cache for repository '{}'".format(repository))
 				del client # writes down checksum cache file
 
 
