@@ -71,7 +71,7 @@ def read_checksum_cache(path, log=None):
 	state = 0
 	old_cache = path+'.old'
 	cache = ChecksumCache(path)
-	if os.path.isfile(old_cache) and not os.path.isfile(cache):
+	if os.path.isfile(old_cache) and not os.path.isfile(path):
 		try:
 			with open(old_cache, 'r') as f:
 				for line in f.readlines():
