@@ -30,6 +30,14 @@ Please find the extended documentation at `escale.readthedocs.io <http://escale.
 Changelog
 ---------
 
+* `0.7.1`:
+
+  * "top directory" paging for index-based relays
+  * ``index`` can be "topdir:*n*" where *n* is the number of directory levels (default: 1)
+  * checksums for local files are made persistent
+  * ``checksum cache`` configuration option (default: on)
+  * ``log rotate`` configuration option (default: 3)
+
 * `0.7` (including `0.7-rc*`):
 
   * index-based relay repository management

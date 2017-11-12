@@ -44,9 +44,14 @@ def set_logger(config, cfg_file=None, verbosity=logging.NOTSET, msgs=[]):
 	except NoOptionError:
 		file_level = 'DEBUG'
 	else:
+		LOG_LEVELS = ['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL']
 		if file_level not in LOG_LEVELS:
 			msgs.append(("wrong log level '%s'", file_level))
 			file_level = 'DEBUG'
+	try:
+		rotate_count = config.getint(default_section, 'log rotate')
+	except NoOptionError:
+		rotate_count = 3
 	# console log
 	console_default = 'INFO'
 	if verbosity == 1:
@@ -88,8 +93,8 @@ def set_logger(config, cfg_file=None, verbosity=logging.NOTSET, msgs=[]):
 			'file': {
 				'class': 'logging.handlers.RotatingFileHandler',
 				'filename': log_file,
-				'maxBytes': 102400,
-				'backupCount': 3,
+				'maxBytes': 1048576,
+				'backupCount': rotate_count,
 				'level': file_level,
 				'formatter': 'detailed'}},
 		'loggers': {

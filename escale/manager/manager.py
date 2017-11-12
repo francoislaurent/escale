@@ -115,14 +115,12 @@ class Manager(Reporter):
 		else:
 			self.hash_function = None
 		if self.hash_function:
-			self.checksum_cache_file = None
 			if checksumcache:
 				if isinstance(checksumcache, bool):
 					self.logger.debug("Warning! The checksum cache will be loaded following Escale's default configuration file")
 					checksumcache = find_checksum_cache(self.repository.name)
 				if isinstance(checksumcache, basestring):
-					self.checksum_cache_file = checksumcache
-					self.checksum_cache = read_checksum_cache(checksumcache, log=self.logger.debug)
+					self.checksum_cache = read_checksum_cache(checksumcache)#ChecksumCache(checksumcache)
 				else:
 					self.checksum_cache = checksumcache
 			else:
@@ -226,11 +224,11 @@ class Manager(Reporter):
 			self.pop_args['placeholder'] = count
 
 
-	def __del__(self):
-		if self.checksum_cache:
-			if self.checksum_cache_file:
-				self.logger.debug("saving checksum cache in '%s'", self.checksum_cache_file)
-				write_checksum_cache(self.checksum_cache_file, self.checksum_cache, log=self.logger.debug)
+	#def __del__(self):
+	#	if self.checksum_cache:
+	#		if self.checksum_cache_file:
+	#			self.logger.debug("saving checksum cache in '%s'", self.checksum_cache_file)
+	#			write_checksum_cache(self.checksum_cache_file, self.checksum_cache, log=self.logger.debug)
 
 
 	# transitional alias properties

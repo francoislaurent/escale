@@ -144,6 +144,7 @@ Each section refers to a client. It begins with a ``[section]`` where ``section`
 Parameters that can only be global are:
 
 * ``log file``: path to log file
+* ``log rotate``: number of rotated log files (default: 3)
 
 .. note:: booleans can be either ``yes``, ``no``, ``1``, ``0``, ``true``, ``false``, ``on`` or ``off``.
 
@@ -169,13 +170,15 @@ Other parameters are:
 * ``file extension`` (or ``file type``): a comma-separated list of file extensions (with or without the initial dot)
 * ``include`` (or ``include files``, ``pattern``, ``filter``): comma-separated list of regular expressions to filter in files by name
 * ``exclude`` (or ``exclude files``): comma-separated list of regular expressions to filter out files by name
-* ``exclude directories`` (or ``exclude directory``): comma-separated list of regular expressions to filter out directories
+* ``include directories`` (or ``include directory``): comma-separated list of regular expressions to filter in directories by relative path; works properly only on top directories
+* ``exclude directories`` (or ``exclude directory``): comma-separated list of regular expressions to filter out directories by relative path
 * ``disk quota``: a decimal number with storage space units such as ``KB``, ``MB``, ``GB``, etc
 * ``maintainer``: an email address; if a client aborts and an SMTP server is available on the client machine, a notice email can be sent to this address
 * ``mode`` (or ``synchronization mode``): either ``download`` (synonym of ``pull only = yes``), ``upload`` (synonym of ``push only = yes``), ``conservative``/``preservative`` or ``share``/``shared`` (default). See `Synchronization modes`_
 * ``lock timeout``: timeout for unclaimed locks, in seconds
 * ``puller count`` (or ``pullers``): number of puller nodes operating on the remote repository. See `Multi-client and multi-puller regimes`_
 * ``checksum`` (or ``hash algorithm``): boolean (default: true) or hash algorithm has supported by :func:`hashlib.new`. See also `hashlib.algorithms_available`
+* ``checksum cache``: boolean (default: True) for whether to make the local checksum cache persistent
 * ``index`` (or ``compact``): boolean (default: false) or string; index-based relay repository management; see also `Indexing`_
 * ``maxpagesize`` (or ``maxarchivesize``): a decimal number with optional storage space units such as ``KB``, ``MB``, ``GB``, etc (default value: 1 GB, default unit: MB)
 

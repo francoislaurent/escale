@@ -7,6 +7,15 @@ escale.manager package
     :show-inheritance:
 
 
+escale.manager.config cache
+---------------------------
+
+.. automodule:: escale.manager.cache
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+
 escale.manager.config module
 ----------------------------
 
@@ -29,6 +38,15 @@ escale.manager.history module
 -----------------------------
 
 .. automodule:: escale.manager.history
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+
+escale.manager.index module
+---------------------------
+
+.. automodule:: escale.manager.index
     :members:
     :undoc-members:
     :show-inheritance:
