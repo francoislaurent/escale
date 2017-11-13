@@ -44,6 +44,10 @@ class ChecksumCache(dict):
 	__separator__ = ';'
 
 	def __init__(self, cache):
+		cache = os.path.expanduser(cache)
+		dirname = os.path.dirname(cache)
+		if not os.path.isdir(dirname):
+			os.makedirs(dirname)
 		self.cache = cache
 
 	def __setitem__(self, key, value):
@@ -71,9 +75,6 @@ def read_checksum_cache(path, log=None):
 	Rename old checksum cache files appending *.old* at the end.
 	This function will convert the old cache to the new format."""
 	path = os.path.expanduser(path)
-	dirname = os.path.dirname(path)
-	if not os.path.isdir(dirname):
-		os.makedirs(dirname)
 	old_cache = path+'.old'
 	cache = ChecksumCache(path)
 	if os.path.isfile(old_cache) and not os.path.isfile(path):
