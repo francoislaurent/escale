@@ -56,6 +56,10 @@ if mock_ok:
 			'cryptography.hazmat.primitives.ciphers',
 			'cryptography.hazmat.primitives.ciphers.modes',
 			'cryptography.hazmat.primitives.ciphers.algorithms',
+			'cryptography.hazmat.primitives.asymmetric',
+			'cryptography.hazmat.bindings',
+			'cryptography.hazmat.bindings.openssl',
+			'cryptography.hazmat.bindings.openssl.binding',
 			'blowfish']
 	sys.modules.update((mod_name, Mock()) for mod_name in MOCK_MODULES)
 
@@ -187,7 +191,7 @@ html_theme = 'sphinxdoc'
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
-html_static_path = ['_static']
+html_static_path = []#['_static']
 
 # Add any extra paths that contain custom files (such as robots.txt or
 # .htaccess) here, relative to this directory. These files are copied
