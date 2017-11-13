@@ -58,7 +58,7 @@ class Manager(Reporter):
 
 		checksum (str): hash algorithm name; see also the :mod:`hashlib` library.
 
-		checksumcache (bool or str or dict): path to a checksum cache file (str) or cache (dict) 
+		checksum_cache (bool or str or dict): path to a checksum cache file (str) or cache (dict) 
 			of checksums for local files for relative filepaths as keys and 
 			(last modification time, checksum) pairs as elements.
 			If bool, then the cache path will be automatically determined.
@@ -80,14 +80,14 @@ class Manager(Reporter):
 		pop_args (dict): extra keyword arguments for 
 			:meth:`~escale.relay.AbstractRelay.pop`.
 
-	*new in 0.7.1:* `checksumcache`
+	*new in 0.7.1:* `checksum_cache`
 
 	"""
 	def __init__(self, relay, repository=None, address=None, directory=None, \
 		encryption=Plain(None), timestamp=True, refresh=True, clientname=None, \
 		filetype=[], include=None, exclude=None, tq_controller=None, count=None, \
-		checksum=True, checksumcache=True, includedirectory=None, excludedirectory=None, \
-		**relay_args):
+		checksum=True, checksum_cache=None, checksum_cache=None, \
+		includedirectory=None, excludedirectory=None, **relay_args):
 		Reporter.__init__(self, **relay_args)
 		self.repository = repository
 		if directory:
@@ -115,14 +115,14 @@ class Manager(Reporter):
 		else:
 			self.hash_function = None
 		if self.hash_function:
-			if checksumcache:
-				if isinstance(checksumcache, bool):
+			if checksum_cache:
+				if isinstance(checksum_cache, bool):
 					self.logger.debug("Warning! The checksum cache will be loaded following Escale's default configuration file")
-					checksumcache = find_checksum_cache(self.repository.name)
-				if isinstance(checksumcache, basestring):
-					self.checksum_cache = read_checksum_cache(checksumcache)#ChecksumCache(checksumcache)
+					checksum_cache = find_checksum_cache(self.repository.name)
+				if isinstance(checksum_cache, basestring):
+					self.checksum_cache = read_checksum_cache(checksum_cache)#ChecksumCache(checksum_cache)
 				else:
-					self.checksum_cache = checksumcache
+					self.checksum_cache = checksum_cache
 			else:
 				self.checksum_cache = {}
 		else:

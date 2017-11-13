@@ -4,7 +4,7 @@
 #      Contributor: François Laurent
 
 # Copyright © 2017, François Laurent
-#      Contribution: ChecksumCache
+#      Contribution: ChecksumCache, checksum_cache_prefix
 
 # This file is part of the Escale software available at
 # "https://github.com/francoislaurent/escale" and is distributed under
@@ -34,6 +34,9 @@ else:
 			return s.encode('utf-8')
 		else:
 			return s
+
+
+checksum_cache_prefix = 'cc'
 
 
 class ChecksumCache(dict):
@@ -111,5 +114,5 @@ def write_checksum_cache(path, cache, log=None):
 
 
 def find_checksum_cache(section, config=None):
-	return get_cache_file(config=config, section=section, prefix='cc')
+	return get_cache_file(config=config, section=section, prefix=checksum_cache_prefix)
 

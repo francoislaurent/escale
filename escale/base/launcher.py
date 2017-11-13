@@ -27,6 +27,7 @@ from escale.manager.manager import Manager
 from escale.manager.index import IndexManager
 from escale.manager.access import AccessController, access_modifier_prefix
 from escale.manager.history import History, usage_statistics_prefix
+from escale.manager.cache import checksum_cache_prefix
 from escale.cli.controller import DirectController, UIController
 
 
@@ -67,6 +68,11 @@ def make_client(config, repository, log_handler=None, ui_connector=None):
 			repository=repository,
 			persistent=get_cache_file(config, repository,
 				prefix=usage_statistics_prefix))
+	# checksum cache
+	checksum_cache = args.pop('checksumcache', True)
+	if isinstance(checksum_cache, bool) and checksum_cache:
+		checksum_cache = get_cache_file(config, repository,
+				prefix=checksum_cache_prefix)
 	# extra UI options
 	ui_controller.maintainer = args.pop('maintainer', None)
 	# ready
@@ -79,6 +85,7 @@ def make_client(config, repository, log_handler=None, ui_connector=None):
 			repository=lr_controller,
 			ui_controller=ui_controller,
 			tq_controller=tq_controller,
+			checksum_cache=checksum_cache,
 			**args)
 	return manager
 
