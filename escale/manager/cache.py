@@ -71,10 +71,13 @@ def read_checksum_cache(path, log=None):
 	Rename old checksum cache files appending *.old* at the end.
 	This function will convert the old cache to the new format."""
 	path = os.path.expanduser(path)
-	state = 0
+	dirname = os.path.dirname(path)
+	if not os.path.isdir(dirname):
+		os.makedirs(dirname)
 	old_cache = path+'.old'
 	cache = ChecksumCache(path)
 	if os.path.isfile(old_cache) and not os.path.isfile(path):
+		state = 0
 		try:
 			with open(old_cache, 'r') as f:
 				for line in f.readlines():
