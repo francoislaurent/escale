@@ -37,7 +37,7 @@ class IndexManager(Manager):
 		self.extraction_repository = tempfile.mkdtemp()
 
 	def terminate(self, pullers):
-		return self.count <= len(pullers)
+		return self.count is None or self.count <= len(pullers)
 
 	def __del__(self):
 		try:

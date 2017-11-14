@@ -69,7 +69,7 @@ else:
 try:
 	from .webdav import WebDAV
 except ImportError:
-	for _p in _read__protocol__('webdav'):
+	for _p in _read__protocol__('webdav/webdav'):
 		__extra_protocols__[_p] = 'WebDAV'
 else:
 	__all__.append('WebDAV')

@@ -14,7 +14,7 @@
 # The fact that you are presently reading this means that you have had
 # knowledge of the CeCILL-C license and that you accept its terms.
 
-from escale.base.essential import PYTHON_VERSION
+from escale.base.essential import PYTHON_VERSION, asstr
 from .config import *
 from collections import defaultdict
 
@@ -41,7 +41,7 @@ checksum_cache_prefix = 'cc'
 
 class ChecksumCache(dict):
 
-	__separator__ = ';'
+	__separator__ = b';'
 
 	def __init__(self, cache):
 		cache = os.path.expanduser(cache)
@@ -54,7 +54,7 @@ class ChecksumCache(dict):
 		timestamp, checksum = value
 		db = dbm.open(self.cache, 'c')
 		try:
-			db[key] = '{}{}{}'.format(timestamp, self.__separator__, checksum)
+			db[key] = '{}{}{}'.format(timestamp, asstr(self.__separator__), checksum)
 		finally:
 			db.close()
 	
@@ -65,7 +65,7 @@ class ChecksumCache(dict):
 		finally:
 			db.close()
 		timestamp, checksum = value.split(self.__separator__)
-		return int(timestamp), checksum
+		return int(asstr(timestamp)), checksum
 
 
 

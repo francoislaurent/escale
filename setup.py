@@ -11,7 +11,7 @@ from escale import PROGRAM_NAME, __version__
 
 install_requires = ['requests', 'python-daemon']
 extras_require = {
-	'WebDAV':	['requests'],
+	'WebDAV':	['requests', 'pyopenssl'],
 #	'SSH':		['paramiko'],
 	'Blowfish':	['cryptography'],
 	'Fernet':	['cryptography']}

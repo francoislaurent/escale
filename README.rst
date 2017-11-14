@@ -30,6 +30,10 @@ Please find the extended documentation at `escale.readthedocs.io <http://escale.
 Changelog
 ---------
 
+* `0.7.2`:
+
+  * various bugfixes
+
 * `0.7.1`:
 
   * "top directory" paging for index-based relays
