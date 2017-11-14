@@ -41,7 +41,7 @@ checksum_cache_prefix = 'cc'
 
 class ChecksumCache(dict):
 
-	__separator__ = b';'
+	__separator__ = ';'
 
 	def __init__(self, cache):
 		cache = os.path.expanduser(cache)
@@ -54,18 +54,18 @@ class ChecksumCache(dict):
 		timestamp, checksum = value
 		db = dbm.open(self.cache, 'c')
 		try:
-			db[key] = '{}{}{}'.format(timestamp, asstr(self.__separator__), checksum)
+			db[key] = '{}{}{}'.format(timestamp, self.__separator__, checksum)
 		finally:
 			db.close()
 	
 	def __getitem__(self, key):
 		db = dbm.open(self.cache, 'c')
 		try:
-			value = db[key]
+			value = asstr(db[key])
 		finally:
 			db.close()
 		timestamp, checksum = value.split(self.__separator__)
-		return int(asstr(timestamp)), checksum
+		return int(timestamp), checksum
 
 
 
