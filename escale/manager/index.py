@@ -56,96 +56,100 @@ class IndexManager(Manager):
 		new = False
 		for page in self.relay.listPages():
 			index_loaded = self.relay.loaded(page)
-			with self.relay.getUpdate(page, self.terminate) as update:
-				get_files = []
-				for remote_file in update:
-					dirname, basename = os.path.split(remote_file)
-					if not self._filter(basename):
-						continue
-					if dirname and not self._filter_directory(dirname):
-						continue
-					resource = remote_file
-					local_file = self.repository.writable(resource, absolute=True)
-					if not local_file:
-						# update not allowed
-						continue
-					metadata = parse_metadata(update[remote_file])
-					last_modified = None
-					if self.timestamp:
-						if metadata and metadata.timestamp:
-							last_modified = metadata.timestamp
-						else:
-							# if `timestamp` is `True` or is a format string,
-							# then metadata should be defined
-							self.logger.warning("corrupt meta information for file '%s'", remote_file)
-					if os.path.isfile(local_file):
-						if not metadata:
-							self.logger.warning("missing meta information for file '%s'", remote_file)
+			try:
+				with self.relay.getUpdate(page, self.terminate) as update:
+					get_files = []
+					for remote_file in update:
+						dirname, basename = os.path.split(remote_file)
+						if not self._filter(basename):
 							continue
-						# generate checksum of the local file
-						checksum = self.checksum(resource)
-						# check for modifications
-						if not metadata.fileModified(local_file, checksum, remote=True, debug=self.logger.debug):
-							if index_loaded:
-								extracted_file = join(self.extraction_repository, remote_file)
-								self.logger.info("deleting duplicate or outdated file '%s'", remote_file)
+						if dirname and not self._filter_directory(dirname):
+							continue
+						resource = remote_file
+						local_file = self.repository.writable(resource, absolute=True)
+						if not local_file:
+							# update not allowed
+							continue
+						metadata = parse_metadata(update[remote_file])
+						last_modified = None
+						if self.timestamp:
+							if metadata and metadata.timestamp:
+								last_modified = metadata.timestamp
+							else:
+								# if `timestamp` is `True` or is a format string,
+								# then metadata should be defined
+								self.logger.warning("corrupt meta information for file '%s'", remote_file)
+						if os.path.isfile(local_file):
+							if not metadata:
+								self.logger.warning("missing meta information for file '%s'", remote_file)
+								continue
+							# generate checksum of the local file
+							checksum = self.checksum(resource)
+							# check for modifications
+							if not metadata.fileModified(local_file, checksum, remote=True, debug=self.logger.debug):
+								if index_loaded:
+									extracted_file = join(self.extraction_repository, remote_file)
+									self.logger.info("deleting duplicate or outdated file '%s'", remote_file)
+									try:
+										os.unlink(extracted_file)
+									except (IOError, OSError) as e:#FileNotFoundError:
+										# catch FileNotFoundError (does not exist in Python2)
+										if e.errno == errno.ENOENT:
+											self.logger.debug("file '%s' not found", extracted_file)
+										else:
+											raise
+								continue
+						get_files.append((remote_file, local_file, last_modified))
+					if get_files:
+						new = True
+						missing = []
+						if self.relay.hasUpdate(page):
+							try:
+								fd, archive = tempfile.mkstemp()
+								os.close(fd)
+								encrypted = self.encryption.prepare(archive)
+								with self.tq_controller.pull(encrypted):
+									self.logger.debug("downloading update data for page '%s'", page)
+									self.relay.getUpdateData(page, encrypted)
+								while not os.path.exists(encrypted):
+									pass
+								self.encryption.decrypt(encrypted, archive)
 								try:
-									os.unlink(extracted_file)
-								except (IOError, OSError) as e:#FileNotFoundError:
+									with tarfile.open(archive, mode='r:bz2') as tar:
+										tar.extractall(self.extraction_repository)
+								except Exception as e: # ReadError: not a bzip2 file
+									self.logger.error("%s", e)
+									missing = [ m for m, _, _ in get_files ]
+							finally:
+								os.unlink(archive)
+						else:
+							missing = [ m for m, _, _ in get_files ]
+						if not missing:
+							for remote, local, mtime in get_files:
+								dirname = os.path.dirname(local)
+								if dirname and not os.path.isdir(dirname):
+									os.makedirs(dirname)
+								extracted = join(self.extraction_repository, remote)
+								try:
+									shutil.move(extracted, local)
+								except IOError as e:#FileNotFoundError:
 									# catch FileNotFoundError (does not exist in Python2)
 									if e.errno == errno.ENOENT:
-										self.logger.debug("file '%s' not found", extracted_file)
+										self.logger.debug("file '%s' not found", extracted)
+										#self.logger.info("failed to download file '%s'", remote)
+										missing.append(remote)
 									else:
 										raise
-							continue
-					get_files.append((remote_file, local_file, last_modified))
-				if get_files:
-					new = True
-					missing = []
-					if self.relay.hasUpdate(page):
-						try:
-							fd, archive = tempfile.mkstemp()
-							os.close(fd)
-							encrypted = self.encryption.prepare(archive)
-							with self.tq_controller.pull(encrypted):
-								self.logger.debug("downloading update data for page '%s'", page)
-								self.relay.getUpdateData(page, encrypted)
-							while not os.path.exists(encrypted):
-								pass
-							self.encryption.decrypt(encrypted, archive)
-							try:
-								with tarfile.open(archive, mode='r:bz2') as tar:
-									tar.extractall(self.extraction_repository)
-							except Exception as e: # ReadError: not a bzip2 file
-								self.logger.error("%s", e)
-								missing = [ m for m, _, _ in get_files ]
-						finally:
-							os.unlink(archive)
-					else:
-						missing = [ m for m, _, _ in get_files ]
-					if not missing:
-						for remote, local, mtime in get_files:
-							dirname = os.path.dirname(local)
-							if dirname and not os.path.isdir(dirname):
-								os.makedirs(dirname)
-							extracted = join(self.extraction_repository, remote)
-							try:
-								shutil.move(extracted, local)
-							except IOError as e:#FileNotFoundError:
-								# catch FileNotFoundError (does not exist in Python2)
-								if e.errno == errno.ENOENT:
-									self.logger.debug("file '%s' not found", extracted)
-									#self.logger.info("failed to download file '%s'", remote)
-									missing.append(remote)
 								else:
-									raise
-							else:
-								self.logger.info("file '%s' successfully downloaded", remote)
-								if mtime:
-									# set last modification time
-									os.utime(local, (time.time(), mtime))
-					if missing:
-						self.relay.requestMissing(page, missing)
+									self.logger.info("file '%s' successfully downloaded", remote)
+									if mtime:
+										# set last modification time
+										os.utime(local, (time.time(), mtime))
+						if missing:
+							self.relay.requestMissing(page, missing)
+			except (PostponeRequest, MissingResource) as e:
+				if e.args:
+					self.logger.debug(*e.args)
 		new |= Manager.download(self)
 		return new
 

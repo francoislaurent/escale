@@ -60,3 +60,6 @@ class PostponeRequest(Exception):
 	pass
 
 
+class MissingResource(Exception):
+	pass
+

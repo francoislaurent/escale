@@ -136,7 +136,7 @@ class UpdateRead(IndexUpdate):
 			self.content = self.relay.getUpdateIndex(self.page)
 			if not self.content:
 				IndexUpdate.__exit__(self, None, None, None)
-				raise PostponeRequest("no update for page '%s'", self.page)
+				raise MissingResource("no update for page '%s'", self.page)
 		else:
 			raise PostponeRequest
 		return self
