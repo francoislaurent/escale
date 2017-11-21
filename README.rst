@@ -30,6 +30,10 @@ Please find the extended documentation at `escale.readthedocs.io <http://escale.
 Changelog
 ---------
 
+* `0.7.3`:
+
+  * major bugfix in multi-page indexing
+
 * `0.7.2`:
 
   * various bugfixes
