@@ -245,8 +245,10 @@ def recover(repository=None, timestamp=None, overwrite=True, update=None, fast=N
 			client.relay.open()
 			try:
 				# index relays.
-				# call to `remoteListing` should not be necessary here
-				# thanks to `acquirePageLock` call
+				if fast:
+					client.remoteListing()
+					# call to `remoteListing` is not necessary otherwise
+					# thanks to `acquirePageLock` invocation
 				if isinstance(client.relay, IndexRelay):
 					tmp = local_placeholder # just a temporary file
 					nfiles = len(ls)

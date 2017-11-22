@@ -740,7 +740,11 @@ class IndexRelay(AbstractIndexRelay):
 				self.remoteListing()
 				self.index_mtime[page] = [ mtime for name, mtime in self.listing_cache if name == remote_index ][0]
 			else:
+				self.logger.warning("removing index page '%s'", page)
 				self.unlink(remote_index)
+				backup = '{}.backup'.format(page)
+				self.logger.info("dumping existing index in '%s'", backup)
+				copyfile(tmp, backup)
 		finally:
 			self.base_relay.delTemporaryFile(tmp)
 
