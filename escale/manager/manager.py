@@ -335,7 +335,7 @@ class Manager(Reporter):
 					# ESHUTDOWN: 108, Cannot send after transport endpoint shutdown
 					# ETIMEDOUT: 110, Connection timed out
 					# EHOSTDOWN: 112, Host is down
-					if e.args and e.args[0] in [104,107]:
+					if e.args and e.args[0] in [104,107,111]:
 						wait = True
 				if wait:
 					self.logger.debug("%s", e)
