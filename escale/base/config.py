@@ -73,6 +73,7 @@ default_cache_dirs = { user_cfg_dir: user_cache_dir,
 # 'maxpagesize' added in version 0.7rc1
 # 'includedirectory' and 'excludedirectory' added in version 0.7.1
 # 'checksumcache' added in version 0.7.1
+# 'retryonerror' added in version 0.7.4
 fields = dict(path=('path', ['local path', 'path']),
 	address=['host address', 'relay address', 'remote address', 'address'],
 	directory=['host directory', 'relay directory', 'remote directory',
@@ -108,7 +109,8 @@ fields = dict(path=('path', ['local path', 'path']),
 	maxpagesize=('number_unit', ['maxpagesize', 'maxarchivesize']),
 	includedirectory=('list', ['include directory', 'include directories']),
 	excludedirectory=('list', ['exclude directory', 'exclude directories']),
-	checksumcache=(('bool', 'path'), ['checksum cache']))
+	checksumcache=(('bool', 'path'), ['checksum cache']),
+	retryonerror=('list', ['retryonerror', 'retry on error']))
 
 
 def default_option(field, all_options=False):

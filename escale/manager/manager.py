@@ -77,17 +77,20 @@ class Manager(Reporter):
 
 		excludedirectory (list of str): regular expressions to exclude directories by name.
 
-		pop_args (dict): extra keyword arguments for 
+		waitonerror (list of int): error codes to trigger wait and recovery.
+
+		relay_args (dict): extra keyword arguments for 
 			:meth:`~escale.relay.AbstractRelay.pop`.
 
 	*new in 0.7.1:* `checksum_cache`
+	*new in 0.7.4:* `wait_on_error`
 
 	"""
 	def __init__(self, relay, repository=None, address=None, directory=None, \
 		encryption=Plain(None), timestamp=True, refresh=True, clientname=None, \
 		filetype=[], include=None, exclude=None, tq_controller=None, count=None, \
 		checksum=True, checksum_cache=None, includedirectory=None, excludedirectory=None, \
-		**relay_args):
+		waitonerror=[], **relay_args):
 		Reporter.__init__(self, **relay_args)
 		self.repository = repository
 		if directory:
@@ -222,6 +225,9 @@ class Manager(Reporter):
 		self.tq_controller.quota_read_callback = self.relay.storageSpace
 		if count:
 			self.pop_args['placeholder'] = count
+		self.wait_on_error = [104,107,111,500]
+		if waitonerror:
+			self.wait_on_error += [ int(e) for e in waitonerror ]
 
 
 	#def __del__(self):
@@ -323,7 +329,7 @@ class Manager(Reporter):
 				_last_error_time = t
 				_check_sanity = True # check again for corrupted files
 				# wait on network downtime
-				if isinstance(e, OSError):
+				try:
 					# check errno; see also the errno standard library
 					# a few candidates error codes:
 					# ENETDOWN: 100, Network is down
@@ -335,8 +341,10 @@ class Manager(Reporter):
 					# ESHUTDOWN: 108, Cannot send after transport endpoint shutdown
 					# ETIMEDOUT: 110, Connection timed out
 					# EHOSTDOWN: 112, Host is down
-					if e.args and e.args[0] in [104,107,111]:
+					if e.errno in self.wait_on_error:
 						wait = True
+				except AttributeError:
+					pass
 				if wait:
 					self.logger.debug("%s", e)
 					self.tq_controller.wait()
