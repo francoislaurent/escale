@@ -1043,6 +1043,7 @@ def simplified_add(config, cfg_dir, section=None, msgs=[]):
 		debug_print(msg)
 		config.remove_section(section)
 	config.add_section(section)
+	config.set(section, default_option('clientname'), get_client_name(section))
 	config.set(section, _local_, local)
 	config.set(section, default_option('protocol'), protocol)
 	if address:

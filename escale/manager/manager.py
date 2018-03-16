@@ -523,7 +523,11 @@ class Manager(Reporter):
 			if PYTHON_VERSION == 2 and isinstance(remote_file, unicode) and \
 				remote and isinstance(remote[0], str):
 				remote_file = remote_file.encode('utf-8')
-			checksum = self.checksum(resource)
+			try:
+				checksum = self.checksum(resource)
+			except OSError as e: # file unlinked since last call to localFiles?
+				self.logger.warning('%s', e)
+				continue
 			modified = False # if no remote copy, this is ignored
 			exists = remote_file in remote
 			if (self.timestamp or self.hash_function) and exists:
