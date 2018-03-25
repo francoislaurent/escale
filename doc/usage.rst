@@ -181,6 +181,7 @@ Other parameters are:
 * ``checksum cache``: boolean (default: True) for whether to make the local checksum cache persistent
 * ``index`` (or ``compact``): boolean (default: false) or string; index-based relay repository management; see also `Indexing`_
 * ``maxpagesize`` (or ``maxarchivesize``): a decimal number with optional storage space units such as ``KB``, ``MB``, ``GB``, etc (default value: 1 GB, default unit: MB)
+* ``priority``: admits only ``upload`` as a value; see also `Synchronization modes`_
 
 
 Relay backends
@@ -223,6 +224,17 @@ The synchronization mode can be ``upload``, ``download``, ``shared`` or ``conser
 A one-way transfer link will typically define a client running in 'upload' mode and others running in 'download' mode.
 
 Full synchronization of two clients will be achieved setting both clients to run in 'shared' mode.
+
+The ``shared`` and ``conservative`` modes, together with indexing, admit the ``priority = upload`` setting that makes upload take priority over download.
+When many files are available for upload when an upload round begins, the client sends as many updates as necessary to upload all these files. 
+This excludes the files that are newly added during the upload round.
+
+Letting upload take priority may be especially helpful if the local repository happens to be a bottleneck,
+for example repositories with millions of files available on an NFS mount.
+
+This option is not recommended though. 
+This may lead to a deadlock if an update from another client is available on the relay.
+It is recommended instead to set two separate clients, one in ``download`` mode and the other in ``upload`` mode.
 
 
 Multi-client and multi-puller regimes
@@ -268,6 +280,11 @@ When files are to be transferred, they are bundled into a compressed archive and
 through the relay repository together with a limited index file that lists the content of the archive.
 
 The archive is compressed (and encrypted if encryption is on) once the total size of the pending files reaches the value defined by the ``maxpagesize`` configuration parameter, or no more files are to be sent.
+
+Note that compression makes the actual uploaded data smaller than the ``maxpagesize`` value. 
+One may increase this latter value at the risk of an update exceeding the maximum size.
+Note that some relay services may not explicitly reject an oversized files and replace the expected data file by a zero-byte file instead.
+This may happen again and again until the upload content results in a small-enough file.
 
 See also the `protocol <protocol.html>`_ section.
 

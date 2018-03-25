@@ -329,7 +329,7 @@ class Manager(Reporter):
 				_last_error_time = t
 				_check_sanity = True # check again for corrupted files
 				# wait on network downtime
-				try:
+				if hasattr(e, 'errno'):
 					# check errno; see also the errno standard library
 					# a few candidates error codes:
 					# ENETDOWN: 100, Network is down
@@ -343,8 +343,6 @@ class Manager(Reporter):
 					# EHOSTDOWN: 112, Host is down
 					if e.errno in self.wait_on_error:
 						wait = True
-				except AttributeError:
-					pass
 				if wait:
 					self.logger.debug("%s", e)
 					self.tq_controller.wait()
@@ -585,7 +583,10 @@ class Manager(Reporter):
 				if previous_mtime != mtime:
 					# calculate the checksum again
 					checksum = None
+					self.logger.info('local file modified: {}'.format(resource))
 		if not checksum and self.hash_function:
+			if self.mode != 'download':
+				self.logger.info('new local file: {}'.format(resource))
 			with open(local_file, 'rb') as f:
 				checksum = self.hash_function(f.read())
 			if self.checksum_cache is not None:

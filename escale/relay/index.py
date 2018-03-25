@@ -114,6 +114,9 @@ class IndexUpdate(MutableMapping):
 	def __getitem__(self, resource):
 		return self.content[resource]
 
+	def __nonzero__(self):
+		return bool(self.content)
+
 	def __len__(self):
 		return len(self.content)
 

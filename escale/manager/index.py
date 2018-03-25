@@ -33,6 +33,21 @@ class IndexManager(Manager):
 		if max_page_size_unit:
 			max_page_size = max_page_size * storage_space_unit[max_page_size_unit] * 1048576
 		Manager.__init__(self, relay, *args, **kwargs)
+		self.priority = None
+		try:
+			priority = kwargs['priority'].lower()
+		except KeyError:
+			pass
+		else:
+			if priority == 'push':
+				self.priority = 'upload'
+			elif priority == 'pull':
+				self.priority = 'download'
+			elif priority in ('download', 'upload'):
+				self.priority = priority
+			else:
+				self.logger.warning('unsupported value for `priority`: %s; ignoring', priority)
+		self.repository.unsafe = True
 		self.max_page_size = max_page_size
 		self.extraction_repository = tempfile.mkdtemp()
 
@@ -164,45 +179,59 @@ class IndexManager(Manager):
 			else:
 				not_indexed.append(resource)
 		#
-		for page in indexed:
-			try:
-				push = []
-				pushed = []
-				with self.relay.setUpdate(page) as update:
-					page_index = self.relay.getPageIndex(page)
-					update_index = {}
-					for resource in indexed[page]:
-						remote_file = resource
-						local_file = self.repository.absolute(resource)
-						checksum = self.checksum(resource)
-						try:
-							page_metadata = parse_metadata(page_index[remote_file])
-						except KeyError:
-							pass
-						else:
-							if (self.timestamp or self.hash_function) and \
-								not page_metadata.fileModified(local_file, checksum, remote=False, debug=self.logger.debug):
+		while True:
+			for page in indexed:
+				fd, archive = tempfile.mkstemp()
+				os.close(fd)
+				tmpdir = tempfile.mkdtemp()
+				try:
+					pushed = []
+					with self.relay.setUpdate(page) as update:
+						page_index = self.relay.getPageIndex(page)
+						size = 0
+						for n, resource in enumerate(indexed[page]):
+							remote_file = resource
+							local_file = self.repository.absolute(resource)
+							try:
+								checksum = self.checksum(resource)
+							except OSError as e: # file unlinked since last call to localFiles?
+								self.logger.debug('%s', e)
 								continue
-						try:
-							last_modified, _ = self.checksum_cache[resource]
-						except AttributeError:
-							last_modified = os.path.getmtime(local_file)
-						metadata = Metadata(target=remote_file, timestamp=last_modified, checksum=checksum, pusher=self.relay.client)
-						push.append((local_file, remote_file, metadata))
-					if push:
-						new = True
-						fd, archive = tempfile.mkstemp()
-						os.close(fd)
-						try:
-							size = 0
+							try:
+								page_metadata = parse_metadata(page_index[remote_file])
+							except KeyError:
+								pass
+							else:
+								if (self.timestamp or self.hash_function) and \
+									not page_metadata.fileModified(local_file, checksum, remote=False, debug=self.logger.debug):
+									continue
+							try:
+								last_modified, _ = self.checksum_cache[resource]
+							except AttributeError:
+								last_modified = os.path.getmtime(local_file)
+							metadata = Metadata(target=remote_file, timestamp=last_modified, checksum=checksum, pusher=self.relay.client)
+							# add to the archive
+							new = True
+							dirname = os.path.dirname(resource)
+							if dirname:
+								dirname = os.path.join(tmpdir, dirname)
+							else:
+								dirname = tmpdir
+							if not os.path.exists(dirname):
+								os.makedirs(dirname)
+							local_copy = os.path.join(tmpdir, resource)
+							shutil.copy2(local_file, local_copy)
+							# add to the update index
+							update[remote_file] = metadata
+							pushed.append(remote_file)
+							# check the update data size
+							size += os.stat(local_copy).st_size
+							if self.max_page_size < size:
+								break
+						if update:
 							with tarfile.open(archive, mode='w:bz2') as tar:
-								for local_file, remote_file, metadata in push:
-									tar.add(local_file, arcname=remote_file, recursive=True)
-									update[remote_file] = metadata
-									pushed.append((local_file, remote_file))
-									size += os.stat(local_file).st_size
-									if self.max_page_size < size:
-										break
+								for f in os.listdir(tmpdir):
+									tar.add(os.path.join(tmpdir, f), arcname=f, recursive=True)
 							final_file = self.encryption.encrypt(archive)
 							while True:
 								try:
@@ -216,16 +245,24 @@ class IndexManager(Manager):
 								else:
 									break
 							self.encryption.finalize(final_file)
-						finally:
-							os.unlink(archive)
-					else:
-						assert not update
-				for _, remote_file in pushed:
-					self.logger.info("file '%s' successfully uploaded", remote_file)
-			except PostponeRequest:
-				continue
+						indexed[page] = indexed[page][n+1:]
+					for resource in pushed:
+						self.logger.info("file '%s' successfully uploaded", resource)
+				except PostponeRequest:
+					continue
+				finally:
+					shutil.rmtree(tmpdir)
+					os.unlink(archive)
+
+			if self.mode == 'upload' or self.priority == 'upload':
+				indexed = { page: files for page, files in indexed.items() if files }
+				if not indexed:
+					break
+			else:
+				break
 		#
-		remote = self.relay.listTransferred('', end2end=False)
+		if not_indexed:
+			remote = self.relay.listTransferred('', end2end=False)
 		for resource in not_indexed:
 			remote_file = resource
 			local_file = self.repository.absolute(resource)

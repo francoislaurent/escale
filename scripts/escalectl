@@ -88,6 +88,11 @@ if __name__ == '__main__':
 	_clear_cache = parsers.add_parser('clear-cache', help='clear local checksum cache')
 	_clear_cache.add_argument('-r', '--repository', type=str, metavar='SECTION', help='section in the default configuration file')
 	_clear_cache.set_defaults(func=clear_cache)
+	_list_pending = parsers.add_parser('list-pending', help='list local files pending for upload')
+	_list_pending.add_argument('-r', '--repository', type=str, metavar='SECTION', help='section in the default configuration file')
+	_list_pending.add_argument('-p', '--page', type=str, metavar='PAGE', help='specific index page')
+	_list_pending.add_argument('-d', '--directories', action='store_true', help='show subdirectories instead of files')
+	_list_pending.set_defaults(func=list_pending)
 	args = parser.parse_args()
 	ret = 0
 	try:

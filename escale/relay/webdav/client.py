@@ -246,7 +246,7 @@ class Client(object):
 		while True:
 			with open(local_path, 'rb') as f:
 				r = self.send('PUT', remote_path, (200, 201, 204, 400), data=f, \
-					retry_on_status_codes=(302, 503, 504))
+					retry_on_status_codes=(302, 413, 503, 504))
 			if r.status_code != 400:
 				# 400 Bad Request is Yandesk speciality
 				break

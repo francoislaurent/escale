@@ -261,6 +261,8 @@ class AccessController(Reporter):
 
 		create (str): if ``True`` create persistent data if missing.
 
+		unsafe (bool): skip all the checks that require accessing the file system.
+
 	When `push_only` (resp. `pull_only`) is ``True`` , `mode` is `upload` (resp. `download`).
 
 	When `mode` is `download`, `upload` or `shared`, and the persistent attributes do not exist
@@ -271,7 +273,7 @@ class AccessController(Reporter):
 			persistent=None,
 			ui_controller=None,
 			push_only=False, pull_only=False,
-			mode=None, create=False,
+			mode=None, create=False, unsafe=False,
 			**ignored):
 		Reporter.__init__(self, ui_controller=ui_controller)
 		self.name = repository
@@ -282,6 +284,7 @@ class AccessController(Reporter):
 		if path[-1] != '/':
 			path += '/'
 		self.path = os.path.normpath(asstr(path))
+		self.unsafe = unsafe
 		# set operating mode
 		self.mode = None
 		if push_only:
@@ -368,10 +371,21 @@ class AccessController(Reporter):
 			full_path = os.path.join(self.path, path)
 		ls = [ (os.path.join(full_path, f), relative_path(f), f) \
 				for f in os.listdir(full_path) if f[0] != '.' ]
-		local = itertools.chain( \
-			[ a_or_r(fp, rp) for fp, rp, fn in ls if os.path.isfile(fp) and basename(fn) ], \
-			*[ self.listFiles(rp, basename=basename, dirname=dirname) \
-				for fp, rp, _ in ls if os.path.isdir(fp) and dirname(rp) ])
+		if self.unsafe:
+			files, dirs = [], []
+			for fp, rp, fn in ls:
+				if os.path.isfile(fp):
+					if basename(fn):
+						files.append(a_or_r(fp, rp))
+				else:#elif os.path.isdir(fp):
+					if dirname(rp):
+						dirs.append(self.listFiles(rp, basename=basename, dirname=dirname))
+			local = itertools.chain(files, *dirs)
+		else:
+			local = itertools.chain( \
+				[ a_or_r(fp, rp) for fp, rp, fn in ls if os.path.isfile(fp) and basename(fn) ], \
+				*[ self.listFiles(rp, basename=basename, dirname=dirname) \
+					for fp, rp, _ in ls if os.path.isdir(fp) and dirname(rp) ])
 		return list(local)
 
 	def readable(self, files, unsafe=False):
@@ -477,7 +491,7 @@ class AccessController(Reporter):
 		exists, otherwise `OSError` is raised.
 		"""
 		relpath, abspath = self._format(filename, True)
-		if relpath and not os.path.exists(abspath):
+		if relpath and not self.unsafe and not os.path.exists(abspath):
 			if relpath in self.persistent:
 				self.logger.debug("cannot find file '%s' in the filesystem", abspath)
 			else:

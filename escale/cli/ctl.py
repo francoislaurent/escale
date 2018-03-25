@@ -30,6 +30,7 @@ from escale.relay.index import *
 import tarfile
 import shutil
 import subprocess # escale.manager.migration mysteriously overwrites subprocess, therefore subprocess should imported after
+from collections import defaultdict
 
 
 def start(pidfile=None):
@@ -417,8 +418,8 @@ def suspend(repository=None, page=None):
 			continue
 		client.relay.client += '-suspend'
 		client.relay.open()
-		client.remoteListing()
 		try:
+			client.remoteListing()
 			if page:
 				unlocked = list(page)
 			else:
@@ -456,8 +457,8 @@ def resume(repository=None, page=None):
 			continue
 		client.relay.client += '-suspend'
 		client.relay.open()
-		client.remoteListing()
 		try:
+			client.remoteListing()
 			if page:
 				pages = list(page)
 			else:
@@ -530,4 +531,58 @@ def clear_cache(repository=None, prefix='cc'):
 			raise
 		except:
 			pass
+
+def list_pending(repository=None, page=None, fast=True, directories=False):
+	if not fast:
+		raise NotImplementedError('only fast mode is supported (only missing files are listed)')
+	cfg, cfg_file, msgs = parse_cfg()
+	logger, msgs = set_logger(cfg, cfg_file, msgs=msgs)
+	flush_init_messages(logger, msgs)
+	if repository:
+		if isinstance(repository, (tuple, list)):
+			repositories = repository
+		else:
+			repositories = [ repository ]
+	else:
+		repositories = cfg.sections()
+	if page and not isinstance(page, (tuple, list)):
+		page = [ page ]
+	for repository in repositories:
+		client = make_client(cfg, repository)
+		if client.mode == 'download':
+			continue
+		if not isinstance(client.relay, IndexRelay):
+			print('skipping repository: {}'.format(repository))
+			continue
+		indexed = defaultdict(list)
+		not_indexed = []
+		client.relay.open()
+		try:
+			for resource in client.localFiles():
+				if client.relay.indexed(resource):
+					indexed[client.relay.page(resource)].append(resource)
+				else:
+					not_indexed.append(resource)
+			if page:
+				pages = list(page)
+			else:
+				pages = indexed.keys()
+			client.remoteListing()
+			for p in pages:
+				if p not in indexed:
+					continue
+				page_index = client.relay.getPageIndex(p)
+				if not page_index:
+					continue
+				pending = set(indexed[p]) - set(list(page_index.keys()))
+				if pending:
+					print("in page '{}':".format(p))
+					if directories:
+						for d in set([ os.path.dirname(f) for f in pending ]):
+							print(d)
+					else:
+						for f in pending:
+							print(f)
+		finally:
+			client.relay.close()
 
