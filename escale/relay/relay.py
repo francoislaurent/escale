@@ -363,6 +363,9 @@ class Relay(AbstractRelay):
 		placeholder_cache (dict): dictionnary of cached placeholders.
 
 	*new in 0.5.1:* placeholder_cache
+
+	*as of 0.7.6:* default lock_timeout is 3 days
+
 	"""
 	__slots__ = [ '_temporary_files',
 		'_placeholder_prefix', '_placeholder_suffix',
@@ -385,7 +388,7 @@ class Relay(AbstractRelay):
 		self._lock_prefix = '.'
 		self._lock_suffix = '.lock'
 		if isinstance(lock_timeout, bool) and lock_timeout:
-			self.lock_timeout = 3600
+			self.lock_timeout = 3600 * 72 # 3 days
 		else:
 			self.lock_timeout = lock_timeout
 		self._message_prefix = '.'

@@ -30,6 +30,10 @@ Please find the extended documentation at `escale.readthedocs.io <http://escale.
 Changelog
 ---------
 
+* `0.7.5`:
+
+  * index-based upload reworked for high-latency (e.g. NFS-mounted) local repositories
+
 * `0.7.3`:
 
   * major bugfix in multi-page indexing

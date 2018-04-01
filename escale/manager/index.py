@@ -180,6 +180,7 @@ class IndexManager(Manager):
 				not_indexed.append(resource)
 		#
 		while True:
+			any_page_update = False
 			for page in indexed:
 				fd, archive = tempfile.mkstemp()
 				os.close(fd)
@@ -248,6 +249,7 @@ class IndexManager(Manager):
 						indexed[page] = indexed[page][n+1:]
 					for resource in pushed:
 						self.logger.info("file '%s' successfully uploaded", resource)
+						any_page_update = True
 				except PostponeRequest:
 					continue
 				finally:
@@ -260,6 +262,9 @@ class IndexManager(Manager):
 					break
 			else:
 				break
+
+			if not any_page_update: # all the pages postponed
+				self.tq_controller.wait()
 		#
 		if not_indexed:
 			remote = self.relay.listTransferred('', end2end=False)
