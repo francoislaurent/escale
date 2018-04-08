@@ -94,7 +94,7 @@ class IndexManager(Manager):
 								# if `timestamp` is `True` or is a format string,
 								# then metadata should be defined
 								self.logger.warning("corrupt meta information for file '%s'", remote_file)
-						if os.path.isfile(local_file):
+						if self.hash_function is not None and os.path.isfile(local_file):
 							if not metadata:
 								self.logger.warning("missing meta information for file '%s'", remote_file)
 								continue
@@ -119,8 +119,8 @@ class IndexManager(Manager):
 						new = True
 						missing = []
 						if self.relay.hasUpdate(page):
+							fd, archive = tempfile.mkstemp()
 							try:
-								fd, archive = tempfile.mkstemp()
 								os.close(fd)
 								encrypted = self.encryption.prepare(archive)
 								with self.tq_controller.pull(encrypted):
@@ -160,6 +160,7 @@ class IndexManager(Manager):
 									if mtime:
 										# set last modification time
 										os.utime(local, (time.time(), mtime))
+										# TODO: update the checksum cache
 						if missing:
 							self.relay.requestMissing(page, missing)
 			except (PostponeRequest, MissingResource) as e:
