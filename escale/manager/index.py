@@ -18,6 +18,7 @@ from ..relay.info import Metadata, parse_metadata
 from ..relay.index import AbstractIndexRelay
 import os
 import bz2
+import time
 import shutil
 import tarfile
 import tempfile
@@ -68,9 +69,12 @@ class IndexManager(Manager):
 		self.relay.clearIndex()
 
 	def download(self):
+		trust = not self.timestamp and self.checksum is None
 		new = False
 		for page in self.relay.listPages():
 			index_loaded = self.relay.loaded(page)
+			# the first `getUpdate` call for a page returns a full index
+			# instead of an index update
 			try:
 				with self.relay.getUpdate(page, self.terminate) as update:
 					get_files = []
@@ -87,14 +91,13 @@ class IndexManager(Manager):
 							continue
 						metadata = parse_metadata(update[remote_file])
 						last_modified = None
-						if self.timestamp:
-							if metadata and metadata.timestamp:
-								last_modified = metadata.timestamp
-							else:
-								# if `timestamp` is `True` or is a format string,
-								# then metadata should be defined
-								self.logger.warning("corrupt meta information for file '%s'", remote_file)
-						if self.hash_function is not None and os.path.isfile(local_file):
+						if metadata and metadata.timestamp:
+							last_modified = metadata.timestamp
+						elif self.timestamp:
+							# if `timestamp` is `True` or is a format string,
+							# then metadata should be defined
+							self.logger.warning("corrupt meta information for file '%s'", remote_file)
+						if not trust and os.path.isfile(local_file):
 							if not metadata:
 								self.logger.warning("missing meta information for file '%s'", remote_file)
 								continue
@@ -116,9 +119,9 @@ class IndexManager(Manager):
 								continue
 						get_files.append((remote_file, local_file, last_modified))
 					if get_files:
-						new = True
 						missing = []
 						if self.relay.hasUpdate(page):
+							new = True
 							fd, archive = tempfile.mkstemp()
 							try:
 								os.close(fd)
@@ -135,33 +138,39 @@ class IndexManager(Manager):
 								except Exception as e: # ReadError: not a bzip2 file
 									self.logger.error("%s", e)
 									missing = [ m for m, _, _ in get_files ]
+									get_files = []
 							finally:
 								os.unlink(archive)
 						else:
-							missing = [ m for m, _, _ in get_files ]
-						if not missing:
-							for remote, local, mtime in get_files:
-								dirname = os.path.dirname(local)
-								if dirname and not os.path.isdir(dirname):
-									os.makedirs(dirname)
-								extracted = join(self.extraction_repository, remote)
-								try:
-									shutil.move(extracted, local)
-								except IOError as e:#FileNotFoundError:
-									# catch FileNotFoundError (does not exist in Python2)
-									if e.errno == errno.ENOENT:
-										self.logger.debug("file '%s' not found", extracted)
-										#self.logger.info("failed to download file '%s'", remote)
-										missing.append(remote)
-									else:
-										raise
+							if trust and not index_loaded:
+								missing = [ r for r, l, _ in get_files
+									if not os.path.exists(l) ]
+							else:
+								missing = [ m for m, _, _ in get_files ]
+							get_files = []
+						for remote, local, mtime in get_files:
+							dirname = os.path.dirname(local)
+							if dirname and not os.path.isdir(dirname):
+								os.makedirs(dirname)
+							extracted = join(self.extraction_repository, remote)
+							try:
+								shutil.move(extracted, local)
+							except IOError as e:#FileNotFoundError:
+								# catch FileNotFoundError (does not exist in Python2)
+								if e.errno == errno.ENOENT:
+									self.logger.debug("file '%s' not found", extracted)
+									#self.logger.info("failed to download file '%s'", remote)
+									missing.append(remote)
 								else:
-									self.logger.info("file '%s' successfully downloaded", remote)
-									if mtime:
-										# set last modification time
-										os.utime(local, (time.time(), mtime))
-										# TODO: update the checksum cache
+									raise
+							else:
+								self.logger.info("file '%s' successfully downloaded", remote)
+								if mtime:
+									# set last modification time
+									os.utime(local, (time.time(), mtime))
+									# TODO: update the checksum cache
 						if missing:
+							new = True # do not consider the local repository up-to-date
 							self.relay.requestMissing(page, missing)
 			except (PostponeRequest, MissingResource) as e:
 				if e.args:
