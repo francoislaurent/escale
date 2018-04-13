@@ -12,6 +12,8 @@ It features end-to-end encryption, quota management, filename filters, access co
 
 It can run as a daemon and simultaneously synchronize several repositories between multiple clients.
 
+Its main limitation is that file deletions are not propagated downstream.
+
 
 License
 -------
@@ -29,6 +31,12 @@ Please find the extended documentation at `escale.readthedocs.io <http://escale.
 
 Changelog
 ---------
+
+* `0.7.6`:
+
+  * faster checksum- and timestamp-free index-based download for high-latency local repositories
+  * rclone-related bugfixes
+  * missing files are looked up from time to time in download mode
 
 * `0.7.5`:
 
@@ -153,13 +161,20 @@ Changelog
     ``read only`` and ``write only``
   * ``ssl version`` and ``verify ssl`` configuration options
 
+Known issues
+------------
+
+* in *download* mode, the files that disappear may not be reported missing; restarting the client fixes it
+* cached relays often exhibit higher latencies because of newly-released resources that may still appear as locked in the cache
+
 
 Roadmap
 -------
 
 Coming features are:
 
-* file auto-destruction when several pullers have been defined and one takes too much time to get its copy of the file
+* propagate file deletions from pusher clients
+* file auto-destruction when several pullers are defined and one takes too much time to get its copy of the file
 * more robust multi-puller logic
 * split and recombine big files
 * more (symmetric) cryptographic algorithms and more cryptographic options

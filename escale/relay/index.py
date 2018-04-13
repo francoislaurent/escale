@@ -247,7 +247,7 @@ def write_index(filename, metadata, pullers=[], compress=False, groupby=[]):
 			for reader in pullers:
 				write('\n'+reader)
 
-def read_index(filename, compress=False, groupby=[]):
+def read_index(filename, compress=False, groupby=[], debug=None):
 	"""
 	Read index from file.
 	"""
@@ -257,7 +257,11 @@ def read_index(filename, compress=False, groupby=[]):
 	else:
 		group = ''
 	pullers = []
-	if compress:
+	if os.stat(filename).st_size == 0:
+		if compress and debug is not None:
+			debug('uncompressed empty index')
+		return (metadata, pullers)
+	elif compress:
 		_open = bz2.BZ2File
 	else:
 		_open = open
@@ -724,7 +728,7 @@ class IndexRelay(AbstractIndexRelay):
 		tmp = self.base_relay.newTemporaryFile()
 		try:
 			self.base_relay._get(remote_index, tmp)
-			self.index[page], _ = read_index(tmp, groupby=self.metadata_group_by, compress=True)
+			self.index[page], _ = read_index(tmp, groupby=self.metadata_group_by, compress=True, debug=self.logger.debug)
 			ok = False
 			for remote_file in remote_files:
 				try:
@@ -740,14 +744,16 @@ class IndexRelay(AbstractIndexRelay):
 				write_index(tmp, self.index[page], groupby=self.metadata_group_by, compress=True)
 				self.logger.debug("updating index for page '%s'", page)
 				self.base_relay._push(tmp, remote_index)
-				self.remoteListing()
 				self.index_mtime[page] = [ mtime for name, mtime in self.listing_cache if name == remote_index ][0]
 			else:
 				self.logger.warning("removing index page '%s'", page)
+				## new in 0.7.6: write an empty index instead of deleting it
 				self.unlink(remote_index)
+				#self.base_relay.touch(remote_index)
 				backup = '{}.backup'.format(page)
 				self.logger.info("dumping existing index in '%s'", backup)
 				copyfile(tmp, backup)
+			self.remoteListing()
 		finally:
 			self.base_relay.delTemporaryFile(tmp)
 
@@ -767,7 +773,7 @@ class IndexRelay(AbstractIndexRelay):
 					self.logger.debug("downloading index update '%s' for page '%s'", timestamp, page)
 					tmp = self.base_relay.newTemporaryFile()
 					self.base_relay._get(location, tmp)
-					index, pullers = read_index(tmp)
+					index, pullers = read_index(tmp, debug=self.logger.debug)
 					self.last_update_cache[page] = (index, pullers)
 					if sync:
 						for resource, mdata in index.items():
@@ -784,7 +790,7 @@ class IndexRelay(AbstractIndexRelay):
 				self.logger.debug("downloading index for page '%s'", page)
 				tmp = self.base_relay.newTemporaryFile()
 				self.base_relay._get(location, tmp)
-				index, _ = read_index(tmp, groupby=self.metadata_group_by, compress=True)
+				index, _ = read_index(tmp, groupby=self.metadata_group_by, compress=True, debug=self.logger.debug)
 				self.index[page] = index
 				self.index_mtime[page] = index_mtime
 				self.base_relay.delTemporaryFile(tmp)

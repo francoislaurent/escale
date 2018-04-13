@@ -572,7 +572,7 @@ class Manager(Reporter):
 	def checksum(self, resource):
 		# `resource` should be a relative path!
 		local_file = self.repository.absolute(resource)
-		checksum = None
+		checksum, modified = None, False
 		if self.checksum_cache is not None:
 			mtime = int(os.path.getmtime(local_file))
 			try:
@@ -582,13 +582,17 @@ class Manager(Reporter):
 			else:
 				if previous_mtime != mtime:
 					# calculate the checksum again
-					checksum = None
-					self.logger.info('local file modified: {}'.format(resource))
+					checksum, modified = None, True
+					self.logger.debug('local file modified: {}'.format(resource))
 		if not checksum and self.hash_function:
-			if self.mode != 'download':
-				self.logger.info('new local file: {}'.format(resource))
+			if not modified:
+				self.logger.debug('new local file: {}'.format(resource))
 			with open(local_file, 'rb') as f:
-				checksum = self.hash_function(f.read())
+				content = f.read()
+				import struct
+				cs = sum(struct.unpack('<'+'B'*len(content), content))
+				checksum = self.hash_function(content)
+				print((resource, cs, checksum))
 			if self.checksum_cache is not None:
 				#self.logger.debug('\n'.join((
 				#	"caching checksum for file:",

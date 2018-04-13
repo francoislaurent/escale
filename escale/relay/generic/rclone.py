@@ -24,7 +24,9 @@ import time
 def rclone_binary(name=None):
 	if name:
 		_name = os.path.expanduser(name)
-		if os.path.isabs(_name) and os.path.isfile(_name):
+		if not os.path.isabs(_name): # and '/' in _name?
+			_name = os.path.join(os.getcwd(), _name)
+		if os.path.isfile(_name):
 			return _name
 	else:
 		name = 'rclone'
@@ -110,8 +112,17 @@ class RClone(Relay):
 			raise NotImplementedError
 		if stats:
 			cmd = 'lsl'
-		ls = with_subprocess(self.rclone_bin, cmd, '{}:{}'.format(self.remote, relay_dir),
+		try:
+			ls = with_subprocess(self.rclone_bin, cmd,
+				'{}:{}'.format(self.remote, relay_dir),
 				error=IOError) #'--fast-list', 
+		except IOError as e:
+			err = e.args[0].rstrip()
+			if err.endswith('Unknown type *files.DeletedMetadata'):
+				return []
+			else:
+				self.logger.debug("unexpected rclone error for command %s on relay dir '%s': %s", cmd, relay_dir, err)
+				raise
 		if stats:
 			files = []
 			sizes = []
@@ -142,18 +153,26 @@ class RClone(Relay):
 		else:
 			relay_file = os.path.join(self.repository, remote_file)
 		relay_file = '{}:{}'.format(self.remote, relay_file)
-		output = with_subprocess(self.rclone_bin, 'ls', relay_file, output=True)
-		if isinstance(output, tuple):
-			_, error = output
-			if error.rstrip().endswith('not found'):
-				return False
-			else:
-				raise IOError(error)
+		while True:
+			output = with_subprocess(self.rclone_bin, 'ls', relay_file, output=True)
+			if isinstance(output, tuple):
+				_, error = output
+				error = error.rstrip()
+				if error.endswith('not found'):
+					return False
+				elif error.endswith('Unknown type *files.DeletedMetadata') or \
+					error.endswith('Failed to ls: path/not_folder/.'):
+					self.logger.debug("rclone error on command 'ls': %s", error)
+					continue # retry
+				else:
+					self.logger.debug("TODO: handle the following rclone output for relay file '%s': %s", relay_file, output)
+					raise IOError(error)
+			break
 		else:
 			try:
-				return bool(int(output.lstrip()[0]))
+				return not output or int(output.lstrip()[0])
 			except IndexError:
-				print((output,)) # TODO: find out in which situations this occurs
+				self.logger.debug("unexpected rclone output for relay file '%s': %s", relay_file, output)
 				return False
 
 	def _push(self, local_file, remote_file, makedirs=True):
