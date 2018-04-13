@@ -286,7 +286,7 @@ class IndexManager(Manager):
 			if self.mode == 'upload' or self.priority == 'upload':
 				indexed = { page: files for page, files in indexed.items() if files }
 				#self.logger.debug('%s page(s) and %s files remaining', len(indexed),
-					0 if indexed else sum([ len(p) for p in indexed.values() ]))
+				#	0 if indexed else sum([ len(p) for p in indexed.values() ]))
 				if not indexed:
 					break
 			else:
