@@ -589,10 +589,10 @@ class Manager(Reporter):
 				self.logger.debug('new local file: {}'.format(resource))
 			with open(local_file, 'rb') as f:
 				content = f.read()
-				import struct
-				cs = sum(struct.unpack('<'+'B'*len(content), content))
+				#import struct
+				#cs = sum(struct.unpack('<'+'B'*len(content), content))
 				checksum = self.hash_function(content)
-				print((resource, cs, checksum))
+				#print((resource, cs, checksum))
 			if self.checksum_cache is not None:
 				#self.logger.debug('\n'.join((
 				#	"caching checksum for file:",

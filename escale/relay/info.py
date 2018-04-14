@@ -194,8 +194,6 @@ class Metadata(object):
 			if not checksum and file_available and hash_function is not None:
 				with open(local_file, 'rb') as f:
 					content = f.read()
-					import struct
-					cs = sum(struct.unpack('<'+'B'*len(content), content))
 					checksum = hash_function(content)
 			if checksum:
 				identical = checksum == self.checksum
@@ -214,7 +212,14 @@ class Metadata(object):
 					msg = "is checksum calculated from encrypted data?"
 					if debug:
 						debug(msg)
-						debug((local_file, cs, checksum, self.checksum))
+						try:
+							import struct
+							cs = sum(struct.unpack('<'+'B'*len(content), content))
+							debug((local_file, cs, checksum, self.checksum))
+						except (KeyboardInterrupt, SystemExit):
+							raise
+						except:
+							pass
 					else:
 						raise RuntimeError(msg)
 				#if debug and local_mtime != remote_mtime:
