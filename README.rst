@@ -164,7 +164,6 @@ Changelog
 Known issues
 ------------
 
-* in *download* mode, the files that disappear may not be reported missing; restarting the client fixes it
 * cached relays often exhibit higher latencies because of newly-released resources that may still appear as locked in the cache
 
 

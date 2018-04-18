@@ -11,6 +11,7 @@
 #     * `checksum` in `fields`
 #     * `includedirectory` and `excludedirectory` in `fields`
 #     * `checksumcache` in `fields`
+#     * `pulloverwrite` in `fields`
 
 # This file is part of the Escale software available at
 # "https://github.com/francoislaurent/escale" and is distributed under
@@ -74,6 +75,7 @@ default_cache_dirs = { user_cfg_dir: user_cache_dir,
 # 'includedirectory' and 'excludedirectory' added in version 0.7.1
 # 'checksumcache' added in version 0.7.1
 # 'retryonerror' added in version 0.7.4
+# 'pulloverwrite' added in version 0.7.6
 fields = dict(path=('path', ['local path', 'path']),
 	address=['host address', 'relay address', 'remote address', 'address'],
 	directory=['host directory', 'relay directory', 'remote directory',
@@ -110,7 +112,8 @@ fields = dict(path=('path', ['local path', 'path']),
 	includedirectory=('list', ['include directory', 'include directories']),
 	excludedirectory=('list', ['exclude directory', 'exclude directories']),
 	checksumcache=(('bool', 'path'), ['checksum cache']),
-	retryonerror=('list', ['retryonerror', 'retry on error']))
+	retryonerror=('list', ['retryonerror', 'retry on error']),
+	pulloverwrite=('bool', ['pull overwrite']))
 
 
 def default_option(field, all_options=False):

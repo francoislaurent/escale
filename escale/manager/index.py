@@ -56,6 +56,7 @@ class IndexManager(Manager):
 				self.priority = priority
 			else:
 				self.logger.warning('unsupported value for `priority`: %s; ignoring', priority)
+		self.pull_overwrite = kwargs.get('pulloverwrite', False)
 		self.repository.unsafe = True
 		self.max_page_size = max_page_size
 		self.extraction_repository = tempfile.mkdtemp()
@@ -78,7 +79,7 @@ class IndexManager(Manager):
 		self.relay.clearIndex()
 
 	def download(self):
-		trust = not self.timestamp and self.checksum is None
+		trust = self.pull_overwrite or (not self.timestamp and self.checksum is None)
 		new = False
 		for page in self.relay.listPages():
 			index_loaded = self.relay.loaded(page)
@@ -188,6 +189,9 @@ class IndexManager(Manager):
 				if e.args:
 					self.logger.debug(*e.args)
 		new |= Manager.download(self)
+		if not new:
+			# if the client is idle, then check for missing files at the next download phase
+			self.relay.clearIndex()
 		return new
 
 	def upload(self):
