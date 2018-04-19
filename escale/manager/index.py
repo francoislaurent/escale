@@ -119,7 +119,7 @@ class IndexManager(Manager):
 							checksum = self.checksum(resource)
 							# check for modifications
 							if not metadata.fileModified(local_file, checksum, remote=True, debug=self.logger.debug):
-								if index_loaded:
+								if index_loaded and not lookup_missing:
 									extracted_file = join(self.extraction_repository, remote_file)
 									self.logger.info("deleting duplicate or outdated file '%s'", remote_file)
 									try:
