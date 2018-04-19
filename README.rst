@@ -37,6 +37,7 @@ Changelog
   * faster checksum- and timestamp-free index-based download for high-latency local repositories
   * rclone-related bugfixes
   * missing files are looked up from time to time in download mode
+  * missing index pages are detected in the idle upload phase
 
 * `0.7.5`:
 
@@ -160,11 +161,6 @@ Changelog
   * ``push only`` and ``pull only`` configuration options introduced as replacements for 
     ``read only`` and ``write only``
   * ``ssl version`` and ``verify ssl`` configuration options
-
-Known issues
-------------
-
-* cached relays often exhibit higher latencies because of newly-released resources that may still appear as locked in the cache
 
 
 Roadmap

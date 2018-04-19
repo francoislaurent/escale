@@ -36,10 +36,13 @@ class AbstractIndexRelay(AbstractRelay):
 	def loaded(self, page):
 		raise NotImplementedError('abstract method')
 
-	def clearIndex(self):
+	def clearIndex(self, page=None):
 		raise NotImplementedError('abstract method')
 
 	def listPages(self):
+		raise NotImplementedError('abstract method')
+
+	def hasIndex(self, page):
 		raise NotImplementedError('abstract method')
 
 	def getPageIndex(self, page):
@@ -48,8 +51,8 @@ class AbstractIndexRelay(AbstractRelay):
 	def hasUpdate(self, page):
 		raise NotImplementedError('abstract method')
 
-	def getUpdate(self, page, terminate=None):
-		return UpdateRead(self, page, terminate)
+	def getUpdate(self, page, terminate=None, full_index=False):
+		return UpdateRead(self, page, terminate, full_index)
 
 	def getUpdateIndex(self, page, sync=True):
 		raise NotImplementedError('abstract method')
@@ -129,14 +132,18 @@ class IndexUpdate(MutableMapping):
 
 class UpdateRead(IndexUpdate):
 
-	def __init__(self, relay, page, terminate):
+	def __init__(self, relay, page, terminate, full_index=False):
 		IndexUpdate.__init__(self, relay, page, 'r')
 		self.terminate = terminate
+		self.full_index = full_index
 
 	def __enter__(self):
-		if not self.relay.loaded(self.page) or self.relay.hasUpdate(self.page):
+		if not self.relay.loaded(self.page) or self.relay.hasUpdate(self.page) or self.full_index:
 			IndexUpdate.__enter__(self)
-			self.content = self.relay.getUpdateIndex(self.page)
+			if self.full_index:
+				self.content = self.relay.getPageIndex(self.page)
+			else:
+				self.content = self.relay.getUpdateIndex(self.page)
 			if not self.content:
 				IndexUpdate.__exit__(self, None, None, None)
 				raise MissingResource("no update for page '%s'", self.page)
@@ -159,6 +166,8 @@ class UpdateWrite(IndexUpdate):
 	def __enter__(self):
 		if self.relay.hasUpdate(self.page):
 			raise PostponeRequest
+		elif not self.relay.hasIndex(self.page):
+			self.relay.clearIndex(self.page)
 		return IndexUpdate.__enter__(self)
 
 	def __exit__(self, exc_type, *args):
@@ -476,8 +485,9 @@ class IndexRelay(AbstractIndexRelay):
 			self.remoteListing()
 			self.listing_time = now
 
-	def clearIndex(self):
-		for page in self.listPages():
+	def clearIndex(self, page=None):
+		pages = self.listPages() if page is None else page
+		for page in pages:
 			#if not self.acquirePageLock(page, 'r'):
 			#	self.logger.warning("cannot lock page '%s'", page)
 			#	continue
@@ -798,6 +808,10 @@ class IndexRelay(AbstractIndexRelay):
 				self.last_update[page] = timestamp
 		return index
 
+	def hasIndex(self, page):
+		persistent_index = self.persistentIndex(page)
+		return self.base_relay.exists(persistent_index)
+
 	def getPageIndex(self, page):
 		self.getIndexChanges(page, sync=True, check_mtime=True)
 		return self.index.get(page, {})
@@ -835,7 +849,12 @@ class IndexRelay(AbstractIndexRelay):
 		if upload_index:
 			if exists:
 				if page not in self.index or not self.index[page]:
-					raise RuntimeError("page '%s' exists but is empty", page)
+					self.remoteListing() # double check
+					exists = index_location in [ f for f,_ in self.listing_cache ]
+					if exists:
+						raise RuntimeError("page '%s' exists but is empty", page)
+					else:
+						raise RuntimeError("page '%s' was deleted after it has been augmented", page)
 				index = self.index[page]
 				index.update(index_update)
 			if sync:

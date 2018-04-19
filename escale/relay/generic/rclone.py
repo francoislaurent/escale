@@ -119,9 +119,10 @@ class RClone(Relay):
 		except IOError as e:
 			err = e.args[0].rstrip()
 			if err.endswith('Unknown type *files.DeletedMetadata'):
+				self.logger.debug(err)
 				return []
 			else:
-				self.logger.debug("unexpected rclone error for command %s on relay dir '%s': %s", cmd, relay_dir, err)
+				self.logger.error("unexpected rclone error for command %s on relay dir '%s': %s", cmd, relay_dir, err)
 				raise
 		if stats:
 			files = []
@@ -157,23 +158,23 @@ class RClone(Relay):
 			output = with_subprocess(self.rclone_bin, 'ls', relay_file, output=True)
 			if isinstance(output, tuple):
 				_, error = output
-				error = error.rstrip()
+				error = error.rstrip().rstrip('.')
 				if error.endswith('not found'):
 					return False
 				elif error.endswith('Unknown type *files.DeletedMetadata') or \
-					error.endswith('Failed to ls: path/not_folder/.'):
+					error.endswith('Failed to ls: path/not_folder/'):
 					self.logger.debug("rclone error on command 'ls': %s", error)
 					continue # retry
 				else:
 					self.logger.debug("TODO: handle the following rclone output for relay file '%s': %s", relay_file, output)
 					raise IOError(error)
+			else:
+				try:
+					return not output or int(output.lstrip()[0])
+				except IndexError:
+					self.logger.debug("unexpected rclone output for relay file '%s': %s", relay_file, output)
+					return False
 			break
-		else:
-			try:
-				return not output or int(output.lstrip()[0])
-			except IndexError:
-				self.logger.debug("unexpected rclone output for relay file '%s': %s", relay_file, output)
-				return False
 
 	def _push(self, local_file, remote_file, makedirs=True):
 		"""
@@ -206,7 +207,11 @@ class RClone(Relay):
 				output=True)
 		if isinstance(output, tuple):
 			_, error = output
-			if not error.splitlines()[-1].startswith('Elapsed time:'):
+			if error.splitlines()[-1].startswith('Elapsed time:'):
+				pass
+			elif 'Failed to create file system for "' in error:
+				raise MissingResource
+			else:
 				raise IOError(error)
 
 	def unlink(self, remote_file):

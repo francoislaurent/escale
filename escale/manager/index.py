@@ -61,6 +61,7 @@ class IndexManager(Manager):
 		self.max_page_size = max_page_size
 		self.extraction_repository = tempfile.mkdtemp()
 		self.upload_max_wait = upload_max_wait
+		self.download_idle = True
 
 	def terminate(self, pullers):
 		return self.count is None or self.count <= len(pullers)
@@ -80,13 +81,14 @@ class IndexManager(Manager):
 
 	def download(self):
 		trust = self.pull_overwrite or (not self.timestamp and self.checksum is None)
+		lookup_missing = self.download_idle
 		new = False
 		for page in self.relay.listPages():
 			index_loaded = self.relay.loaded(page)
 			# the first `getUpdate` call for a page returns a full index
 			# instead of an index update
 			try:
-				with self.relay.getUpdate(page, self.terminate) as update:
+				with self.relay.getUpdate(page, self.terminate, lookup_missing) as update:
 					get_files = []
 					for remote_file in update:
 						dirname, basename = os.path.split(remote_file)
@@ -107,7 +109,9 @@ class IndexManager(Manager):
 							# if `timestamp` is `True` or is a format string,
 							# then metadata should be defined
 							self.logger.warning("corrupt meta information for file '%s'", remote_file)
-						if not trust and os.path.isfile(local_file):
+						if (not trust or lookup_missing) and os.path.isfile(local_file):
+							if trust and lookup_missing:
+								continue
 							if not metadata:
 								self.logger.warning("missing meta information for file '%s'", remote_file)
 								continue
@@ -127,6 +131,7 @@ class IndexManager(Manager):
 										else:
 											raise
 								continue
+
 						get_files.append((remote_file, local_file, last_modified))
 					if get_files:
 						missing = []
@@ -189,9 +194,8 @@ class IndexManager(Manager):
 				if e.args:
 					self.logger.debug(*e.args)
 		new |= Manager.download(self)
-		if not new:
-			# if the client is idle, then check for missing files at the next download phase
-			self.relay.clearIndex()
+		# if the client is idle, then check for missing files at the next download phase
+		self.download_idle = not new
 		return new
 
 	def upload(self):
@@ -208,7 +212,7 @@ class IndexManager(Manager):
 		#
 		t0 = None
 		while True:
-			any_page_update = False
+			any_page_update, any_postponed = False, False
 			for page in indexed:
 				#self.logger.debug("page '%s'", page)
 				fd, archive = tempfile.mkstemp()
@@ -217,7 +221,13 @@ class IndexManager(Manager):
 				try:
 					pushed = []
 					with self.relay.setUpdate(page) as update:
-						page_index = self.relay.getPageIndex(page)
+						try:
+							page_index = self.relay.getPageIndex(page)
+						except MissingResource:
+							self.logger.error('missing page index')
+							self.relay.remoteListing()
+							update = {}
+							page_index = {}
 						#self.logger.debug("page '%s' has %s entries", page,
 						#	len(page_index))
 						size = 0
@@ -282,6 +292,7 @@ class IndexManager(Manager):
 					for resource in pushed:
 						self.logger.info("file '%s' successfully uploaded", resource)
 				except PostponeRequest:
+					any_postponed = True
 					continue
 				finally:
 					shutil.rmtree(tmpdir)
@@ -298,8 +309,8 @@ class IndexManager(Manager):
 
 			if any_page_update:
 				t0 = None
-			else: # all the pages postponed
-				self.logger.debug('no page update')
+			elif False:#any_postponed:
+				#self.logger.debug('pending update(s) postponed')
 				if t0 is None:
 					t0 = time.time()
 				elif self.upload_max_wait is not None and \
@@ -309,9 +320,8 @@ class IndexManager(Manager):
 				if not self.tq_controller.wait():
 					self.logger.debug('timeout')
 					break
-				self.logger.debug('trying again to push a page update')
-				for page in indexed:
-					self.relay.loaded(page)
+				#for page in indexed:
+				#	self.relay.loaded(page)
 				self.remoteListing()
 		#
 		if not_indexed:

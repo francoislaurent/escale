@@ -439,7 +439,9 @@ def add_section(config, cfg_dir, section=None, msgs=[]):
 	if _indexing(protocol):
 		# new in 0.7: indexing is default behaviour
 		config.set(section, default_option('index'), '1')
-		if mode != 'download':
+		if mode == 'download':
+			config.set(section, default_option('pull overwrite'), 'on')
+		else:
 			config.set(section, default_option('maxpagesize'), '200MB')
 	# new in 0.7.1: checksum caching is default behaviour
 	config.set(section, default_option('checksumcache'), 'on')
