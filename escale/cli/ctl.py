@@ -92,6 +92,15 @@ def stop(pidfile=None):
 	os.unlink(pidfile)
 
 
+def restart(pidfile=None):
+	"""
+	Restart all the running escale processes.
+	"""
+	stop(pidfile)
+	time.sleep(1)
+	return start(pidfile)
+
+
 def access(modifiers=None, resource=None, repository=None):
 	"""
 	Get or set access modifiers of a resource.
@@ -400,6 +409,13 @@ def rebase(repository=None, extra_path=None):
 
 
 def suspend(repository=None, page=None):
+	"""
+	Lock pages so that the regular clients cannot push or pull.
+
+	This procedure is designed for index-based repositories only.
+
+	If a page to be locked is already locked, escalectl waits for the lock to be released.
+	"""
 	cfg, cfg_file, msgs = parse_cfg()
 	logger, msgs = set_logger(cfg, cfg_file, msgs=msgs)
 	flush_init_messages(logger, msgs)
@@ -439,6 +455,9 @@ def suspend(repository=None, page=None):
 
 
 def resume(repository=None, page=None):
+	"""
+	Release locks set by the *suspend* procedure.
+	"""
 	cfg, cfg_file, msgs = parse_cfg()
 	logger, msgs = set_logger(cfg, cfg_file, msgs=msgs)
 	flush_init_messages(logger, msgs)
@@ -478,6 +497,9 @@ def resume(repository=None, page=None):
 
 
 def make_cache(repository=None, prefix='cc'):
+	"""
+	Build the checksum cache.
+	"""
 	if prefix != 'cc':
 		raise NotImplementedError("'%s' not supported yet", prefix)
 	cfg, cfg_file, msgs = parse_cfg()
@@ -511,6 +533,9 @@ def make_cache(repository=None, prefix='cc'):
 
 
 def clear_cache(repository=None, prefix='cc'):
+	"""
+	Remove caches.
+	"""
 	if prefix != 'cc':
 		raise NotImplementedError("'%s' not supported yet", prefix)
 	cfg, cfg_file, msgs = parse_cfg()
@@ -533,6 +558,9 @@ def clear_cache(repository=None, prefix='cc'):
 			pass
 
 def list_pending(repository=None, page=None, fast=True, directories=False):
+	"""
+	List the local files that are pending for upload.
+	"""
 	if not fast:
 		raise NotImplementedError('only fast mode is supported (only missing files are listed)')
 	cfg, cfg_file, msgs = parse_cfg()

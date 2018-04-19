@@ -32,6 +32,26 @@ from escale.cli.controller import DirectController, UIController
 
 
 def make_client(config, repository, log_handler=None, ui_connector=None):
+	"""
+	Initialize an escale client.
+	
+	The client-specific logger and a manager are set.
+
+	Arguments:
+
+		config (ConfigParser): config object.
+
+		repository (str): config section name.
+
+		log_handler (any): passed to :meth:`addHandler` (see the `logging` module).
+
+		ui_connector (tuple): arguments passed to :class:`UIController`.
+
+	Returns:
+
+		escale.manager.Manager or escale.manager.index.IndexManager: client manager.
+
+	"""
 	# set logger
 	logger = logging.getLogger(log_root).getChild(repository)
 	logger.setLevel(logging.DEBUG)
@@ -103,7 +123,7 @@ def escale(config, repository, log_handler=None, ui_connector=None):
 
 		log_handler (log handler): input argument to :meth:`~logging.Logger.addHandler`.
 
-		ui_connector (?): connector to user-interface controller.
+		ui_connector (any): connector to user-interface controller.
 	"""
 	manager = make_client(config, repository, log_handler=log_handler, ui_connector=ui_connector)
 	try:

@@ -45,6 +45,8 @@ if __name__ == '__main__':
 	_start.set_defaults(func=start)
 	_stop = parsers.add_parser('stop', help='stop all {} instances'.format(PROGRAM_NAME))
 	_stop.set_defaults(func=stop)
+	_restart = parsers.add_parser('stop', help='restart all {} instances'.format(PROGRAM_NAME))
+	_restart.set_defaults(func=restart)
 	_chmod = parsers.add_parser('access', help='change permissions of file')
 	_chmod.add_argument('-r', '--repository', type=str, metavar='NAME', help='file repository')
 	_chmod.add_argument('resource', type=str, help='path to local file')

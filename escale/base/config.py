@@ -136,7 +136,7 @@ def default_option(field, all_options=False):
 
 # convenient unit-to-megabyte conversion table for storage space.
 # note that excessively small units like b or B are not supported,
-# as well as excessively large ones like Zb, ZB.
+# as well as excessively large ones like Zb, ZiB.
 storage_space_unit = dict(
 		Kb =	0.0001220703125,
 		KB =	0.0009765625,
@@ -150,6 +150,11 @@ storage_space_unit = dict(
 		PB =	1073741824,
 		Eb =	137438953472,
 		EB =	1099511627776,
+		MiB =	1,
+		GiB =	1024,
+		TiB =	1048576,
+		PiB =	1073741824,
+		EiB =	1099511627776,
 	)
 # the extra units below were added in v0.4.1rc1, Copyright (c) 2017 François Laurent
 for _unit in 'KMGTPE':
@@ -158,6 +163,21 @@ for _unit in 'KMGTPE':
 
 
 def getpath(config, section, attr):
+	"""
+	Getter for paths.
+
+	Arguments:
+
+		config (ConfigParser): configuration object.
+
+		section (str): existing configuration section.
+
+		attr (str): existing configuration option.
+
+	Returns:
+
+		str: path.
+	"""
 	path = config.get(section, attr)
 	if path[0] == '~':
 		path = os.path.expanduser(path)
@@ -170,6 +190,21 @@ def getpath(config, section, attr):
 _item_separator = ','
 
 def getlist(config, section, attr):
+	"""
+	Getter for lists.
+
+	Arguments:
+
+		config (ConfigParser): configuration object.
+
+		section (str): existing configuration section.
+
+		attr (str): existing configuration option.
+
+	Returns:
+
+		list: list of non-empty strings.
+	"""
 	_list = [ i.strip() for i in config.get(section, attr).split(_item_separator) ]
 	return [ i for i in _list if i ]
 
@@ -196,6 +231,17 @@ def getnum(config, section, attr):
 	return parse_num(value)
 
 def parse_num(value):
+	"""
+	Parse a numeric value with option unit string.
+
+	Arguments:
+
+		str: number as a string.
+
+	Returns:
+
+		(float, str): numeric value and unit.
+	"""
 	m = re.match(r'(?P<num>[0-9]+([.,][0-9]+)?)\s*(?P<unit>[a-zA-Z]*)', value)
 	if not m:
 		raise ValueError("wrong number or unit format: '{}'".format(value))
@@ -230,6 +276,25 @@ def getter(_type='str'):
 
 
 def parse_field(config, section, attrs, getters=None, logger=None):
+	"""
+	Parse an option from a field description.
+
+	Arguments:
+
+		config (ConfigParser): config object.
+
+		section (str): section name.
+
+		attrs (tuple or list): field description as in `fields`.
+
+		getters (list): list of getters (callables); default is ``[ ConfigParser.get ]``.
+
+		logger (Logger): logger for warning messages.
+
+	Returns:
+
+		any: option value.
+	"""
 	if not isinstance(attrs, (tuple, list)):
 		attrs = [attrs]
 	if not getters:
@@ -445,6 +510,21 @@ def write_config(cfg_file, config):
 
 
 def actual_option(config, section, options):
+	"""
+	Option name actually used in a configuration object.
+
+	Arguments:
+
+		config (ConfigParser): config object.
+
+		section (str): config section name.
+
+		options (str, tuple or list): field name (see `fields`) or extended option description.
+
+	Returns:
+
+		str: option name.
+	"""
 	# largely borrowed from :func:`escale.cli.config.config.query_field`
 	option = None
 	if isinstance(options, tuple):
@@ -462,6 +542,21 @@ def actual_option(config, section, options):
 
 
 def full_address(config, section):
+	"""
+	Parse the relay repository address.
+
+	A relay address can be either a local path or a url.
+
+	Arguments:
+
+		config (ConfigParser): config object.
+
+		section (str): config section name.
+
+	Returns:
+
+		str: relay address.
+	"""
 	protocol = parse_field(config, section, 'protocol')
 	if not protocol:
 		raise ValueError("'protocol' not defined")
