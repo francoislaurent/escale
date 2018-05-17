@@ -228,7 +228,7 @@ def restore(repository=None, archive=None, fast=None):
 	backup_manager(archive, repository, 'restore', **kwargs)
 
 
-def recover(repository=None, timestamp=None, overwrite=True, update=None, fast=None):
+def recover(repository=None, timestamp=None, overwrite=True, update=None, fast=None, page=None):
 	"""
 	Make a relay repository with placeholder files or indices as if the local repository
 	resulted from a complete download of an existing repository with escale.
@@ -239,6 +239,12 @@ def recover(repository=None, timestamp=None, overwrite=True, update=None, fast=N
 		tsformat = timestamp
 	else:
 		tsformat = '%y%m%d_%H%M%S'
+	if page:
+		if isinstance(page, (tuple, list, frozenset, set)):
+			page = list(page)
+		else:
+			page = [page]
+		print('recovering page{}: {}'.format('s' if page[1:] else '', str(page)[1:-1]))
 	cfg, cfg_file, msgs = parse_cfg()
 	logger, msgs = set_logger(cfg, cfg_file, msgs=msgs)
 	flush_init_messages(logger, msgs)
@@ -265,25 +271,27 @@ def recover(repository=None, timestamp=None, overwrite=True, update=None, fast=N
 					index = {}
 					for n, resource in enumerate(ls):
 						local_file = client.repository.absolute(resource)
-						page = client.relay.page(resource)
+						_page = client.relay.page(resource)
+						if page and _page not in page:
+							continue
 						#mtime = int(os.path.getmtime(local_file))
 						client.checksum(resource)
 						mtime, checksum = client.checksum_cache[resource]
 						metadata = Metadata(target=resource, timestamp=mtime,
 								checksum=checksum, pusher=client.relay.client)
-						if page not in index:
-							index[page] = {}
-						index[page][resource] = metadata
+						if _page not in index:
+							index[_page] = {}
+						index[_page][resource] = metadata
 						if nfiles < 1000 or n % 20 == 19:
 							print('progress: {} of {} files'.format(n + 1, nfiles))
-					for page in index:
-						if fast or client.relay.acquirePageLock(page, 'w'):
+					for _page in index:
+						if fast or client.relay.acquirePageLock(_page, 'w'):
 							try:
 								# this ignores `overwrite` (considers it as True)
-								client.relay.setPageIndex(page, index[page])
+								client.relay.setPageIndex(_page, index[_page])
 							finally:
 								if not fast:
-									client.relay.releasePageLock(page)
+									client.relay.releasePageLock(_page)
 					continue
 				# standard (no index) relays
 				if fast:

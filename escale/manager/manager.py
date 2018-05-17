@@ -230,13 +230,6 @@ class Manager(Reporter):
 			self.wait_on_error += [ int(e) for e in waitonerror ]
 
 
-	#def __del__(self):
-	#	if self.checksum_cache:
-	#		if self.checksum_cache_file:
-	#			self.logger.debug("saving checksum cache in '%s'", self.checksum_cache_file)
-	#			write_checksum_cache(self.checksum_cache_file, self.checksum_cache, log=self.logger.debug)
-
-
 	# transitional alias properties
 	@property
 	def path(self):
@@ -458,7 +451,7 @@ class Manager(Reporter):
 					# then metadata should be defined
 					self.logger.warning("corrupt meta information for file '%s'", remote_file)
 			if os.path.isfile(local_file):
-				# generate checksum of the local file
+				# calculate a checksum for the local file corresponding to `resource`
 				checksum = self.checksum(resource)
 				# check for modifications
 				if not meta:

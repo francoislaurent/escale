@@ -71,6 +71,7 @@ if __name__ == '__main__':
 	_fix.add_argument('-r', '--repository', type=str, help='section in the default configuration file')
 	_fix.add_argument('-u', '--update', action='store_true', help='do not overwrite')
 	_fix.add_argument('-f', '--fast', action='store_true', help='unsafe recovery; use this only if repository is inactive')
+	_fix.add_argument('-p', '--page', nargs='+', help='recover a single index page; for indexed repository only')
 	_fix.set_defaults(func=recover)
 	_rebase = parsers.add_parser('rebase', help='rebase an existing relay repository as a sub-directory in the new relay repository (index-based only)')
 	_rebase.add_argument('-r', '--repository', type=str, metavar='NAME', help='section in the default configuration file')

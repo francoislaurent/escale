@@ -26,6 +26,7 @@
 
 
 from escale.base.essential import asstr, quote_join, relpath
+from escale.base.exceptions import format_exc
 from escale.base.ssl import *
 from collections import namedtuple
 import os.path
@@ -175,23 +176,35 @@ class Client(object):
 			try:
 				response = self.session.request(method, url, allow_redirects=allow_redirects, **kwargs)
 			except requests.exceptions.ConnectionError as e:
+				if hasattr(self, 'logger'):
+					logger = self.logger
+				else:
+					logging.getLogger()
+				if e.args[0] == 'Connection aborted.':
+					if e.args[1:]:
+						args = e.args[1:]
+						if not args[1:]:
+							args = args[0]
+					else:
+						args = e.args[0]
+					connection_aborted = 103
+					if connection_aborted in retry_on_errno:
+						logger.debug("on '%s %s', ignoring %s error: %s", method, target, connection_aborted, args)
+						continue
+					raise OSError(connection_aborted, args)
 				while isinstance(e, Exception) and e.args:
 					if e.args[1:] and isinstance(e.args[1], OSError):
 						e1 = e.args[1]
 						try:
 							if e1.args[0] in retry_on_errno:
-								if hasattr(self, 'logger'):
-									logger = self.logger
-								else:
-									logging.getLogger()
-								logger.debug('on %s %s', method, target)
-								logger.debug('ignoring %s error: %s', e1.args[0], e1)
+								logger.debug("on '%s %s', ignoring %s error: %s", method, target, e1.args[0], e1)
 								continue
 						except AttributeError:
 							pass
 						raise e1
 					else:
 						e = e.args[0]
+				logger.debug('%s', format_exc(e))
 				raise
 			except OpenSSL.SSL.SysCallError as e:
 				if e.args[0] in retry_on_errno:

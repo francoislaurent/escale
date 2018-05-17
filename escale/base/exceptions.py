@@ -63,3 +63,19 @@ class PostponeRequest(Exception):
 class MissingResource(Exception):
 	pass
 
+
+def format_exc(exc, expand=Exception):
+	if isinstance(exc, str):
+		return exc
+	def _format(exc):
+		yield type(exc)
+		yield '('
+		for arg in exc.args:
+			if isinstance(arg, expand):
+				for elem in _format(arg):
+					yield elem
+			else:
+				yield arg
+		yield ')'
+	return ''.join(_format(exc))
+

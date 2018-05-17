@@ -115,7 +115,7 @@ class IndexManager(Manager):
 							if not metadata:
 								self.logger.warning("missing meta information for file '%s'", remote_file)
 								continue
-							# generate checksum of the local file
+							# calculate a checksum for the local file that corresponds to `resource`
 							checksum = self.checksum(resource)
 							# check for modifications
 							if not metadata.fileModified(local_file, checksum, remote=True, debug=self.logger.debug):

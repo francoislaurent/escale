@@ -35,6 +35,8 @@ def asbytes(s):
 	'''
 	if isinstance(s, text_type):
 		s = s.encode('utf-8')
+	elif not isinstance(s, bytes):
+		raise TypeError('cannot convert to bytes from {}'.format(type(s)))
 	return s
 
 def asstr(s):

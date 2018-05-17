@@ -600,7 +600,10 @@ class IndexRelay(AbstractIndexRelay):
 			raise
 		except Exception as e:
 			self.logger.debug("cannot delete file '%s': %s", remote_file, e)
-		self.listing_cache = [ (l,s) for l,s in self.listing_cache if l != remote_file ]
+		try:
+			self.listing_cache = [ (l,s) for l,s in self.listing_cache if l != remote_file ]
+		except TypeError:
+			pass
 
 	def setUpdateData(self, page, datafile):
 		self.base_relay._push(datafile, self.updateData(page, mode='w'))

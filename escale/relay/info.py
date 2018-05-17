@@ -172,7 +172,7 @@ class Metadata(object):
 
 			checksum (str-like): checksum of file content.
 
-			hash_function (func): hash function that can be applied to the
+			hash_function (callable): hash function that can be applied to the
 				content of the `local_file` file if `checksum` is not defined.
 
 			remote (bool): if `True`, `fileModified` tells whether or not
@@ -209,7 +209,7 @@ class Metadata(object):
 				if identical is False and local_mtime == remote_mtime:
 					# likely cause: encryption introduces "salt" in the message
 					# checksum should be calculated from plain data
-					msg = "is checksum calculated from encrypted data?"
+					msg = "the last modification times match but the checksums do not: file {}".format(self.target if self.target else local_file)
 					if debug:
 						debug(msg)
 						try:
@@ -220,6 +220,7 @@ class Metadata(object):
 							raise
 						except:
 							pass
+						return True
 					else:
 						raise RuntimeError(msg)
 				#if debug and local_mtime != remote_mtime:
