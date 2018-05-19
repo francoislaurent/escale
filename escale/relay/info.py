@@ -212,6 +212,9 @@ class Metadata(object):
 					msg = "the last modification times match but the checksums do not: file {}".format(self.target if self.target else local_file)
 					if debug:
 						debug(msg)
+						if file_available:
+							with open(local_file, 'rb') as f:
+								content = f.read()
 						try:
 							import struct
 							cs = sum(struct.unpack('<'+'B'*len(content), content))
@@ -219,7 +222,7 @@ class Metadata(object):
 						except (KeyboardInterrupt, SystemExit):
 							raise
 						except:
-							pass
+							debug((local_file, checksum, self.checksum))
 						return True
 					else:
 						raise RuntimeError(msg)

@@ -132,7 +132,7 @@ class IndexManager(Manager):
 											raise
 								continue
 
-						get_files.append((remote_file, local_file, last_modified))
+						get_files.append((remote_file, local_file, last_modified, metadata))
 					if get_files:
 						missing = []
 						if self.relay.hasUpdate(page):
@@ -152,18 +152,18 @@ class IndexManager(Manager):
 										tar.extractall(self.extraction_repository)
 								except Exception as e: # ReadError: not a bzip2 file
 									self.logger.error("%s", e)
-									missing = [ m for m, _, _ in get_files ]
+									missing = [ m for m, _, _, _ in get_files ]
 									get_files = []
 							finally:
 								os.unlink(archive)
 						else:
 							if trust and not index_loaded:
-								missing = [ r for r, l, _ in get_files
+								missing = [ r for r, l, _, _ in get_files
 									if not os.path.exists(l) ]
 							else:
-								missing = [ m for m, _, _ in get_files ]
+								missing = [ m for m, _, _, _ in get_files ]
 							get_files = []
-						for remote, local, mtime in get_files:
+						for remote, local, mtime, metadata in get_files:
 							dirname = os.path.dirname(local)
 							if dirname and not os.path.isdir(dirname):
 								os.makedirs(dirname)
