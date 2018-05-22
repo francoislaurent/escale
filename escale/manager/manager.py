@@ -462,7 +462,7 @@ class Manager(Reporter):
 					self.logger.info("missing meta information for file '%s'; deleting file", remote_file)
 					self.relay.delete(remote_file)
 					continue
-				elif not meta.fileModified(local_file, checksum, remote=True, debug=self.logger.debug):
+				elif not meta.fileModified(local_file, checksum=checksum, remote=True, debug=self.logger.debug):
 					if self.count == 1:
 						# no one else will ever download the current copy of the regular file
 						# on the relay; delete it
@@ -529,7 +529,7 @@ class Manager(Reporter):
 				# check file last modification time and checksum
 				meta = self.relay.getMetadata(remote_file, timestamp_format=self.timestamp)
 				if meta:
-					modified = meta.fileModified(local_file, checksum, remote=False, debug=self.logger.debug)
+					modified = meta.fileModified(local_file, checksum=checksum, remote=False, debug=self.logger.debug)
 				else:
 					# no meta information available
 					modified = True
@@ -566,7 +566,7 @@ class Manager(Reporter):
 				dirname=self._filter_directory, basename=self._filter), \
 			unsafe=True)
 
-	def checksum(self, resource):
+	def checksum(self, resource, return_mtime=False):
 		# `resource` should be a relative path!
 		local_file = self.repository.absolute(resource)
 		checksum, modified = None, False
@@ -577,10 +577,16 @@ class Manager(Reporter):
 			except KeyError:
 				pass
 			else:
-				if previous_mtime != mtime:
+				if previous_mtime < mtime:
 					# calculate the checksum again
 					checksum, modified = None, True
 					self.logger.debug('local file modified: {}'.format(resource))
+				elif mtime < previous_mtime:
+					# the last modification time has been fixed in relay.info.Metadata.fileModified;
+					# update `mtime` instead of `checksum` in the cache
+					self.checksum_cache[resource] = (mtime, checksum)
+		elif return_mtime:
+			mtime = int(os.path.getmtime(local_file))
 		if not checksum and self.hash_function:
 			if not modified:
 				self.logger.debug('new local file: {}'.format(resource))
@@ -597,7 +603,10 @@ class Manager(Reporter):
 				#	"last modified: {}",
 				#	"checksum: {}")).format(local_file, mtime, checksum))
 				self.checksum_cache[resource] = (mtime, checksum)
-		return checksum
+		if return_mtime:
+			return (checksum, mtime)
+		else:
+			return checksum
 
 	def remoteListing(self):
 		t = time.time()

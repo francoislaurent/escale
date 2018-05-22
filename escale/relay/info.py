@@ -161,7 +161,7 @@ class Metadata(object):
 	def part_count(self):
 		return self.parts
 
-	def fileModified(self, local_file=None, checksum=None, hash_function=None, remote=False, debug=None):
+	def fileModified(self, local_file=None, last_modified=None, checksum=None, hash_function=None, remote=False, debug=None):
 		"""
 		Tell whether a file has been modified.
 
@@ -170,7 +170,9 @@ class Metadata(object):
 			local_file (str): local file path; file must have a valid last
 				modification time.
 
-			checksum (str-like): checksum of file content.
+			last_modified (int): last modification time (local).
+
+			checksum (str-like): checksum of file content (local).
 
 			hash_function (callable): hash function that can be applied to the
 				content of the `local_file` file if `checksum` is not defined.
@@ -188,6 +190,8 @@ class Metadata(object):
 			bool: `True` if file has been modified.
 
 		"""
+		if last_modified and self.timestamp and last_modified == self.timestamp:
+			return False
 		file_available = local_file and os.path.isfile(local_file)
 		identical = None
 		if self.checksum:
@@ -203,7 +207,7 @@ class Metadata(object):
 					# if files are identical
 					return False
 		if file_available:
-			local_mtime = int(os.path.getmtime(local_file))
+			local_mtime = last_modified if last_modified else int(os.path.getmtime(local_file))
 			if self.timestamp:
 				remote_mtime = self.timestamp
 				if identical is False and local_mtime == remote_mtime:
@@ -226,6 +230,12 @@ class Metadata(object):
 						return True
 					else:
 						raise RuntimeError(msg)
+				elif identical is True and local_mtime != remote_mtime:
+					if debug:
+						msg = "reverting external change in last modification time: file {}".format(self.target if self.target else local_file)
+						debug(msg)
+					os.utime(local_file, (time.time(), remote_mtime))
+					return False
 				#if debug and local_mtime != remote_mtime:
 				#	debug((local_file, local_mtime, remote_mtime))
 				if remote is False:

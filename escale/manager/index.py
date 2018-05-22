@@ -116,9 +116,9 @@ class IndexManager(Manager):
 								self.logger.warning("missing meta information for file '%s'", remote_file)
 								continue
 							# calculate a checksum for the local file that corresponds to `resource`
-							checksum = self.checksum(resource)
+							checksum, mtime = self.checksum(resource, True)
 							# check for modifications
-							if not metadata.fileModified(local_file, checksum, remote=True, debug=self.logger.debug):
+							if not metadata.fileModified(local_file, mtime, checksum, remote=True, debug=self.logger.debug):
 								if index_loaded and not lookup_missing:
 									extracted_file = join(self.extraction_repository, remote_file)
 									self.logger.info("deleting duplicate or outdated file '%s'", remote_file)
@@ -235,7 +235,7 @@ class IndexManager(Manager):
 							remote_file = resource
 							local_file = self.repository.absolute(resource)
 							try:
-								checksum = self.checksum(resource)
+								checksum, last_modified = self.checksum(resource, return_mtime=True)
 							except OSError as e: # file unlinked since last call to localFiles?
 								self.logger.debug('%s', e)
 								continue
@@ -245,12 +245,8 @@ class IndexManager(Manager):
 								pass
 							else:
 								if (self.timestamp or self.hash_function) and \
-									not page_metadata.fileModified(local_file, checksum, remote=False, debug=self.logger.debug):
+									not page_metadata.fileModified(local_file, last_modified, checksum, remote=False, debug=self.logger.debug):
 									continue
-							try:
-								last_modified, _ = self.checksum_cache[resource]
-							except AttributeError:
-								last_modified = os.path.getmtime(local_file)
 							metadata = Metadata(target=remote_file, timestamp=last_modified, checksum=checksum, pusher=self.relay.client)
 							# add to the archive
 							new = True
@@ -339,7 +335,7 @@ class IndexManager(Manager):
 				# check file last modification time and checksum
 				meta = self.relay.getMetadata(remote_file, timestamp_format=self.timestamp)
 				if meta:
-					modified = meta.fileModified(local_file, checksum, remote=False, debug=self.logger.debug)
+					modified = meta.fileModified(local_file, checksum=checksum, remote=False, debug=self.logger.debug)
 				else:
 					# no meta information available
 					modified = True
@@ -348,7 +344,10 @@ class IndexManager(Manager):
 			if not exists or modified:
 				with self.repository.confirmPush(resource):
 					new = True
-					last_modified = os.path.getmtime(local_file)
+					try:
+						last_modified, _ = self.checksum_cache[resource]
+					except (TypeError, KeyError):
+						last_modified = os.path.getmtime(local_file)
 					temp_file = self.encryption.encrypt(local_file)
 					self.logger.info("uploading file '%s'", remote_file)
 					try:
