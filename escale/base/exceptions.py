@@ -26,7 +26,7 @@ class MissingSetupFeature(ImportError):
 
 
 class QuotaExceeded(EnvironmentError):
-	def __init__(self, used_space, quota):
+	def __init__(self, used_space=None, quota=None):
 		self.errno = errno.EDQUOT
 		self.used_space = used_space
 		self.quota = quota
@@ -36,10 +36,20 @@ class QuotaExceeded(EnvironmentError):
 		return (self.errno, str(self))
 
 	def __repr__(self):
-		return "QuotaExceeded({}, {})".format(self.used_space, self.quota)
+		if self.used_space is None:
+			return "QuotaExceeded"
+		elif self.quota is None:
+			return "QuotaExceeded({})".format(self.used_space)
+		else:
+			return "QuotaExceeded({}, {})".format(self.used_space, self.quota)
 
 	def __str__(self):
-		return "quota exceeded (used: {} of {}MB)".format(round(self.used_space), round(self.quota))
+		if self.used_space is None:
+			return "quota exceeded"
+		elif self.quota is None:
+			return "quota exceeded (used: {}MB)".format(round(self.used_space))
+		else:
+			return "quota exceeded (used: {} of {}MB)".format(round(self.used_space), round(self.quota))
 
 
 class LicenseError(ValueError):
@@ -78,4 +88,9 @@ def format_exc(exc, expand=Exception):
 				yield arg
 		yield ')'
 	return ''.join(_format(exc))
+
+
+class RestartRequest(Exception):
+	pass
+
 

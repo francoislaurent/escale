@@ -77,20 +77,23 @@ class Manager(Reporter):
 
 		excludedirectory (list of str): regular expressions to exclude directories by name.
 
-		waitonerror (list of int): error codes to trigger wait and recovery.
+		waitonerror (list of int): error codes that trigger wait and recovery.
+
+		verbosity (int): 2 or higher makes Escale so verbose that it can make the entire OS freeze.
 
 		relay_args (dict): extra keyword arguments for 
 			:meth:`~escale.relay.AbstractRelay.pop`.
 
 	*new in 0.7.1:* `checksum_cache`
 	*new in 0.7.4:* `wait_on_error`
+	*new in 0.7.6:* `verbosity`
 
 	"""
 	def __init__(self, relay, repository=None, address=None, directory=None, \
 		encryption=Plain(None), timestamp=True, refresh=True, clientname=None, \
 		filetype=[], include=None, exclude=None, tq_controller=None, count=None, \
 		checksum=True, checksum_cache=None, includedirectory=None, excludedirectory=None, \
-		waitonerror=[], **relay_args):
+		waitonerror=[], verbosity=1, **relay_args):
 		Reporter.__init__(self, **relay_args)
 		self.repository = repository
 		if directory:
@@ -232,6 +235,12 @@ class Manager(Reporter):
 		self.wait_on_error = [104,107,111,500]
 		if waitonerror:
 			self.wait_on_error += [ int(e) for e in waitonerror ]
+		#if isinstance(restartonerror, int):
+		#	self.restart_on_repeating_error = [ restartonerror ]
+		#else:
+		#	self.restart_on_repeating_error = [ int(e) for e in restartonerror ]
+		#self.repeating_error_max_count = errormaxcount
+		self.verbosity = verbosity
 
 
 	# transitional alias properties
@@ -286,6 +295,8 @@ class Manager(Reporter):
 		_check_sanity = True
 		_fresh_start = True
 		_last_error_time = 0
+		_same_error_count = -1
+		_request_restart = False
 		while True:
 			new = False
 			try:
@@ -316,12 +327,14 @@ class Manager(Reporter):
 				t = time.time()
 				wait = False
 				# break on fast self-repeating errors
-				if 0 < _last_error_time and type(e) == type(last_error):
-					# if _last_error_time is not 0, then last_error is defined
+				if 0 <= _same_error_count and type(e) == type(last_error):
 					if t - _last_error_time < 1: # the error repeats too fast; abort
 						break
 					else:
 						wait = True
+					_same_error_count += 1
+				else:
+					_same_error_count = 0
 				last_error = e
 				_last_error_time = t
 				_check_sanity = True # check again for corrupted files
@@ -338,6 +351,11 @@ class Manager(Reporter):
 					# ESHUTDOWN: 108, Cannot send after transport endpoint shutdown
 					# ETIMEDOUT: 110, Connection timed out
 					# EHOSTDOWN: 112, Host is down
+					#if e.errno in self.restart_on_repeating_error and self.repeating_error_max_count < _same_error_count:
+					#	_request_restart = 'repeating {} error'.format(e.errno)
+					#	self.logger.debug(traceback.format_exc())
+					#	self.logger.warning(_request_restart)
+					#	break
 					if e.errno in self.wait_on_error:
 						wait = True
 				if wait:
@@ -351,6 +369,10 @@ class Manager(Reporter):
 		except:
 			self.logger.error("cannot close the connection to '%s'", self.relay.address)
 			self.logger.debug(traceback.format_exc())
+		if _request_restart:
+			raise RestartRestart \
+				if _request_restart == True \
+				else RequestRestart(_request_restart)
 		try:
 			raise last_error
 		except UnboundLocalError:
@@ -562,9 +584,11 @@ class Manager(Reporter):
 
 		Use ``self.repository.readableFiles`` instead.
 		"""
-		return self.repository.readable(self.repository.listFiles(path,
-				dirname=self._filter_directory, basename=self._filter), \
-			unsafe=True)
+		ls0 = self.repository.listFiles(path, \
+			dirname=self._filter_directory, basename=self._filter)
+		ls1 = self.repository.readable(ls0, unsafe=True)
+		self.logger.debug('number of local files: (total) %s  (readable) %s', len(ls0), len(ls1))
+		return ls1
 
 	def checksum(self, resource, return_mtime=False):
 		# `resource` should be a relative path!
@@ -580,7 +604,8 @@ class Manager(Reporter):
 				if previous_mtime < mtime:
 					# calculate the checksum again
 					checksum, modified = None, True
-					self.logger.debug('local file modified: {}'.format(resource))
+					if 1 < self.verbosity:
+						self.logger.debug('local file modified: {}'.format(resource))
 				elif mtime < previous_mtime:
 					# the last modification time has been fixed in relay.info.Metadata.fileModified;
 					# update `mtime` instead of `checksum` in the cache
@@ -588,7 +613,7 @@ class Manager(Reporter):
 		elif return_mtime:
 			mtime = int(os.path.getmtime(local_file))
 		if not checksum and self.hash_function:
-			if not modified:
+			if not modified and 1 < self.verbosity:
 				self.logger.debug('new local file: {}'.format(resource))
 			with open(local_file, 'rb') as f:
 				content = f.read()

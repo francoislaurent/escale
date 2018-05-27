@@ -181,12 +181,12 @@ class IndexManager(Manager):
 							else:
 								self.logger.info("file '%s' successfully downloaded", remote)
 								if mtime:
-									# set last modification time
-									os.utime(local, (time.time(), mtime))
 									if self.checksum_cache is not None \
 										and metadata and metadata.checksum:
 										resource = remote
 										self.checksum_cache[resource] = (mtime, metadata.checksum)
+									# set last modification time
+									os.utime(local, (time.time(), mtime))
 						if missing:
 							new = True # do not consider the local repository up-to-date
 							self.relay.requestMissing(page, missing)
@@ -208,7 +208,8 @@ class IndexManager(Manager):
 				indexed[self.relay.page(remote_file)].append(resource)
 			else:
 				not_indexed.append(resource)
-		#self.logger.debug('upload has listed %s local files', sum([ len(p) for p in indexed.values() ]))
+		if 1 < self.verbosity:
+			self.logger.debug('upload has listed %s local files', sum([ len(p) for p in indexed.values() ]))
 		#
 		t0 = None
 		while True:
@@ -228,8 +229,9 @@ class IndexManager(Manager):
 							self.relay.remoteListing()
 							update = {}
 							page_index = {}
-						#self.logger.debug("page '%s' has %s entries", page,
-						#	len(page_index))
+						if 0 < self.verbosity:
+							self.logger.debug("page '%s' has %s entries (locally: %s)",
+							page, len(page_index), len(indexed[page]))
 						size = 0
 						for n, resource in enumerate(indexed[page]):
 							remote_file = resource
@@ -265,6 +267,8 @@ class IndexManager(Manager):
 							# check the update data size
 							size += os.stat(local_copy).st_size
 							if self.max_page_size < size:
+								if 1 < self.verbosity:
+									self.logger.debug('the update cannot be larger (%s < %s)', self.max_page_size, size)
 								break
 						if update:
 							with tarfile.open(archive, mode='w:bz2') as tar:
@@ -303,9 +307,11 @@ class IndexManager(Manager):
 			else:
 				break
 
+			if 0 < self.verbosity:
+				self.logger.debug('files are still pending for upload; staying in the upload phase')
 			if any_page_update:
 				t0 = None
-			elif False:#any_postponed:
+			elif any_postponed:
 				#self.logger.debug('pending update(s) postponed')
 				if t0 is None:
 					t0 = time.time()

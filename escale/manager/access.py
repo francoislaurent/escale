@@ -263,6 +263,8 @@ class AccessController(Reporter):
 
 		unsafe (bool): skip all the checks that require accessing the file system.
 
+		verbosity (int): verbosity level; if greater than 2, may cause the OS to freeze.
+
 	When `push_only` (resp. `pull_only`) is ``True`` , `mode` is `upload` (resp. `download`).
 
 	When `mode` is `download`, `upload` or `shared`, and the persistent attributes do not exist
@@ -274,6 +276,7 @@ class AccessController(Reporter):
 			ui_controller=None,
 			push_only=False, pull_only=False,
 			mode=None, create=False, unsafe=False,
+			verbosity=1,
 			**ignored):
 		Reporter.__init__(self, ui_controller=ui_controller)
 		self.name = repository
@@ -307,6 +310,7 @@ class AccessController(Reporter):
 					if not os.path.isdir(dirname):
 						os.makedirs(dirname)
 				self.persistent = AccessAttributes(persistent)
+		self.verbosity = verbosity
 
 	@property
 	def mode(self):
@@ -377,9 +381,13 @@ class AccessController(Reporter):
 				if os.path.isfile(fp):
 					if basename(fn):
 						files.append(a_or_r(fp, rp))
+					elif 2 < self.verbosity:
+						self.logger.debug('rejecting file: %s', fn)
 				else:#elif os.path.isdir(fp):
 					if dirname(rp):
 						dirs.append(self.listFiles(rp, basename=basename, dirname=dirname))
+					elif 2 < self.verbosity:
+						self.logger.debug('rejecting (sub-)directory: %s', rp)
 			local = itertools.chain(files, *dirs)
 		else:
 			local = itertools.chain( \

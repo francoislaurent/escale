@@ -108,6 +108,8 @@ class WebDAV(Relay, Client):
 		self.retry_after = retry_after
 		# 
 		self._used_space = None
+		#
+		self.quota_error = (32,)
 
 	def open(self):
 		# request credential
@@ -193,7 +195,12 @@ class WebDAV(Relay, Client):
 		if makedirs:
 			remote_dir = os.path.dirname(remote_file)
 			self.mkdirs(remote_dir)
-		self.upload(local_file, remote_file)
+		try:
+			self.upload(local_file, remote_file)
+		except OSError as e:
+			if e.args[0] in self.quota_error:
+				raise QuotaExceeded
+			raise
 
 	def _get(self, remote_file, local_file, makedirs=True):
 		# local destination should be a file

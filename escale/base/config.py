@@ -76,6 +76,7 @@ default_cache_dirs = { user_cfg_dir: user_cache_dir,
 # 'checksumcache' added in version 0.7.1
 # 'retryonerror' added in version 0.7.4
 # 'pulloverwrite' added in version 0.7.6
+# 'verbosity' added in version 0.7.6
 fields = dict(path=('path', ['local path', 'path']),
 	address=['host address', 'relay address', 'remote address', 'address'],
 	directory=['host directory', 'relay directory', 'remote directory',
@@ -113,7 +114,8 @@ fields = dict(path=('path', ['local path', 'path']),
 	excludedirectory=('list', ['exclude directory', 'exclude directories']),
 	checksumcache=(('bool', 'path'), ['checksum cache']),
 	retryonerror=('list', ['retryonerror', 'retry on error']),
-	pulloverwrite=('bool', ['pull overwrite']))
+	pulloverwrite=('bool', ['pull overwrite']),
+	verbosity=('int', ['verbosity', 'verbosity level']))
 
 
 def default_option(field, all_options=False):

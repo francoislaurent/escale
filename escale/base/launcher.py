@@ -202,7 +202,7 @@ def escale_launcher(cfg_file, msgs=[], verbosity=logging.NOTSET, keep_alive=Fals
 				active_workers = len(workers)
 				while 0 < active_workers:
 					section, result = result_queue.get()
-					if isinstance(result, Exception):
+					if isinstance(result, Exception if keep_alive else RestartRequest):
 						workers[section].join() # should have already returned
 						# restart worker
 						worker = Process(target=escale,

@@ -26,7 +26,7 @@
 
 
 from escale.base.essential import asstr, quote_join, relpath
-from escale.base.exceptions import format_exc
+from escale.base.exceptions import format_exc, QuotaExceeded
 from escale.base.ssl import *
 from collections import namedtuple
 import os.path
@@ -162,7 +162,7 @@ class Client(object):
 			self.session.mount('https://', make_https_adapter(parse_ssl_version(ssl_version))())
 		self.infinity_depth = None
 		self.download_chunk_size = 1048576
-		self.retry_on_errno = [32,104,110]
+		self.retry_on_errno = [104,110]
 
 	def send(self, method, target, expected_codes, context=False, allow_redirects=False,
 			retry_on_status_codes=[503,504], retry_on_errno=None,
@@ -180,21 +180,12 @@ class Client(object):
 					logger = self.logger
 				else:
 					logging.getLogger()
-				if e.args[0] == 'Connection aborted.':
-					if e.args[1:]:
-						args = e.args[1:]
-						if not args[1:]:
-							args = args[0]
-					else:
-						args = e.args[0]
-					connection_aborted = 103
-					if connection_aborted in retry_on_errno:
-						logger.debug("on '%s %s', ignoring %s error: %s", method, target, connection_aborted, args)
-						continue
-					raise OSError(connection_aborted, args)
 				while isinstance(e, Exception) and e.args:
-					if e.args[1:] and isinstance(e.args[1], OSError):
+					if (e.args[1:] and isinstance(e.args[1], EnvironmentError)) \
+							or e.args[0] == 'Connection aborted.':
 						e1 = e.args[1]
+						if e1.args and e1.args[0] == "(32, 'EPIPE')":
+							e1 = OSError(32, e.args[0], *e1.args[1:])
 						try:
 							if e1.args[0] in retry_on_errno:
 								logger.debug("on '%s %s', ignoring %s error: %s", method, target, e1.args[0], e1)
