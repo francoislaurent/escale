@@ -32,6 +32,10 @@ Please find the extended documentation at `escale.readthedocs.io <http://escale.
 Changelog
 ---------
 
+* `0.7.7`:
+
+  * ``allow page deletion`` configuration option (previous default behaviour: true; new default: false)
+
 * `0.7.6`:
 
   * faster checksum- and timestamp-free index-based download for high-latency local repositories

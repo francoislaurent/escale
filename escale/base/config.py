@@ -11,7 +11,12 @@
 #     * `checksum` in `fields`
 #     * `includedirectory` and `excludedirectory` in `fields`
 #     * `checksumcache` in `fields`
+
+# Copyright © 2018, Institut Pasteur
+#   Contributor: François Laurent
+#   Contributions:
 #     * `pulloverwrite` in `fields`
+#     * `allow_page_deletion` in `fields`
 
 # This file is part of the Escale software available at
 # "https://github.com/francoislaurent/escale" and is distributed under
@@ -77,6 +82,7 @@ default_cache_dirs = { user_cfg_dir: user_cache_dir,
 # 'retryonerror' added in version 0.7.4
 # 'pulloverwrite' added in version 0.7.6
 # 'verbosity' added in version 0.7.6
+# 'allow_page_deletion' added in version 0.7.7
 fields = dict(path=('path', ['local path', 'path']),
 	address=['host address', 'relay address', 'remote address', 'address'],
 	directory=['host directory', 'relay directory', 'remote directory',
@@ -115,7 +121,8 @@ fields = dict(path=('path', ['local path', 'path']),
 	checksumcache=(('bool', 'path'), ['checksum cache']),
 	retryonerror=('list', ['retryonerror', 'retry on error']),
 	pulloverwrite=('bool', ['pull overwrite']),
-	verbosity=('int', ['verbosity', 'verbosity level']))
+	verbosity=('int', ['verbosity', 'verbosity level']),
+	allow_page_deletion=('bool', ['allow page deletion', 'page deletion']))
 
 
 def default_option(field, all_options=False):

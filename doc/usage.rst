@@ -165,7 +165,7 @@ Other parameters are:
 * ``passphrase`` or ``key``: passphrase or path to a file that contains the passphrase for the encryption algorithm
 * ``certificate`` or ``certfile``: path to the client certificate
 * ``keyfile``: path to the client private key
-* ``verify ssl``: boolean that defines whether to check the remote host's certificate
+* ``verify ssl``: boolean; checks the remote host's certificate
 * ``ssl version``: either ``SSLv2``, ``SSLv3``, ``SSLv23``, ``TLS``, ``TLSv1``, ``TLSv1.1`` or ``TLSv1.2``
 * ``file extension`` (or ``file type``): a comma-separated list of file extensions (with or without the initial dot)
 * ``include`` (or ``include files``, ``pattern``, ``filter``): comma-separated list of regular expressions to filter in files by name
@@ -178,10 +178,11 @@ Other parameters are:
 * ``lock timeout``: timeout for unclaimed locks, in seconds
 * ``puller count`` (or ``pullers``): number of puller nodes operating on the remote repository. See `Multi-client and multi-puller regimes`_
 * ``checksum`` (or ``hash algorithm``): boolean (default: true) or hash algorithm has supported by :func:`hashlib.new`. See also `hashlib.algorithms_available`
-* ``checksum cache``: boolean (default: True) for whether to make the local checksum cache persistent
+* ``checksum cache``: boolean (default: true); makes the local checksum cache persistent
 * ``index`` (or ``compact``): boolean (default: false) or string; index-based relay repository management; see also `Indexing`_
 * ``maxpagesize`` (or ``maxarchivesize``): a decimal number with optional storage space units such as ``KB``, ``MB``, ``GB``, etc (default value: 1 GB, default unit: MB)
 * ``priority``: admits only ``upload`` as a value; see also `Synchronization modes`_
+* ``allow page deletion`` (or ``page deletion``): boolean (default: false); in download mode, when all the files referenced on an index page have disappeared, report them as missing; default behaviour considers these situations as illegal and requests client restart instead of propagating the deletion upstream
 
 
 Relay backends

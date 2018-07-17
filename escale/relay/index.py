@@ -7,6 +7,10 @@
 #      Contribution: documentation, update timestamp, encryption, listing cooldown,
 #      complete rewrite with the introduction of AbstractIndexRelay, IndexUpdate, UpdateRead, UpdateWrite
 
+# Copyright © 2018, Institut Pasteur
+#      Contributor: François Laurent
+#      Contribution: allow_page_deletion==False use case
+
 # This file is part of the Escale software available at
 # "https://github.com/francoislaurent/escale" and is distributed under
 # the terms of the CeCILL-C license as circulated at the following URL
@@ -359,6 +363,8 @@ class IndexRelay(AbstractIndexRelay):
 		self._timestamp_data = True
 		# compress index
 		self.metadata_group_by = ['placeholder', 'pusher']
+		# new 0.7.7
+		self.allow_page_deletion = kwargs.pop('allow_page_deletion', False)
 
 	@property
 	def logger(self):
@@ -742,23 +748,33 @@ class IndexRelay(AbstractIndexRelay):
 		try:
 			self.base_relay._get(remote_index, tmp)
 			self.index[page], _ = read_index(tmp, groupby=self.metadata_group_by, compress=True, debug=self.logger.debug)
-			ok = False
+			index_copy = dict(self.index[page]) # in the case the request is rejected
+			reported_missing = []
 			for remote_file in remote_files:
 				try:
 					del self.index[page][remote_file]
 				except KeyError:
 					self.logger.debug("missing file '%s' not in index", remote_file)
 				else:
-					ok = True
+					reported_missing.append(remote_file)
+			if not reported_missing:
+				return
+			elif self.index[page] or self.allow_page_deletion:
+				for remote_file in reported_missing:
 					self.logger.info("file '%s' reported missing", remote_file)
-			if not ok:
+			else:
+				## new in 0.7.7: request client restart
+				self.logger.warning("index page '%s': all the files have disappeared; if this is expected, please add `allow page deletion = true` in the configuration file and restart %s", page, PROGRAM_NAME)
+				self.index[page] = index_copy
 				return
 			if self.index[page]:
 				write_index(tmp, self.index[page], groupby=self.metadata_group_by, compress=True)
 				self.logger.debug("updating index for page '%s'", page)
 				self.base_relay._push(tmp, remote_index)
 				self.index_mtime[page] = [ mtime for name, mtime in self.listing_cache if name == remote_index ][0]
-			else:
+			elif self.allow_page_deletion:
+				for remote_file in reported_missing:
+					self.logger.info("file '%s' reported missing", remote_file)
 				self.logger.warning("removing index page '%s'", page)
 				## new in 0.7.6: write an empty index instead of deleting it
 				self.unlink(remote_index)

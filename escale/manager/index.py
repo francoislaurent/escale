@@ -208,8 +208,9 @@ class IndexManager(Manager):
 				indexed[self.relay.page(remote_file)].append(resource)
 			else:
 				not_indexed.append(resource)
+		local_file_count = {p: len(indexed[p]) for p in indexed}
 		if 1 < self.verbosity:
-			self.logger.debug('upload has listed %s local files', sum([ len(p) for p in indexed.values() ]))
+			self.logger.debug('upload has listed %s local files', sum(local_file_count.values()))
 		#
 		t0 = None
 		while True:
@@ -308,7 +309,10 @@ class IndexManager(Manager):
 				break
 
 			if 0 < self.verbosity:
-				self.logger.debug('files are still pending for upload; staying in the upload phase')
+				self.logger.debug('%s files of %s are still pending for upload in pages %s (respectively); staying in the upload phase',
+					'/'.join([str(len(indexed[p])) for p in indexed]),
+					'/'.join([str(local_file_count[p]) for p in indexed]),
+					'/'.join(indexed.keys()))
 			if any_page_update:
 				t0 = None
 			elif any_postponed:
