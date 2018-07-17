@@ -496,7 +496,7 @@ class IndexRelay(AbstractIndexRelay):
 			pages = self.listPages()
 		else:
 			pages = [page]
-			if not self.allow_page_deletion:
+			if not self.allow_page_deletion and self.index.get(page, False):
 				self.logger.warning("missing index for page '%s'; if this is expected, please restart %s", page, PROGRAM_NAME)
 				return
 		for page in pages:
