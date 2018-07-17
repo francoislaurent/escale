@@ -492,7 +492,13 @@ class IndexRelay(AbstractIndexRelay):
 			self.listing_time = now
 
 	def clearIndex(self, page=None):
-		pages = self.listPages() if page is None else page
+		if page is None:
+			pages = self.listPages()
+		else:
+			pages = [page]
+			if not self.allow_page_deletion:
+				self.logger.warning("missing index for page '%s'; if this is expected, please restart %s", page, PROGRAM_NAME)
+				return
 		for page in pages:
 			#if not self.acquirePageLock(page, 'r'):
 			#	self.logger.warning("cannot lock page '%s'", page)
@@ -539,11 +545,14 @@ class IndexRelay(AbstractIndexRelay):
 					# False would make the client load the index at every getIndexChanges call;
 					# True would disable missing file management
 					return True
-			else:
+			elif self.allow_page_deletion:
 				self.logger.debug("missing index for page '%s'; clearing local cache", page)
 				del self.index[page]
 				del self.index_mtime[page]
 				return False
+			else:
+				self.logger.warning("missing index for page '%s'; if this is expected, please restart %s", page, PROGRAM_NAME)
+				return True
 		else:
 			return False
 
