@@ -5,6 +5,7 @@
 # Copyright © 2018, Institut Pasteur
 #      Contributor: François Laurent
 #      Contribution: unsafe, priority and upload_max_wait attributes and their occurrences
+#                    reportTransferred
 
 # This file is part of the Escale software available at
 # "https://github.com/francoislaurent/escale" and is distributed under
@@ -163,30 +164,35 @@ class IndexManager(Manager):
                             else:
                                 missing = [ m for m, _, _, _ in get_files ]
                             get_files = []
-                        for remote, local, mtime, metadata in get_files:
-                            dirname = os.path.dirname(local)
-                            if dirname and not os.path.isdir(dirname):
-                                os.makedirs(dirname)
-                            extracted = join(self.extraction_repository, remote)
-                            try:
-                                shutil.move(extracted, local)
-                            except IOError as e:#FileNotFoundError:
-                                # catch FileNotFoundError (does not exist in Python2)
-                                if e.errno == errno.ENOENT:
-                                    self.logger.debug("file '%s' not found", extracted)
-                                    #self.logger.info("failed to download file '%s'", remote)
-                                    missing.append(remote)
+                        successful = []
+                        try:
+                            for remote, local, mtime, metadata in get_files:
+                                dirname = os.path.dirname(local)
+                                if dirname and not os.path.isdir(dirname):
+                                    os.makedirs(dirname)
+                                extracted = join(self.extraction_repository, remote)
+                                try:
+                                    shutil.move(extracted, local)
+                                except IOError as e:#FileNotFoundError:
+                                    # catch FileNotFoundError (does not exist in Python2)
+                                    if e.errno == errno.ENOENT:
+                                        self.logger.debug("file '%s' not found", extracted)
+                                        #self.logger.info("failed to download file '%s'", remote)
+                                        missing.append(remote)
+                                    else:
+                                        raise
                                 else:
-                                    raise
-                            else:
-                                self.logger.info("file '%s' successfully downloaded", remote)
-                                if mtime:
-                                    if self.checksum_cache is not None \
-                                        and metadata and metadata.checksum:
-                                        resource = remote
-                                        self.checksum_cache[resource] = (mtime, metadata.checksum)
-                                    # set last modification time
-                                    os.utime(local, (time.time(), mtime))
+                                    #self.logger.info("file '%s' successfully downloaded", remote)
+                                    successful.append(remote)
+                                    if mtime:
+                                        if self.checksum_cache is not None \
+                                            and metadata and metadata.checksum:
+                                            resource = remote
+                                            self.checksum_cache[resource] = (mtime, metadata.checksum)
+                                        # set last modification time
+                                        os.utime(local, (time.time(), mtime))
+                        finally:
+                            self.reportTransferred('download', successful)
                         if missing:
                             new = True # do not consider the local repository up-to-date
                             self.relay.requestMissing(page, missing)
@@ -217,11 +223,11 @@ class IndexManager(Manager):
             any_page_update, any_postponed = False, False
             for page in indexed:
                 #self.logger.debug("page '%s'", page)
+                pushed = []
                 fd, archive = tempfile.mkstemp()
                 os.close(fd)
                 tmpdir = tempfile.mkdtemp()
                 try:
-                    pushed = []
                     with self.relay.setUpdate(page) as update:
                         try:
                             page_index = self.relay.getPageIndex(page)
@@ -292,12 +298,14 @@ class IndexManager(Manager):
                             self.encryption.finalize(final_file)
                         indexed[page] = indexed[page][n+1:]
                     any_page_update = bool(pushed)
-                    for resource in pushed:
-                        self.logger.info("file '%s' successfully uploaded", resource)
                 except PostponeRequest:
                     any_postponed = True
                     continue
                 finally:
+                    if pushed:
+                        self.reportTransferred('upload', pushed)
+                        #for resource in pushed:
+                        #    self.logger.info("file '%s' successfully uploaded", resource)
                     shutil.rmtree(tmpdir)
                     os.unlink(archive)
 
@@ -380,4 +388,43 @@ class IndexManager(Manager):
 
     def localFiles(self, path=None):
         return Manager.localFiles(self, path)
+
+    def reportTransferred(self, download_or_upload, transferred_files):
+        if transferred_files:
+            self.logger.info('\n'.join(\
+                    ['successfully {}ed files:'.format(download_or_upload)]+\
+                    self._shorten(transferred_files)))
+
+    def _shorten(self, filepaths, maxlen=70, prefixlen=20, suffixlen=40):
+        msg = []
+        filenames = defaultdict(list)
+        for fp in filepaths:
+            dirname, filename = os.path.split(fp)
+            filenames[dirname].append((filename, fp))
+        for dirname in filenames:
+            fs = filenames[dirname]
+            assert fs
+            if fs[1:]:
+                if maxlen < len(dirname)+3:
+                    dirname = _shorten(dirname, prefixlen, suffixlen)
+                msg.append("in '{}':".format(dirname))
+                for f, _ in fs:
+                    if maxlen < len(f)+3:
+                        f = _shorten(f, prefixlen, suffixlen)
+                    msg.append(" + '{}'".format(f))
+            else:
+                _, f = fs[0]
+                if maxlen < len(f):
+                    f = _shorten(f, prefixlen, suffixlen)
+                #msg.append("'{}'".format(os.path.join(dirname, f)))
+                msg.append("'{}'".format(f))
+        return msg
+
+def _shorten(name, prefixlen, suffixlen):
+    if prefixlen is None:
+        return '...'+name[-suffixlen:]
+    elif suffixlen is None:
+        return name[:prefixlen]+'...'
+    else:
+        return '...'.join((name[:prefixlen], name[-suffixlen:]))
 

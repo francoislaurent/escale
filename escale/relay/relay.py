@@ -904,7 +904,7 @@ class Relay(AbstractRelay):
                 if blocking is True: # if not numerical
                     blocking = 60 # translate it to time, in seconds
                 while self.hasLock(remote_file):
-                    self.logger.debug('lock not available; waiting %s seconds', blocking)
+                    #self.logger.debug('lock not available; waiting %s seconds', blocking)
                     time.sleep(blocking)
             else:
                 return False

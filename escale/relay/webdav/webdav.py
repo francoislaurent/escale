@@ -219,7 +219,7 @@ class WebDAV(Relay, Client):
                 self._wait_on_error(Client.delete, self, remote_file)
             except ExpressInterrupt:
                 raise
-            except OSError as e:
+            except (UnexpectedResponse, OSError) as e:
                 if self.exists(remote_file):
                     self.logger.debug('retrying on error: %s', e)
                     continue

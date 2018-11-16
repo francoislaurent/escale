@@ -205,7 +205,12 @@ class Client(object):
                         raise e1
                     else:
                         e = e.args[0]
-                logger.debug('%s', format_exc(e))
+                try:
+                    logger.debug('could not parse error: %s%s%s', type(e), e.args, format_exc(e))
+                except ExpressInterrupt:
+                    raise
+                except:
+                    pass
                 raise
             except OpenSSL.SSL.SysCallError as e:
                 #print('in send(1): {}.{}: {}'.format(type(e).__module__, type(e).__name__, e))
