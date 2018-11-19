@@ -26,7 +26,7 @@
 
 
 from escale.base.essential import asstr, quote_join, relpath
-from escale.base.exceptions import format_exc, QuotaExceeded
+from escale.base.exceptions import format_exc, QuotaExceeded, ExpressInterrupt
 from escale.base.ssl import *
 from collections import namedtuple
 import os.path
