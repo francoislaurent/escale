@@ -102,8 +102,11 @@ class WebDAV(Relay, Client):
         Client.__init__(self, baseurl, username, password,
                 certificate, verify_ssl, ssl_version)
         # not implemented
-        if max_retry is None and 'max retries' in config:
-            max_retry = int(config['max retries'])
+        if max_retry is None:
+            if 'max retries' in config:
+                max_retry = int(config['max retries'])
+            else:
+                max_retry = 3
         self.max_retry = max_retry
         self.retry_after = retry_after
         #

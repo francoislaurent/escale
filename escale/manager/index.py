@@ -63,6 +63,7 @@ class IndexManager(Manager):
         self.extraction_repository = tempfile.mkdtemp()
         self.upload_max_wait = upload_max_wait
         self.download_idle = True
+        self.onetime_log = set()
 
     def terminate(self, pullers):
         return self.count is None or self.count <= len(pullers)
@@ -94,8 +95,14 @@ class IndexManager(Manager):
                     for remote_file in update:
                         dirname, basename = os.path.split(remote_file)
                         if not self._filter(basename):
+                            if 'exclude' in self.onetime_log:
+                                self.onetime_log.add('exclude')
+                                self.logger.warn('incoming file ignored by basename')
                             continue
                         if dirname and not self._filter_directory(dirname):
+                            if 'exclude directory' in self.onetime_log:
+                                self.onetime_log.add('exclude directory')
+                                self.logger.warn('incoming file ignored by directory name')
                             continue
                         resource = remote_file
                         local_file = self.repository.writable(resource, absolute=True)
@@ -319,10 +326,26 @@ class IndexManager(Manager):
                 break
 
             if 0 < self.verbosity:
-                self.logger.debug('%s files of %s are still pending for upload in pages %s (respectively); staying in the upload phase',
-                    '/'.join([str(len(indexed[p])) for p in indexed]),
-                    '/'.join([str(local_file_count[p]) for p in indexed]),
-                    '/'.join(indexed.keys()))
+                # if the number of pending files len(indexed[p]) == local_file_count[p],
+                # then an update was already available on the relay and no file have been checked
+                pending_file_count = {}
+                unexplored_pages = []
+                for p in indexed:
+                    _count = len(indexed[p])
+                    if _count < local_file_count[p]:
+                        pending_file_count[p] = _count
+                    else:
+                        unexplored_pages.append(p)
+                if pending_file_count:
+                    self.logger.debug('%s files of %s are still pending for upload in pages %s (respectively); staying in the upload phase',
+                        '/'.join([str(pending_file_count[p]) for p in pending_file_count]),
+                        '/'.join([str(local_file_count[p]) for p in pending_file_count]),
+                        '/'.join(pending_file_count.keys()))
+                if unexplored_pages:
+                    if unexplored_pages[1:]:
+                        self.logger.debug('pages %s are unexplored yet', quote_join(unexplored_pages, final=' and '))
+                    else:
+                        self.logger.debug('page %s is unexplored yet', unexplored_pages[0])
             if any_page_update:
                 t0 = None
             elif any_postponed:
@@ -331,7 +354,7 @@ class IndexManager(Manager):
                     t0 = time.time()
                 elif self.upload_max_wait is not None and \
                     self.upload_max_wait < time.time() - t0:
-                    self.logger.debug('timeout %s', int(time.time() - t0))
+                    self.logger.debug('timeout %ss', int(time.time() - t0))
                     break
                 if not self.tq_controller.wait():
                     self.logger.debug('timeout')

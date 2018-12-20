@@ -165,6 +165,7 @@ class Client(object):
         self.infinity_depth = None
         self.download_chunk_size = 1048576
         self.retry_on_errno = [110]
+        self.max_retry = None
 
     def send(self, method, target, expected_codes, context=False, allow_redirects=False,
             retry_on_status_codes=[503,504], retry_on_errno=None,
@@ -197,20 +198,19 @@ class Client(object):
                                 e1 = OSError(code, name, *e1.args[1:])
                         try:
                             if e1.args[0] in retry_on_errno:
-                                logger.debug("on '%s%s', ignoring %s error: %s", method, \
-                                        ' '+target if target else '', e1.args[0], e1)
-                                continue
+                                if counter <= self.max_retry:
+                                    logger.debug("on '%s%s', ignoring %s error: %s", method, \
+                                            ' '+target if target else '', e1.args[0], e1)
+                                    continue
+                            elif not isinstance(e1.args[0], int):
+                                _report_unparsable_exception(logger, method, target, e1)
                         except AttributeError:
+                            _report_unparsable_exception(logger, method, target, e1)
                             pass
                         raise e1
                     else:
                         e = e.args[0]
-                try:
-                    logger.debug('could not parse error: %s%s%s', type(e), e.args, format_exc(e))
-                except ExpressInterrupt:
-                    raise
-                except:
-                    pass
+                _report_unparsable_exception(logger, method, target, e)
                 raise
             except OpenSSL.SSL.SysCallError as e:
                 #print('in send(1): {}.{}: {}'.format(type(e).__module__, type(e).__name__, e))
@@ -323,4 +323,14 @@ class Client(object):
         codes = (200, 301, 302, 404, 423) # 302 Moved Temporarily
         response = self.send('HEAD', remote_path, codes)
         return response.status_code not in [302, 404]
+
+
+def _report_unparsable_exception(logger, method, target, e):
+    prefix = "on '%s%s', ".format(method, ' '+target if target else '')
+    try:
+        logger.debug('%scould not parse error: %s%s%s', prefix, type(e), e.args, format_exc(e))
+    except ExpressInterrupt:
+        raise
+    except:
+        logger.debug('%scould not parse error: %s %s', prefix, type(e), e)
 
