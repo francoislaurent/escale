@@ -174,7 +174,8 @@ class Client(object):
             retry_on_errno = self.retry_on_errno
         else:
             retry_on_errno = list(retry_on_errno) + self.retry_on_errno
-        url = os.path.join(self.baseurl, quote(asstr(target)))
+        assert bool(self.baseurl)
+        url = '/'.join((self.baseurl, quote(asstr(target))))
         counter = 0
         while True:
             counter += 1
@@ -254,7 +255,10 @@ class Client(object):
         dirname = ''
         for d in dirs:
             if d:
-                dirname = os.path.join(dirname, d)
+                if dirname:
+                    dirname = '/'.join((dirname, d))
+                else:
+                    dirname = d
                 self.send('MKCOL', dirname, (201, 301, 405, 423), subsequent_errors_on_retry=(423,))
 
     def delete(self, target):
