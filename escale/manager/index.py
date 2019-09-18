@@ -28,6 +28,7 @@ import shutil
 import tarfile
 import tempfile
 from collections import defaultdict
+from random import shuffle
 
 
 class IndexManager(Manager):
@@ -81,11 +82,15 @@ class IndexManager(Manager):
         Manager.sanityChecks(self)
         self.relay.clearIndex()
 
+    def shuffle(self, _list):
+        shuffle(_list)
+        return _list
+
     def download(self):
         trust = self.pull_overwrite or (not self.timestamp and self.checksum is None)
         lookup_missing = self.download_idle
         new = False
-        for page in self.relay.listPages():
+        for page in self.shuffle(self.relay.listPages()):
             index_loaded = self.relay.loaded(page)
             # the first `getUpdate` call for a page returns a full index
             # instead of an index update

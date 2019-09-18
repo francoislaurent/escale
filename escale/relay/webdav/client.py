@@ -166,6 +166,14 @@ class Client(object):
         self.download_chunk_size = 1048576
         self.retry_on_errno = [110]
         self.max_retry = None
+        self.timeouts = (6.05, 30)
+
+    def get_logger(self):
+        try:
+            logger = self.logger
+        except AttributeError:
+            logger = logging.getLogger()
+        return logger
 
     def send(self, method, target, expected_codes, context=False, allow_redirects=False,
             retry_on_status_codes=[503,504], retry_on_errno=None,
@@ -175,16 +183,14 @@ class Client(object):
         else:
             retry_on_errno = list(retry_on_errno) + self.retry_on_errno
         url = os.path.join(self.baseurl, quote(asstr(target)))
+        timeout = kwargs.pop('timeout', self.timeouts)
         counter = 0
         while True:
             counter += 1
             try:
-                response = self.session.request(method, url, allow_redirects=allow_redirects, **kwargs)
+                response = self.session.request(method, url, allow_redirects=allow_redirects,
+                        timeout=timeout, **kwargs)
             except requests.exceptions.ConnectionError as e:
-                if hasattr(self, 'logger'):
-                    logger = self.logger
-                else:
-                    logger = logging.getLogger()
                 while isinstance(e, Exception) and e.args:
                     #print('in send(0): {}.{}: {}'.format(type(e).__module__, type(e).__name__, e))
                     if (e.args[1:] and isinstance(e.args[1], EnvironmentError)) \
@@ -215,10 +221,7 @@ class Client(object):
             except OpenSSL.SSL.SysCallError as e:
                 #print('in send(1): {}.{}: {}'.format(type(e).__module__, type(e).__name__, e))
                 if e.args[0] in retry_on_errno:
-                    if hasattr(self, 'logger'):
-                        logger = self.logger
-                    else:
-                        logging.getLogger()
+                    logger = self.get_logger()
                     logger.debug('on %s %s', method, target)
                     logger.debug('ignoring %s error: %s', e.args[0], e)
                     continue
