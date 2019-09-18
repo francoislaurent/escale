@@ -370,14 +370,15 @@ class AccessController(Reporter):
         #    local.append([ os.path.join(_dirname, _basename) for _basename in filenames
         #        if dirname(_dirname) and _basename[0] != '.' and basename(_basename) ])
         #local = itertools.chain(*local)
-        if path is None:
+        if path:
+            relative_path = lambda a: '/'.join((path, a))
+            full_path = '/'.join((self.path, path))
+        else:
             relative_path = lambda a: a
             full_path = self.path
-        else:
-            relative_path = lambda a: os.path.join(path, a)
-            full_path = os.path.join(self.path, path)
+
         try:
-            ls = [ (os.path.join(full_path, f), relative_path(f), f) \
+            ls = [ ('/'.join((full_path, f)), relative_path(f), f) \
                     for f in os.listdir(full_path) if f[0] != '.' ]
         except OSError:
             self.logger.error('%s', traceback.format_exc())
@@ -477,7 +478,8 @@ class AccessController(Reporter):
         return Accessor(exists=exists, delete=delete)
 
     def absolute(self, filename):
-        return os.path.join(self.path, filename)
+        assert bool(self.path)
+        return '/'.join((self.path, filename))
 
     def _format(self, filename, return_absolute_path=False):
         """
@@ -492,7 +494,7 @@ class AccessController(Reporter):
                 relpath = None
         else:
             if return_absolute_path:
-                abspath = os.path.join(self.path, filename)
+                abspath = '/'.join((self.path, filename))
             relpath = filename
         if return_absolute_path:
             return (relpath, abspath)

@@ -34,7 +34,8 @@ def with_path(path, fun, *args, **kwargs):
     Helper function that applies a string manipulation function to the filename part of a path.
     """
     _dir, _file = os.path.split(path)
-    return os.path.join(_dir, fun(_file, *args, **kwargs))
+    _file = fun(_file, *args, **kwargs)
+    return '/'.join((_dir, _file)) if _dir else _file
 
 
 
@@ -529,7 +530,8 @@ class Relay(AbstractRelay):
 
     def message(self, path):
         _dir, _file = os.path.split(path)
-        return os.path.join(_dir, self._safeMessage(_file, path))
+        _file = self._safeMessage(_file, path)
+        return '/'.join((_dir, _file)) if _dir else _file
 
     def _fromMessage(self, filename):
         if self._message_suffix:
@@ -620,7 +622,8 @@ class Relay(AbstractRelay):
                 lock_files.append(file)
             elif self._isPlaceholder(filename):
                 if mtime:
-                    regular_file = os.path.join(filedir, self._fromPlaceholder(filename))
+                    filename = self._fromPlaceholder(filename)
+                    regular_file = '/'.join((filedir, filename)) if filedir else filename
                     try:
                         previous_mtime, meta = self.placeholder_cache[regular_file]
                         if previous_mtime < mtime:
@@ -677,7 +680,8 @@ class Relay(AbstractRelay):
         for file, mtime in ls:
             filedir, filename = os.path.split(file)
             if self._isPlaceholder(filename):
-                regular_file = os.path.join(filedir, self._fromPlaceholder(filename))
+                filename = self._fromPlaceholder(filename)
+                regular_file = '/'.join((filedir, filename)) if filedir else filename
                 placeholders.append(regular_file)
                 if mtime:
                     try:

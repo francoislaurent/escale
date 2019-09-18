@@ -124,8 +124,10 @@ def join(dirname, *extranames):
 	extranames = [ asstr(s) for s in extranames if s ]
 	if extranames:
 		# remove beginning slashes
-		extranames = [ s[1:] if s[0] in '/' else s for s in extranames ]
-		return os.path.join(asstr(dirname), *extranames)
+		names = [ s[1:] if s[0] in '/' else s for s in extranames ]
+		if dirname:
+                        names = [asstr(dirname)] + names
+		return '/'.join(names)
 	else:
 		return asstr(dirname)
 

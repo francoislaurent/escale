@@ -274,12 +274,12 @@ class IndexManager(Manager):
                             new = True
                             dirname = os.path.dirname(resource)
                             if dirname:
-                                dirname = os.path.join(tmpdir, dirname)
+                                dirname = '/'.join((tmpdir, dirname))
                             else:
                                 dirname = tmpdir
                             if not os.path.exists(dirname):
                                 os.makedirs(dirname)
-                            local_copy = os.path.join(tmpdir, resource)
+                            local_copy = '/'.join((tmpdir, resource))
                             shutil.copy2(local_file, local_copy)
                             # add to the update index
                             update[remote_file] = metadata
@@ -294,7 +294,7 @@ class IndexManager(Manager):
                         if update:
                             with tarfile.open(archive, mode='w:bz2') as tar:
                                 for f in os.listdir(tmpdir):
-                                    tar.add(os.path.join(tmpdir, f), arcname=f, recursive=True)
+                                    tar.add('/'.join((tmpdir, f)), arcname=f, recursive=True)
                             final_file = self.encryption.encrypt(archive)
                             while True:
                                 try:

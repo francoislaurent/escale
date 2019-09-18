@@ -57,6 +57,8 @@ def make_client(config, repository, log_handler=None, ui_connector=None):
 	logger.setLevel(logging.DEBUG)
 	if log_handler is not None:
 		logger.propagate = False
+		if isinstance(log_handler, tuple):
+                        log_handler = log_handler[0](*log_handler[1:])
 		logger.addHandler(log_handler)
 	# check arguments
 	if repository in ['error']:
@@ -173,12 +175,12 @@ def escale_launcher(cfg_file, msgs=[], verbosity=logging.NOTSET, keep_alive=Fals
 		if PYTHON_VERSION == 3:
 			log_queue = Queue()
 			log_listener = QueueListener(log_queue)
-			log_handler = logging.handlers.QueueHandler(log_queue)
+			log_handler = (logging.handlers.QueueHandler, log_queue)
 		elif PYTHON_VERSION == 2:
 			import escale.log.socket as socket
 			log_host = 'localhost'
 			log_listener = socket.SocketListener(log_host)
-			log_handler = logging.handlers.SocketHandler(log_host, log_listener.port)
+			log_handler = (logging.handlers.SocketHandler, log_host, log_listener.port)
 		# logger
 		logger_thread = threading.Thread(target=log_listener.listen)
 		logger_thread.start()
