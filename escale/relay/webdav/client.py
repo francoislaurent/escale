@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+﻿# -*- coding: utf-8 -*-
 
 # Copyright © 2017-2019, Institut Pasteur
 #   Contributor: François Laurent
@@ -166,7 +166,7 @@ class Client(object):
         self.download_chunk_size = 1048576
         self.retry_on_errno = [110]
         self.max_retry = None
-        self.timeouts = (6.05, 30)
+        self.timeouts = (6.05, 300)
 
     def get_logger(self):
         try:
@@ -192,6 +192,7 @@ class Client(object):
                 response = self.session.request(method, url, allow_redirects=allow_redirects,
                         timeout=timeout, **kwargs)
             except requests.exceptions.ConnectionError as e:
+                logger = self.get_logger()
                 while isinstance(e, Exception) and e.args:
                     #print('in send(0): {}.{}: {}'.format(type(e).__module__, type(e).__name__, e))
                     if (e.args[1:] and isinstance(e.args[1], EnvironmentError)) \
@@ -211,7 +212,7 @@ class Client(object):
                                     continue
                             elif not isinstance(e1.args[0], int):
                                 _report_unparsable_exception(logger, method, target, e1)
-                        except AttributeError:
+                        except (AttributeError, IndexError):
                             _report_unparsable_exception(logger, method, target, e1)
                             pass
                         raise e1

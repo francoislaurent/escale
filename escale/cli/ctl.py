@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+﻿# -*- coding: utf-8 -*-
 
 # Copyright © 2017, François Laurent
 
@@ -55,7 +55,7 @@ def start(pidfile=None):
     except ImportError:
         python = sys.executable
         if python is None:
-            if PYTHON_VERSION == 3:
+            if PYTHON_VERSION == 3 and not ispc():
                 python = 'python3'
             else:
                 python = 'python'
@@ -80,19 +80,27 @@ def stop(pidfile=None):
         return 1
     with open(pidfile, 'r') as f:
         pid = str(f.read())
-    p = subprocess.Popen(['ps', '-eo', 'ppid,pid'], stdout=subprocess.PIPE)
-    ps = p.communicate()[0]
-    children = []
-    for line in ps.splitlines():
-        ppid, cpid = line.split()
-        if ppid == pid:
-            children.append(cpid)
-    for child in children:
-        subprocess.call(['kill', child])
-    subprocess.call(['kill', pid])
-    if PYTHON_VERSION == 3: # repeat
-        time.sleep(1)
-        subprocess.call(['kill', pid])
+    if ispc():
+        kill = ['taskkill', '/F', '/PID']
+        #p = subprocess.Popen(['tasklist'], stdout=subprocess.PIPE)
+        #subprocess.call(kill+[pid])
+        os.unlink(pidfile)
+        subprocess.call(['taskkill', '/f', '/im', 'python.exe']) # self-kill
+    else:
+        kill = ['kill']
+        p = subprocess.Popen(['ps', '-eo', 'ppid,pid'], stdout=subprocess.PIPE)
+        ps = p.communicate()[0]
+        children = []
+        for line in ps.splitlines():
+            ppid, cpid = line.split()
+            if ppid == pid:
+                children.append(cpid)
+        for child in children:
+            subprocess.call(kill+[child])
+        subprocess.call(kill+[pid])
+        if PYTHON_VERSION == 3: # repeat
+            time.sleep(1)
+            subprocess.call(kill+[pid])
     os.unlink(pidfile)
 
 

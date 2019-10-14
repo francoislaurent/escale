@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+﻿# -*- coding: utf-8 -*-
 
 # Copyright © 2017, François Laurent
 
@@ -359,6 +359,7 @@ class Manager(Reporter):
                     if e.errno in self.wait_on_error:
                         wait = True
                 if wait:
+                    self.logger.debug(traceback.format_exc())
                     self.logger.debug("%s", e)
                     self.tq_controller.wait()
                 else:

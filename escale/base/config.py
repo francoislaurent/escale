@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+﻿# -*- coding: utf-8 -*-
 
 # Copyright © 2017, François Laurent
 
@@ -17,6 +17,10 @@
 #   Contributions:
 #     * `pulloverwrite` in `fields`
 #     * `allow_page_deletion` in `fields`
+
+# Copyright © 2019, Institut Pasteur
+#   Contributor: François Laurent
+#   Contributions: Windows support
 
 # This file is part of the Escale software available at
 # "https://github.com/francoislaurent/escale" and is distributed under
@@ -37,6 +41,11 @@ except ImportError:
 	NoOptionError = cp.NoOptionError
 import re # moved from syncacre.cli.config together with parse_address
 import itertools
+import platform
+
+
+def ispc():
+    return platform.system() == 'Windows'
 
 
 # configparser
@@ -44,8 +53,9 @@ default_section = 'DEFAULT' # Python2 cannot modify it
 
 default_filename = PROGRAM_NAME + '.conf'
 global_cfg_dir = '/etc'
-user_cfg_dir = os.path.join(os.path.expanduser('~/.config'), PROGRAM_NAME)
-user_program_dir = os.path.expanduser('~/.' + PROGRAM_NAME)
+_home = os.path.expanduser('~')
+user_cfg_dir = os.path.join(_home, '.config', PROGRAM_NAME)
+user_program_dir = os.path.join(_home, '.'+PROGRAM_NAME)
 default_cfg_dirs = [ user_cfg_dir, user_program_dir, global_cfg_dir ]
 default_conf_files = [ os.path.join(d, default_filename) for d in default_cfg_dirs ]
 
@@ -55,7 +65,7 @@ default_run_dirs = { user_cfg_dir: user_cfg_dir,
 		global_cfg_dir: global_run_dir }
 
 global_cache_dir = os.path.join('/var/cache', PROGRAM_NAME)
-user_cache_dir = os.path.join(os.path.expanduser('~/.cache'), PROGRAM_NAME)
+user_cache_dir = os.path.join(_home, '.cache', PROGRAM_NAME)
 default_cache_dirs = { user_cfg_dir: user_cache_dir,
 		user_program_dir: os.path.join(user_program_dir, 'cache'),
 		global_cfg_dir: global_cache_dir }
@@ -191,7 +201,7 @@ def getpath(config, section, attr):
 	if path[0] == '~':
 		path = os.path.expanduser(path)
 	if os.path.isdir(os.path.dirname(path)):
-		return path
+		return path.replace('\\', '/')
 	else:
 		raise ValueError("cannot find directory '{}'".format(path))
 

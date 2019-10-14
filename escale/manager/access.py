@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+﻿# -*- coding: utf-8 -*-
 
 # Copyright © 2017, François Laurent
 
@@ -18,6 +18,7 @@
 from escale.base.essential import *
 import os
 import itertools
+import traceback
 
 
 if PYTHON_VERSION == 2:
