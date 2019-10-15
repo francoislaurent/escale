@@ -204,17 +204,13 @@ class Client(object):
                                 code = int(m.group('code'))
                                 name = m.group('name')
                                 e1 = OSError(code, name, *e1.args[1:])
-                        try:
-                            if e1.args[0] in retry_on_errno:
-                                if counter <= self.max_retry:
-                                    logger.debug("on '%s%s', ignoring %s error: %s", method, \
-                                            ' '+target if target else '', e1.args[0], e1)
-                                    continue
-                            elif not isinstance(e1.args[0], int):
-                                _report_unparsable_exception(logger, method, target, e1)
-                        except (AttributeError, IndexError):
+                        if not (e1.args and isinstance(e1.args[0], int)):
                             _report_unparsable_exception(logger, method, target, e1)
-                            pass
+                        elif e1.args[0] in retry_on_errno:
+                            if counter <= self.max_retry:
+                                logger.debug("on '%s%s', ignoring %s error: %s", method, \
+                                        ' '+target if target else '', e1.args[0], e1)
+                                continue
                         raise e1
                     else:
                         e = e.args[0]
@@ -222,7 +218,7 @@ class Client(object):
                 raise
             except OpenSSL.SSL.SysCallError as e:
                 #print('in send(1): {}.{}: {}'.format(type(e).__module__, type(e).__name__, e))
-                if e.args[0] in retry_on_errno:
+                if e.args and e.args[0] in retry_on_errno:
                     logger = self.get_logger()
                     logger.debug('on %s %s', method, target)
                     logger.debug('ignoring %s error: %s', e.args[0], e)

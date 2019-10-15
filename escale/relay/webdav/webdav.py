@@ -201,7 +201,7 @@ class WebDAV(Relay, Client):
         try:
             self.upload(local_file, remote_file)
         except OSError as e:
-            if e.args[0] in self.quota_error:
+            if e.args and e.args[0] in self.quota_error:
                 raise QuotaExceeded
             raise
 
