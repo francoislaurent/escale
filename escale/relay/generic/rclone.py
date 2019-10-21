@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+﻿# -*- coding: utf-8 -*-
 
 # Copyright © 2017, Institut Pasteur
 #      Contributor: François Laurent
@@ -86,8 +86,8 @@ class RClone(Relay):
 				'{}:{}'.format(self.remote, self.repository), error=IOError)
 		used = None
 		total = None
-		_used_label = 'Total size:'
-		#_total_label = ''
+		_used_label = b'Total size:' # mod
+		#_total_label = b''
 		for line in output.splitlines():
 			if line.startswith(_used_label):
 				used = float(line.split()[4][1:])
@@ -117,7 +117,7 @@ class RClone(Relay):
 				'{}:{}'.format(self.remote, relay_dir),
 				error=IOError) #'--fast-list', 
 		except IOError as e:
-			err = e.args[0].rstrip()
+			err = asstr(e.args[0].rstrip()) # mod [required]
 			if err.endswith('Unknown type *files.DeletedMetadata'):
 				self.logger.debug(err)
 				return []
@@ -129,6 +129,7 @@ class RClone(Relay):
 			sizes = []
 			mtimes = []
 			for line in ls.splitlines():
+				line = asstr(line) # mod
 				record = line.split(None, 3)
 				size = record[0]
 				path = record[3]
@@ -158,6 +159,7 @@ class RClone(Relay):
 			output = with_subprocess(self.rclone_bin, 'ls', relay_file, output=True)
 			if isinstance(output, tuple):
 				_, error = output
+				error = asstr(error) # mod
 				error = error.rstrip().rstrip('.')
 				if error.endswith('not found'):
 					return False
@@ -172,7 +174,7 @@ class RClone(Relay):
 				try:
 					return not output or int(output.lstrip()[0])
 				except IndexError:
-					self.logger.debug("unexpected rclone output for relay file '%s': %s", relay_file, output)
+					self.logger.debug("unexpected rclone output for relay file '%s': %s", relay_file, asstr(output)) # mod
 					return False
 			break
 
@@ -189,7 +191,7 @@ class RClone(Relay):
 			_, error = output
 			error_count = 1
 			for line in error.splitlines():
-				if line.startswith('Errors:'):
+				if line.startswith(b'Errors:'): # mod
 					error_count = int(line.split()[-1])
 					break
 			if 0 < error_count:
@@ -207,6 +209,7 @@ class RClone(Relay):
 				output=True)
 		if isinstance(output, tuple):
 			_, error = output
+			error = asstr(error) # mod
 			if error.splitlines()[-1].startswith('Elapsed time:'):
 				pass
 			elif 'Failed to create file system for "' in error:
