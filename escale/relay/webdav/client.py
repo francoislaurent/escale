@@ -324,7 +324,7 @@ class Client(object):
                 and relpath(entry.name, remote_path) != '.' ]
 
     def exists(self, remote_path):
-        codes = (200, 301, 302, 404, 423) # 302 Moved Temporarily
+        codes = (200, 301, 302, 404, 409, 423) # 302 Moved Temporarily
         response = self.send('HEAD', remote_path, codes)
         return response.status_code not in [302, 404]
 

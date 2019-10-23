@@ -285,7 +285,7 @@ class IndexManager(Manager):
                             update[remote_file] = metadata
                             pushed.append(remote_file)
                             # check the update data size
-                            size += os.stat(local_copy).st_size
+                            size += float(os.stat(local_copy).st_size) / 1048576.
                             if self.max_page_size < size:
                                 if 1 < self.verbosity:
                                     self.logger.debug('the update cannot be larger (%s < %s)', \

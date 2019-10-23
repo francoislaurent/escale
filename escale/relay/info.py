@@ -44,17 +44,20 @@ class LockInfo(object):
         elif self.owner or self.mode:
             self.version = '1.0'
 
-    def __nonzero__(self):
+    def __bool__(self):
         return not (self.owner is None and self.target is None and self.mode is None)
+
+    def __nonzero__(self):
+        return self.__bool__()
 
     def __repr__(self):
         if self.version:
-            info = ['lock%', self.version]
+            info = ['%'.join(('lock', self.version))]
             if self.owner:
-                info += ['\nowner: ', self.owner]
+                info.append(': '.join(('owner', self.owner)))
             if self.mode:
-                info += ['\nmode: ', self.mode]
-            return ''.join(info)
+                info.append(': '.join(('mode', self.mode)))
+            return '\n'.join(info)
         elif self.owner:
             return self.owner # former format, before LockInfo introduction
         else:
@@ -125,24 +128,21 @@ class Metadata(object):
         if self.version:
             if not (self.timestamp or self.checksum):
                 raise ValueError("neither 'timestamp' nor 'checksum' are defined")
-            info = [self.header, '%', self.version]
-            #if self.target:
-            #    info += ['\ntarget: ', self.target]
+            info = ['%'.join((self.header, self.version))]
             if self.pusher:
-                info += ['\npusher: ', self.pusher]
+                info.append(': '.join(('pusher', self.pusher)))
             if self.timestamp:
-                info += ['\ntimestamp: ', str(self.timestamp)]
+                info.append(': '.join(('timestamp', str(self.timestamp))))
             if self.checksum:
-                info += ['\nchecksum: ', asstr(self.checksum)]
+                info.append(': '.join(('checksum', asstr(self.checksum))))
             if self.parts:
-                info += ['\nparts: ', str(self.parts)]
+                info.append(': '.join(('parts', str(self.parts))))
             for k in self.ignored:
-                info += [ '\n', k, ': ', self.ignored[k] ]
+                info.append(': '.join((k, self.ignored[k])))
+            info.append('---pullers---')
             if self.pullers:
-                info.append('\n---pullers---')
-                for reader in self.pullers:
-                    info += ['\n', reader]
-            return ''.join(info)
+                info += self.pullers
+            return '\n'.join(info)
         elif self.timestamp:
             # former format, before :class:`Metadata` introduction
             if not self.timestamp_format or self.timestamp_format is True:

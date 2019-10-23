@@ -92,15 +92,18 @@ def stop(pidfile=None):
         ps = p.communicate()[0]
         children = []
         for line in ps.splitlines():
+            line = asstr(line)
             ppid, cpid = line.split()
             if ppid == pid:
                 children.append(cpid)
+        if not children:
+            print('no {} subprocesses found'.format(PROGRAM_NAME))
         for child in children:
             subprocess.call(kill+[child])
         subprocess.call(kill+[pid])
-        if PYTHON_VERSION == 3: # repeat
-            time.sleep(1)
-            subprocess.call(kill+[pid])
+        #if PYTHON_VERSION == 3: # repeat; TODO: check whether still necessary with Py3.5
+        #    time.sleep(1)
+        #    subprocess.call(kill+[pid])
     os.unlink(pidfile)
 
 

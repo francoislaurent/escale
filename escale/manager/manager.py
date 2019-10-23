@@ -453,7 +453,7 @@ class Manager(Reporter):
             remote_file = lock.target
             if remote_file:
                 local_file = self.repository.accessor(remote_file)
-                self.logger.info("fixing uncompleted transfer: '%s'", remote_file)
+                self.logger.info("fixing uncomplete transfer: '%s'", remote_file)
                 self.relay.repair(lock, local_file)
 
     def download(self):

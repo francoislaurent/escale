@@ -236,8 +236,12 @@ class WebDAV(Relay, Client):
             try:
                 return Relay.acquireLock(self, remote_file, mode, blocking)
             except UnexpectedResponse as e:
-                if blocking and e.actual_code == 423:
-                    continue
+                if blocking:
+                    if e.actual_code == 423:
+                        continue
+                else:
+                    if e.actual_code == 409: # '409 Conflict', Yandesk.Disk specific
+                        return False
                 raise
             break
 
