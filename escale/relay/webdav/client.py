@@ -26,7 +26,7 @@
 
 
 from escale.base.essential import asstr, quote_join, relpath
-from escale.base.exceptions import format_exc, QuotaExceeded, ExpressInterrupt
+from escale.base.exceptions import format_exc, QuotaExceeded, ExpressInterrupt, PostponeRequest
 from escale.base.ssl import *
 from collections import namedtuple
 import os.path
@@ -47,6 +47,7 @@ except ImportError:
 import time
 import logging
 import OpenSSL.SSL
+import socket
 
 
 class UnexpectedResponse(Exception):
@@ -166,7 +167,7 @@ class Client(object):
         self.download_chunk_size = 1048576
         self.retry_on_errno = [110]
         self.max_retry = None
-        self.timeouts = (6.05, 300)
+        self.timeouts = (6.05, 30)
 
     def get_logger(self):
         try:
@@ -184,6 +185,7 @@ class Client(object):
             retry_on_errno = list(retry_on_errno) + self.retry_on_errno
         timeout = kwargs.pop('timeout', self.timeouts)
         assert bool(self.baseurl)
+        logger = self.get_logger()
         url = '/'.join((self.baseurl, quote(asstr(target))))
         counter = 0
         while True:
@@ -191,31 +193,46 @@ class Client(object):
             try:
                 response = self.session.request(method, url, allow_redirects=allow_redirects,
                         timeout=timeout, **kwargs)
+            except requests.exceptions.ReadTimeout as e:
+                logger.error(e)
+                raise PostponeRequest
             except requests.exceptions.ConnectionError as e:
-                logger = self.get_logger()
+                retry = False
                 while isinstance(e, Exception) and e.args:
                     #print('in send(0): {}.{}: {}'.format(type(e).__module__, type(e).__name__, e))
                     if (e.args[1:] and isinstance(e.args[1], EnvironmentError)) \
                             or e.args[0] == 'Connection aborted.':
                         e1 = e.args[1]
-                        if e1.args and isinstance(e1.args[0], str):
-                            m = _str_env_error.match(e1.args[0])
-                            if m:
-                                code = int(m.group('code'))
-                                name = m.group('name')
-                                e1 = OSError(code, name, *e1.args[1:])
-                        if not (e1.args and isinstance(e1.args[0], int)):
-                            _report_unparsable_exception(logger, method, target, e1)
-                        elif e1.args[0] in retry_on_errno:
+                        if isinstance(e1, socket.timeout):
                             if counter <= self.max_retry:
-                                logger.debug("on '%s%s', ignoring %s error: %s", method, \
-                                        ' '+target if target else '', e1.args[0], e1)
-                                continue
+                                logger.debug('request timed out; retrying')
+                                retry = True
+                                break
+                        elif not e1.args:
+                            _report_unparsable_exception(logger, method, target, e1)
+                        else:
+                            code = e1.args[0]
+                            if isinstance(code, str):
+                                m = _str_env_error.match(code)
+                                if m:
+                                    code = int(m.group('code'))
+                                    name = m.group('name')
+                                    e1 = OSError(code, name, *e1.args[1:])
+                            if not isinstance(code, int):
+                                _report_unparsable_exception(logger, method, target, e1)
+                            elif code in retry_on_errno:
+                                if counter <= self.max_retry:
+                                    logger.debug("on '%s%s', ignoring %s error: %s", method, \
+                                        ' '+target if target else '', code, e1)
+                                    retry = True
+                                    break
                         raise e1
-                    else:
-                        e = e.args[0]
-                _report_unparsable_exception(logger, method, target, e)
-                raise
+                    e = e.args[0]
+                if retry:
+                    continue
+                else:
+                    _report_unparsable_exception(logger, method, target, e)
+                    raise
             except OpenSSL.SSL.SysCallError as e:
                 #print('in send(1): {}.{}: {}'.format(type(e).__module__, type(e).__name__, e))
                 if e.args and e.args[0] in retry_on_errno:
@@ -230,6 +247,7 @@ class Client(object):
             status_code = response.status_code
             if status_code in retry_on_status_codes:
                 response.close()
+                logger.debug('retrying')
                 continue
             break
         if not isinstance(expected_codes, (list, tuple)):
@@ -330,7 +348,7 @@ class Client(object):
 
 
 def _report_unparsable_exception(logger, method, target, e):
-    prefix = "on '%s%s', ".format(method, ' '+target if target else '')
+    prefix = "on '{}{}', ".format(method, ' '+target if target else '')
     try:
         logger.debug('%scould not parse error: %s%s%s', prefix, type(e), e.args, format_exc(e))
     except ExpressInterrupt:

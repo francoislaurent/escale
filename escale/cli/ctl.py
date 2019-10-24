@@ -81,7 +81,7 @@ def stop(pidfile=None):
     with open(pidfile, 'r') as f:
         pid = str(f.read())
     if ispc():
-        kill = ['taskkill', '/F', '/PID']
+        kill = ['taskkill', '/f', '/pid']
         #p = subprocess.Popen(['tasklist'], stdout=subprocess.PIPE)
         #subprocess.call(kill+[pid])
         os.unlink(pidfile)
@@ -101,7 +101,8 @@ def stop(pidfile=None):
         for child in children:
             subprocess.call(kill+[child])
         subprocess.call(kill+[pid])
-        #if PYTHON_VERSION == 3: # repeat; TODO: check whether still necessary with Py3.5
+        # no need for the code block below with 3.6.8 and 3.7.3
+        #if PYTHON_VERSION == 3: # repeat
         #    time.sleep(1)
         #    subprocess.call(kill+[pid])
     os.unlink(pidfile)

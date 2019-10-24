@@ -312,7 +312,11 @@ class IndexManager(Manager):
                     any_page_update = bool(pushed)
                 except PostponeRequest:
                     any_postponed = True
+                    pushed = []
                     continue
+                except: # new in 0.9.10
+                    pushed = []
+                    raise
                 finally:
                     if pushed:
                         self.reportTransferred('upload', pushed)

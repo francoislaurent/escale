@@ -288,6 +288,8 @@ class AccessController(Reporter):
             msg = 'no local repository defined'
             self.logger.error(msg)
             raise KeyError(msg)
+        if ':\\' in path: # Windows
+            path = path.replace('\\', '/')
         if path[-1] != '/':
             path += '/'
         self.path = os.path.normpath(asstr(path))

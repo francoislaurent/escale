@@ -439,28 +439,37 @@ class IndexRelay(AbstractIndexRelay):
                     self.transaction_timestamp = int(round(time.time()))
                 timestamp = self.transaction_timestamp
             elif mode is None or mode == 'r':
-                ls = self.listing_cache # should be up-to-date
-                prefix1 = '{}{}.'.format(self._update_index_prefix, page)
-                prefix2 = '{}{}.'.format(self._update_data_prefix, page)
-                ls1 = [ l[len(prefix1):] for l, _ in ls if l.startswith(prefix1) ]
-                ls2 = [ l[len(prefix2):] for l, _ in ls if l.startswith(prefix2) ]
-                if self._update_index_suffix:
-                    suffix_len = len(self._update_index_suffix)
-                    ls1 = [ l[:-suffix_len] for l in ls1 if l.endswith(self._update_index_suffix) ]
-                if self._update_data_suffix:
-                    suffix_len = len(self._update_data_suffix)
-                    ls2 = [ l[:-suffix_len] for l in ls2 if l.endswith(self._update_data_suffix) ]
-                ts = []
-                for l in ls1+ls2:
-                    try:
-                        ts.append(int(l))
-                    except ValueError:
-                        pass
+                raw_ls = self.listing_cache # should be up-to-date
+                prefixes = (
+                    '{}{}.'.format(self._update_index_prefix, page),
+                    '{}{}.'.format(self._update_data_prefix, page),
+                    )
+                suffixes = (self._update_index_suffix, self._update_data_suffix)
+                ls, ts = [], []
+                for _prefix, _suffix in zip(prefixes, suffixes):
+                    for l, _ in raw_ls:
+                        if not l.startswith(_prefix):
+                            continue
+                        t = l[len(_prefix):]
+                        if _suffix:
+                            if not t.endswith(_suffix):
+                                continue
+                            t = t[:-len(_suffix)]
+                        try:
+                            t = int(t)
+                        except ValueError:
+                            continue
+                        ts.append(t)
+                        ls.append(l)
                 if ts:
                     if 1 < len(set(ts)):
                         msg = "multiple update indices for page '{}'".format(page)
-                        self.logger.critical(msg)
-                        raise RuntimeError(msg)
+                        self.logger.error(msg)
+                        # delete them all!
+                        self.logger.debug(', '.join(ls))
+                        for l in ls:
+                            self.unlink(l)
+                        raise PostponeRequest
                     timestamp = ts[0]
             else:
                 msg = "mode should be either 'r' (read or download) or 'w' (write or upload)"
