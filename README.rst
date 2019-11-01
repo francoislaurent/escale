@@ -32,6 +32,15 @@ Please find the extended documentation at `escale.readthedocs.io <http://escale.
 Changelog
 ---------
 
+* `0.7.10`:
+
+  * Yandex.Disk support switches to rclone backend
+
+* `0.7.9`:
+
+  * Windows compatibility
+  * bugfixes for Python 3
+
 * `0.7.7`:
 
   * ``allow page deletion`` configuration option (previous default behaviour: true; new default: false)

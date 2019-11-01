@@ -5,6 +5,7 @@
 .. |google| replace:: Google
 .. |googledrive| replace:: Google Drive
 .. |macos| replace:: macOS
+.. |windows| replace:: Windows
 .. |enter| replace:: *<enter>*
 .. _cryptography: https://cryptography.io/en/latest/
 .. _blowfish: https://pypi.python.org/pypi/blowfish/
