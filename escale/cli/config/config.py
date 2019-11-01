@@ -935,7 +935,7 @@ def simplified_add(config, cfg_dir, section=None, msgs=[]):
 		Service('RClone, any remote', 'rclone', rclone_docs='docs'),
 		Service('SSH/SFTP server', 'sftp', 'rclone'),
 		Service('WebDAV service', 'https', auth=True),
-		Service('Yandex.Disk', 'yandex', ['rclone', 'https']),#address='webdav.yandex.ru', auth=True),
+		Service('Yandex.Disk', 'yandex', ['rclone', 'https'], rclone_docs='yandex'),#address='webdav.yandex.ru', auth=True),
 		]
 	multiline_print('choose a number from below:')
 	for k, service in enumerate(services):

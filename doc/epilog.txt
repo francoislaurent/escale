@@ -1,6 +1,7 @@
 
 .. |escale| replace:: **Escale**
 .. |dropbox| replace:: Dropbox
+.. |yandex| replace:: Yandex.Disk
 .. |google| replace:: Google
 .. |googledrive| replace:: Google Drive
 .. |macos| replace:: macOS
