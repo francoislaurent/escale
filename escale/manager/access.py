@@ -2,9 +2,9 @@
 
 # Copyright © 2017, François Laurent
 
-# Copyright © 2018, Institut Pasteur
+# Copyright © 2018-2019, Institut Pasteur
 #      Contributor: François Laurent
-#      Contribution: permission error handling
+#      Contribution: permission error handling, listFiles with scandir
 
 # This file is part of the Escale software available at
 # "https://github.com/francoislaurent/escale" and is distributed under
@@ -381,31 +381,21 @@ class AccessController(Reporter):
             full_path = self.path
 
         try:
-            ls = [ ('/'.join((full_path, f)), relative_path(f), f) \
-                    for f in os.listdir(full_path) if f[0] != '.' ]
-        except OSError:
-            self.logger.error('%s', traceback.format_exc())
-            ls = []
-        if self.unsafe:
-            files, dirs = [], []
-            for fp, rp, fn in ls:
-                if os.path.isfile(fp):
-                    if basename(fn):
-                        files.append(a_or_r(fp, rp))
-                    elif 2 < self.verbosity:
-                        self.logger.debug('rejecting file: %s', fn)
-                else:#elif os.path.isdir(fp):
+            dirs, files = [], []
+            for f in os.scandir(full_path):
+                if f.name[0] == '.':
+                    continue
+                if f.is_dir():
+                    rp = relative_path(f.name)
                     if dirname(rp):
                         dirs.append(self.listFiles(rp, basename=basename, dirname=dirname))
-                    elif 2 < self.verbosity:
-                        self.logger.debug('rejecting (sub-)directory: %s', rp)
-            local = itertools.chain(files, *dirs)
-        else:
-            local = itertools.chain( \
-                [ a_or_r(fp, rp) for fp, rp, fn in ls if os.path.isfile(fp) and basename(fn) ], \
-                *[ self.listFiles(rp, basename=basename, dirname=dirname) \
-                    for fp, rp, _ in ls if os.path.isdir(fp) and dirname(rp) ])
-        return list(local)
+                elif f.is_file():
+                    if basename(f.name):
+                        files.append(a_or_r(f.path, relative_path(f.name)))
+            return list(itertools.chain(files, *dirs))
+        except OSError:
+            self.logger.error('%s', traceback.format_exc())
+            return []
 
     def readable(self, files, unsafe=False):
         """

@@ -2,6 +2,10 @@
 Yandex.Disk
 ===========
 
+.. attention:: The native WebDAV client no longer works properly with Yandex.Disk.
+   Please favor the rclone backend.
+   You may also need to empty the trash from time to time for escale to work smoothly.
+
 |escale| can operate with the Yandex.Disk WebDAV server at webdav.yandex.ru.
 
 .. include:: wizard-part-1.txt
