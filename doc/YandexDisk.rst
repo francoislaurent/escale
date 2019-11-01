@@ -2,6 +2,11 @@
 Yandex.Disk
 ===========
 
+Two options are available to synchronize over a Yandex.Disk storage space.
+
+The recommended approach consists of using the `rclone`_-based backend provided in |escale|. See the `Synchronizing with rclone`_ section.
+
+
 Synchronizing with rclone
 -------------------------
 

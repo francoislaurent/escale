@@ -9,17 +9,14 @@ Your client is ready and can be launched with:
 
 .. parsed-literal::
 
-	$ :strong:`escale`
-
-or as a daemon:
-
-.. parsed-literal::
-
-	$ :strong:`escale -d`
+	$ :strong:`escalectl start`
 
 You can make your terminal continuously flush the logs with:
 
 .. parsed-literal::
 
 	$ :strong:`tail -f ~/.config/escale/escale.log`
+
+
+Beware that the `escalectl stop` command does not work properly on |windows|. It actually kills all the Python processes instead of stopping |escale| only.
 

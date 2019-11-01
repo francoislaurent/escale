@@ -47,12 +47,13 @@ The information below may not be up-to-date and is very far from being exhaustiv
 +----------------------+-----------------+-----------------+------------------+
 | WebDAV               |       Yes       |     WebDAV      |                  |
 +----------------------+-----------------+-----------------+------------------+
-| Yandex.Disk          |       Yes       |     WebDAV      | `Yandex.Disk`_   |
+| Yandex.Disk          |    Yes [#nw]_   |     WebDAV      | `Yandex.Disk`_   |
 +----------------------+-----------------+-----------------+------------------+
 
 
 
 .. [#nv] not verified
+.. [#nw] currently does not work; use RClone instead
 
 
 .. _Dropbox: Dropbox.html
