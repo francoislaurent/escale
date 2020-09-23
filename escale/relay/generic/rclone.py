@@ -167,6 +167,9 @@ class RClone(Relay):
 					error.endswith('Failed to ls: path/not_folder/'):
 					self.logger.debug("rclone error on command 'ls': %s", error)
 					continue # retry
+				elif error.endswith("couldn't find root directory ID: googleapi: Error 403: Rate Limit Exceeded, rateLimitExceeded"):
+					self.logger.error(error)
+					continue
 				else:
 					self.logger.debug("TODO: handle the following rclone output for relay file '%s': %s", relay_file, output)
 					raise IOError(error)
