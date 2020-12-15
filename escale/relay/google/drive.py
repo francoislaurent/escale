@@ -231,6 +231,7 @@ class DriveGoogle(Relay):
 		try:
 			with_subprocess(self.drive_bin, 'pull', *args, **kwargs)
 		except IOError as e:
+			raise # added in 0.7.11; cannot explain why this works..
 			# drive:
 			# "These 1 file(s) would be overwritten. Use -ignore-conflict to override this behaviour"
 			# to deal with this issue, we can delete the drivedb file

@@ -987,7 +987,7 @@ def simplified_add(config, cfg_dir, section=None, msgs=[]):
 			address = None
 			while not address:
 				address = input(decorate_line('relay host address (required): '))
-	if protocol is 'file':
+	if protocol == 'file':
 		repository = None
 		while not repository:
 			repository = input(decorate_line('path to local relay repository (required): '))

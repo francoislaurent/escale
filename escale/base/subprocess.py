@@ -19,8 +19,9 @@ import subprocess
 try:
 	# convert Py2 `raw_input` to `input` (Py3)
 	input = raw_input
+	py2 = True
 except NameError:
-	pass
+	py2 = False
 
 
 def _communicate(p, relay_input=False):
@@ -76,6 +77,8 @@ def with_subprocess(cmd, *args, **kwargs):
 	relay_input = kwargs.pop('input', None)
 	if relay_input and 'stdin' not in kwargs:
 		kwargs['stdin'] = subprocess.PIPE
+	if not (py2 or 'encoding' in kwargs):
+		kwargs['encoding'] = 'utf8'
 	if return_output or fail_on_error:
 		if not (return_output is False or 'stdout' in kwargs):
 			kwargs['stdout'] = subprocess.PIPE
