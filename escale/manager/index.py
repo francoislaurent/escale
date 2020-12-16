@@ -38,7 +38,7 @@ class IndexManager(Manager):
         #    raise TypeError("relay is not an IndexRelay")
         max_page_size, max_page_size_unit = kwargs.pop('maxpagesize', (200, None))
         if max_page_size_unit:
-            max_page_size = max_page_size * storage_space_unit[max_page_size_unit] * 1048576
+            max_page_size = max_page_size * storage_space_unit[max_page_size_unit]# * 1048576
         try:
             upload_max_wait = kwargs['config']['upload max wait']
         except KeyError:
