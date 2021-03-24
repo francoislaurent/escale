@@ -231,14 +231,18 @@ class DriveGoogle(Relay):
 		try:
 			with_subprocess(self.drive_bin, 'pull', *args, **kwargs)
 		except IOError as e:
-			raise # added in 0.7.11; cannot explain why this works..
+			#raise # added in 0.7.11; cannot explain why this works.. # undone in 0.7.12
 			# drive:
 			# "These 1 file(s) would be overwritten. Use -ignore-conflict to override this behaviour"
-			# to deal with this issue, we can delete the drivedb file
-			self.logger.debug(e.args[0])
-			self.logger.warning("drive might have detected a conflict; deleting the 'drivedb' file")
-			os.unlink(os.path.join(self.mount_point, '.gd', 'drivedb'))
-			with_subprocess(self.drive_bin, 'pull', *args, **kwargs)
+                        err_msg = e.args[0]
+                        if 'Use -ignore-conflict ' in err_msg:
+                            self.logger.debug(err_msg)
+                            # to deal with this issue, we can delete the drivedb file
+                            #self.logger.warning("drive might have detected a conflict; deleting the 'drivedb' file")
+                            #os.unlink(os.path.join(self.mount_point, '.gd', 'drivedb')) # undone in 0.7.12
+                            with_subprocess(self.drive_bin, 'pull', '-ignore-conflict', *args, **kwargs) # 'ignore-conflict' added in 0.7.12
+                        else:
+                            raise
 		#with_subprocess(self.drive_bin, 'pull', '-hidden', '-quiet',
 		#		'-desktop-links=false', relay_file,
 		#		cwd=self.mount_point, error=IOError)
