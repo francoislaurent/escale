@@ -4,7 +4,8 @@
 
 # Copyright @ 2021, Institut Pasteur
 #   Contributor: François Laurent
-#   Contribution: `success` reported as an unexpected outcome
+#   Contributions: `success` reported as an unexpected outcome,
+#                  `startWorker` to track PIDs
 
 # This file is part of the Escale software available at
 # "https://github.com/francoislaurent/escale" and is distributed under
@@ -143,6 +144,25 @@ class DirectController(object):
         Notify client about task completion.
         """
         self.logger.info('escale is stopping')
+
+    def startWorker(self, worker):
+        """
+        Calls :meth:`worker.start`.
+
+        For `multiprocessing.Process` objects only.
+        """
+        worker.start()
+        try:
+            import escale.manager.config as config
+            pidfile = config.get_pid_file()
+            if os.path.isfile(pidfile):
+                with open(pidfile, 'w') as f:
+                    f.write(str(worker.pid))
+            else:
+                with open(pidfile, 'a') as f:
+                    f.write('\n'+str(worker.pid))
+        except:
+            raise
 
     def restartWorker(self, repository, sleep_time=None):
         """

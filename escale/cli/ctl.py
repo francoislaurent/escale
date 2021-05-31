@@ -6,6 +6,10 @@
 #    Contributor: François Laurent
 #    Contribution: migrate can operate cross-section with a single configuration
 
+# Copyright @ 2021, Institut Pasteur
+#    Contributor: François Laurent
+#    Contribution: multiple PIDs can be tracked
+
 # This file is part of the Escale software available at
 # "https://github.com/francoislaurent/escale" and is distributed under
 # the terms of the CeCILL-C license as circulated at the following URL
@@ -82,24 +86,28 @@ def stop(pidfile=None):
         print("{} is not running".format(PROGRAM_NAME))
         return 1
     with open(pidfile, 'r') as f:
-        pid = str(f.read())
+        pids = [ line.strip() for line in f.readlines() ]
     if ispc():
         if PYTHON_VERSION == 3:
             import signal
-            try:
-                os.kill(int(pid), signal.SIGINT)
-            except OSError as exc:
-                if exc.args and exc.args[0] == 22:
-                    print("{} is not running".format(PROGRAM_NAME))
-                    return 1
+            for pid in pids[::-1]:
+                try:
+                    os.kill(int(pid), signal.SIGINT)
+                except OSError as exc:
+                    if exc.args and exc.args[0] == 22:
+                        pass
+                else:
+                    time.sleep(1)
         else:
-            kill = ['taskkill', '/t', '/f', '/pid']
-            #p = subprocess.Popen(['tasklist'], stdout=subprocess.PIPE)
-            subprocess.call(kill+[pid])
+            kill = ['taskkill']#, '/f']
+            for pid in pids:
+                kill.append('/pid')
+                kill.append(pid)
+            subprocess.call(kill)
             #os.unlink(pidfile)
             #subprocess.call(['taskkill', '/f', '/im', 'python.exe']) # self-kill
-        os.unlink(pidfile)
     else:
+        pid = pids[0]
         kill = ['kill']
         p = subprocess.Popen(['ps', '-eo', 'ppid,pid'], stdout=subprocess.PIPE)
         ps = p.communicate()[0]
