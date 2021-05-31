@@ -329,7 +329,7 @@ class IndexManager(Manager):
                     any_postponed = True
                     pushed = []
                     continue
-                except: # new in 0.9.10
+                except: # new in 0.7.10
                     pushed = []
                     raise
                 finally:

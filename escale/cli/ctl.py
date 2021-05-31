@@ -81,7 +81,7 @@ def stop(pidfile=None):
     with open(pidfile, 'r') as f:
         pid = str(f.read())
     if ispc():
-        kill = ['taskkill', '/f', '/pid']
+        kill = ['taskkill', '/t', '/pid']
         #p = subprocess.Popen(['tasklist'], stdout=subprocess.PIPE)
         #subprocess.call(kill+[pid])
         os.unlink(pidfile)

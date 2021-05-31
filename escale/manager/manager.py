@@ -159,6 +159,8 @@ class Manager(Reporter):
                 try:
 
                     self.include.append(re.compile(exp))
+                except ExpressInterrupt:
+                    raise
                 except:
                     self.logger.error("wrong filename pattern '%s'", exp)
                     self.logger.debug(traceback.format_exc())
@@ -178,6 +180,8 @@ class Manager(Reporter):
                 try:
 
                     self.exclude.append(re.compile(exp))
+                except ExpressInterrupt:
+                    raise
                 except:
                     self.logger.error("wrong filename pattern '%s'", exp)
                     self.logger.debug(traceback.format_exc())
@@ -197,6 +201,8 @@ class Manager(Reporter):
                 try:
 
                     self.include_directory.append(re.compile(exp))
+                except ExpressInterrupt:
+                    raise
                 except:
                     self.logger.error("wrong directory name pattern '%s'", exp)
                     self.logger.debug(traceback.format_exc())
@@ -216,6 +222,8 @@ class Manager(Reporter):
                 try:
 
                     self.exclude_directory.append(re.compile(exp))
+                except ExpressInterrupt:
+                    raise
                 except:
                     self.logger.error("wrong directory name pattern '%s'", exp)
                     self.logger.debug(traceback.format_exc())
@@ -367,6 +375,8 @@ class Manager(Reporter):
         # close and clear everything
         try:
             self.relay.close()
+        except ExpressInterrupt:
+            raise
         except:
             self.logger.error("cannot close the connection to '%s'", self.relay.address)
             self.logger.debug(traceback.format_exc())

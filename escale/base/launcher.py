@@ -138,7 +138,7 @@ def escale(config, repository, log_handler=None, ui_connector=None):
     #    raise
     except Exception as exc:
         if not manager.ui_controller.failure(repository, exc, traceback.format_exc()):
-            raise
+            raise exc
     else:
         manager.ui_controller.success(repository, result)
 
@@ -233,6 +233,9 @@ def escale_launcher(cfg_file, msgs=[], verbosity=logging.NOTSET, keep_alive=None
             for section, worker in workers.items():
                 try:
                     worker.terminate()
+                except ExpressInterrupt as exc:
+                    logger.debug('%s', type(exc).__name__)
+                    raise
                 except Exception as e:
                     # 'NoneType' object has no attribute 'terminate'
                     logger.warning("[%s]: %s", section, e)
@@ -240,6 +243,9 @@ def escale_launcher(cfg_file, msgs=[], verbosity=logging.NOTSET, keep_alive=None
             for worker in workers.values():
                 try:
                     worker.join(1)
+                except ExpressInterrupt as exc:
+                    logger.debug('%s', type(exc).__name__)
+                    raise
                 except:
                     pass
         ui_controller.abort()
