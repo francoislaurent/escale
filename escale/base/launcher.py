@@ -4,7 +4,7 @@
 
 # Copyright @ 2021, Institut Pasteur
 #   Contributor: François Laurent
-#   Contributions: keep_alive from config
+#   Contributions: keep_alive from config, UIController stores all PIDs
 
 # This file is part of the Escale software available at
 # "https://github.com/francoislaurent/escale" and is distributed under
@@ -206,7 +206,7 @@ def escale_launcher(cfg_file, msgs=[], verbosity=logging.NOTSET, keep_alive=None
                 name='{}.{}'.format(log_root, section),
                 args=(config, section, log_handler, ui_controller.conn))
             workers[section] = worker
-            worker.start()
+            ui_controller.startWorker(worker)
         # wait for everyone to terminate
         try:
             if keep_alive:
@@ -222,7 +222,7 @@ def escale_launcher(cfg_file, msgs=[], verbosity=logging.NOTSET, keep_alive=None
                                 ui_controller.conn))
                         workers[section] = worker
                         ui_controller.restartWorker(section, restart_delay)
-                        worker.start()
+                        ui_controller.startWorker(worker)
                     else:
                         active_workers -= 1
             else:
@@ -248,10 +248,6 @@ def escale_launcher(cfg_file, msgs=[], verbosity=logging.NOTSET, keep_alive=None
                     raise
                 except:
                     pass
-        except Exception as exc:
-            logger.debug('%s', type(exc).__name__)
-            print(exc.args)
-            raise
         ui_controller.abort()
         log_listener.abort()
         ui_thread.join(1)
