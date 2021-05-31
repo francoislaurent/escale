@@ -86,7 +86,13 @@ def stop(pidfile=None):
     if ispc():
         if PYTHON_VERSION == 3:
             import signal
-            os.kill(int(pid), signal.CTRL_C_EVENT)
+            try:
+                os.kill(int(pid), signal.CTRL_C_EVENT)
+            except OSError as exc:
+                print((exc,))
+                print(exc.args[0])
+                print("{} is not running".format(PROGRAM_NAME))
+                return 1
         else:
             kill = ['taskkill', '/t', '/f', '/pid']
             #p = subprocess.Popen(['tasklist'], stdout=subprocess.PIPE)

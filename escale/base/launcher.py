@@ -201,12 +201,36 @@ def escale_launcher(cfg_file, msgs=[], verbosity=logging.NOTSET, keep_alive=None
         ui_thread.start()
         # escale subprocesses
         workers = {}
-        for section in config.sections():
-            worker = Process(target=escale,
-                name='{}.{}'.format(log_root, section),
-                args=(config, section, log_handler, ui_controller.conn))
-            workers[section] = worker
-            worker.start()
+        try:
+            for section in config.sections():
+                worker = Process(target=escale,
+                    name='{}.{}'.format(log_root, section),
+                    args=(config, section, log_handler, ui_controller.conn))
+                workers[section] = worker
+                worker.start()
+        except ExpressInterrupt as exc:
+            print('express interrupt (0)')
+            logger.debug('%s (0)', type(exc).__name__)
+            for section, worker in workers.items():
+                try:
+                    worker.terminate()
+                except ExpressInterrupt as exc:
+                    logger.debug('%s (0)', type(exc).__name__)
+                    raise
+                except Exception as e:
+                    # 'NoneType' object has no attribute 'terminate'
+                    logger.warning("[%s]: %s (0)", section, e)
+                    logger.debug("%s (0)", workers)
+            for worker in workers.values():
+                try:
+                    worker.join(1)
+                except ExpressInterrupt as exc:
+                    logger.debug('%s (0)', type(exc).__name__)
+                    raise
+                except Exception as e:
+                    # 'NoneType' object has no attribute 'terminate'
+                    logger.warning("[%s]: %s (0)", section, e)
+                    logger.debug("%s (0)", workers)
         # wait for everyone to terminate
         try:
             if keep_alive:
@@ -229,6 +253,7 @@ def escale_launcher(cfg_file, msgs=[], verbosity=logging.NOTSET, keep_alive=None
                 for worker in workers.values():
                     worker.join()
         except ExpressInterrupt as exc:
+            print('express interrupt')
             logger.debug('%s', type(exc).__name__)
             for section, worker in workers.items():
                 try:
