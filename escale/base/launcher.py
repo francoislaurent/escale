@@ -1,6 +1,10 @@
 # -*- coding: utf-8 -*-
 
-# Copyright © 2017-2021, François Laurent
+# Copyright © 2017, François Laurent
+
+# Copyright @ 2021, Institut Pasteur
+#   Contributor: François Laurent
+#   Contributions: keep_alive from config
 
 # This file is part of the Escale software available at
 # "https://github.com/francoislaurent/escale" and is distributed under
@@ -18,7 +22,7 @@ import traceback
 
 from .exceptions import *
 from .essential import *
-from .config import parse_cfg
+from .config import parse_cfg, default_section, global_fields
 from escale.log import *
 # separate imports instead of single escale.manager
 # single import breaks Sphinx
@@ -130,8 +134,8 @@ def escale(config, repository, log_handler=None, ui_connector=None):
     manager = make_client(config, repository, log_handler=log_handler, ui_connector=ui_connector)
     try:
         result = manager.run()
-    except ExpressInterrupt:
-        raise
+    #except ExpressInterrupt:
+    #    raise
     except Exception as exc:
         if not manager.ui_controller.failure(repository, exc, traceback.format_exc()):
             raise
@@ -140,7 +144,7 @@ def escale(config, repository, log_handler=None, ui_connector=None):
 
 
 
-def escale_launcher(cfg_file, msgs=[], verbosity=logging.NOTSET, keep_alive=False):
+def escale_launcher(cfg_file, msgs=[], verbosity=logging.NOTSET, keep_alive=None):
     """
     Parse a configuration file, set the logger and launch the clients in separate subprocesses.
 
@@ -158,17 +162,22 @@ def escale_launcher(cfg_file, msgs=[], verbosity=logging.NOTSET, keep_alive=Fals
             if `int`, specifies default sleep time after a subprocess crashed.
 
     """
-    restart_delay = 0
-    # `bool`s are also `int`s
-    if keep_alive not in [False, True] and isinstance(keep_alive, (int, float)):
-        restart_delay = keep_alive
-        keep_alive = True
     # parse the config file
     config, cfg_file, msgs = parse_cfg(cfg_file, msgs)
     # configure logger
     logger, msgs = set_logger(config, cfg_file, verbosity, msgs)
     # flush messages
     flush_init_messages(logger, msgs)
+    # parse keep_alive
+    restart_delay = 0
+    if keep_alive is None:
+        # read from config
+        global_config = parse_fields(config, default_section, global_fields, logger)
+        keep_alive = global_config.get('keepalive', False)
+    # `in` may coerce bools to ints
+    if keep_alive not in [False, True] and isinstance(keep_alive, (int, float)):
+        restart_delay = keep_alive
+        keep_alive = True
     # launch each client
     sections = config.sections()
     if sections[1:] or keep_alive: # if multiple sections

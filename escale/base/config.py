@@ -22,6 +22,10 @@
 #   Contributor: François Laurent
 #   Contributions: Windows support
 
+# Copyright @ 2021, Institut Pasteur
+#   Contributor: François Laurent
+#   Contribution: global_fields, keepalive
+
 # This file is part of the Escale software available at
 # "https://github.com/francoislaurent/escale" and is distributed under
 # the terms of the CeCILL-C license as circulated at the following URL
@@ -93,7 +97,8 @@ default_cache_dirs = { user_cfg_dir: user_cache_dir,
 # 'pulloverwrite' added in version 0.7.6
 # 'verbosity' added in version 0.7.6
 # 'allow_page_deletion' added in version 0.7.7
-fields = dict(path=('path', ['local path', 'path']),
+fields = dict(
+    path=('path', ['local path', 'path']),
     address=['host address', 'relay address', 'remote address', 'address'],
     directory=['host directory', 'relay directory', 'remote directory',
         'directory', 'relay dir', 'remote dir', 'host dir', 'dir',
@@ -132,7 +137,12 @@ fields = dict(path=('path', ['local path', 'path']),
     retryonerror=('list', ['retryonerror', 'retry on error']),
     pulloverwrite=('bool', ['pull overwrite']),
     verbosity=('int', ['verbosity', 'verbosity level']),
-    allow_page_deletion=('bool', ['allow page deletion', 'page deletion']))
+    allow_page_deletion=('bool', ['allow page deletion', 'page deletion']),
+    )
+
+global_fields = dict(
+    keepalive=(('bool', 'int'), ['keep alive']),
+    )
 
 
 def default_option(field, all_options=False):
@@ -344,7 +354,7 @@ def parse_field(config, section, attrs, getters=None, logger=None):
     return None
 
 
-def parse_fields(config, section, fields, logger=None):
+def parse_fields(config, section, fields_=None, logger=None):
     '''
     Extract several options from a configuration object.
 
@@ -354,7 +364,7 @@ def parse_fields(config, section, fields, logger=None):
 
         section (str): existing section in `config`.
 
-        fields (dict): option definition similar to the global `~escale.base.config.fields`.
+        fields_ (dict): option definition, *e.g.* `~escale.base.config.fields`.
 
         logger (Logger): logger.
 
@@ -363,8 +373,12 @@ def parse_fields(config, section, fields, logger=None):
         dict: dictionnary whose keys are borrowed from those in fields and values are the parsed 
         option values.
     '''
+    default = fields_ is None or fields_ is fields
+    if default:
+        fields_ = dict(fields) # copy
+        fields_.update(global_fields)
     args = {}
-    for field, attrs in fields.items():
+    for field, attrs in fields_.items():
         if isinstance(attrs, tuple):
             types, attrs = attrs
             if isinstance(types, str):
