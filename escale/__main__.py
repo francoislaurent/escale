@@ -87,7 +87,7 @@ def main():
 	if 'quiet' not in args:
 		args['quiet'] = False
 	if 'auto_restart' not in args:
-		args['auto_restart'] = False
+		args['auto_restart'] = None
 	elif args['auto_restart'] is None:
 		args['auto_restart'] = auto_restart_default
 	if 'accept_license' in args:
