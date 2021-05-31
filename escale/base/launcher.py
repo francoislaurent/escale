@@ -64,7 +64,6 @@ def make_client(config, repository, log_handler=None, ui_connector=None):
         if isinstance(log_handler, tuple):
                         log_handler = log_handler[0](*log_handler[1:])
         logger.addHandler(log_handler)
-    logger.debug('test message')
     # check arguments
     if repository in ['error']:
         msg = "'{}' is a reserved keyword; please set another name for your repository in '{}'".format(repository, config.filename)
@@ -227,8 +226,9 @@ def escale_launcher(cfg_file, msgs=[], verbosity=logging.NOTSET, keep_alive=None
             if keep_alive:
                 active_workers = len(workers)
                 while 0 < active_workers:
+                    logger.debug('waiting for a child process to return')
                     section, result = result_queue.get()
-                    print(result)
+                    logger.debug('got it')
                     if (isinstance(result, type) and issubclass(result, result_type)) \
                             or isinstance(result, result_type):
                         workers[section].join() # should have already returned

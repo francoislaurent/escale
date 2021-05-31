@@ -92,7 +92,7 @@ def stop(pidfile=None):
             import signal
             for pid in pids[::-1]:
                 try:
-                    os.kill(int(pid), signal.SIGINT)
+                    os.kill(int(pid), signal.SIGTERM)
                 except OSError as exc:
                     if exc.args and exc.args[0] == 22:
                         pass
