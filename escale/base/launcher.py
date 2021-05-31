@@ -59,6 +59,7 @@ def make_client(config, repository, log_handler=None, ui_connector=None):
     # set logger
     logger = logging.getLogger(log_root).getChild(repository)
     logger.setLevel(logging.DEBUG)
+    logger.debug('logging on')
     if log_handler is not None:
         logger.propagate = False
         if isinstance(log_handler, tuple):
@@ -166,6 +167,7 @@ def escale_launcher(cfg_file, msgs=[], verbosity=logging.NOTSET, keep_alive=None
     config, cfg_file, msgs = parse_cfg(cfg_file, msgs)
     # configure logger
     logger, msgs = set_logger(config, cfg_file, verbosity, msgs)
+    logger.debug('test message')
     # flush messages
     flush_init_messages(logger, msgs)
     # parse keep_alive
