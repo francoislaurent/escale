@@ -30,6 +30,7 @@ from escale import __version__
 
 
 auto_restart_default = 60
+auto_restart_default = None # new in 0.7.12
 
 
 def main():
