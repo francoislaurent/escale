@@ -173,6 +173,8 @@ def escale_launcher(cfg_file, msgs=[], verbosity=logging.NOTSET, keep_alive=None
     restart_delay = 0
     if keep_alive is None:
         # read from config
+        logger.debug('%s', config)
+        logger.debug('%s', config[default_section])
         global_config = parse_fields(config, default_section, global_fields, logger)
         keep_alive = global_config.get('keepalive', False)
         logger.debug('keep_alive= %s', keep_alive)
