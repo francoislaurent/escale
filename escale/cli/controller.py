@@ -142,7 +142,7 @@ class DirectController(object):
         """
         Notify client about task completion.
         """
-        self.logger.info('escale is stopping')
+        self.logger.info('escale is returning with result: %s', str(result))
 
     def restartWorker(self, repository, sleep_time=None):
         """
