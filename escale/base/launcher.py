@@ -4,7 +4,7 @@
 
 # Copyright @ 2021, Institut Pasteur
 #   Contributor: François Laurent
-#   Contributions: keep_alive from config, UIController stores all PIDs
+#   Contributions: keep_alive from config, all PIDs are tracked
 
 # This file is part of the Escale software available at
 # "https://github.com/francoislaurent/escale" and is distributed under
@@ -221,12 +221,15 @@ def escale_launcher(cfg_file, msgs=[], verbosity=logging.NOTSET, keep_alive=None
             workers[section] = worker
             startWorker(worker)
         # wait for everyone to terminate
+        result_type = Exception if keep_alive else RestartRequest
         try:
             if keep_alive:
                 active_workers = len(workers)
                 while 0 < active_workers:
                     section, result = result_queue.get()
-                    if isinstance(result, Exception if keep_alive else RestartRequest):
+                    print(result)
+                    if (isinstance(result, type) and issubclass(result, result_type)) \
+                            or isinstance(result, result_type):
                         workers[section].join() # should have already returned
                         # restart worker
                         worker = Process(target=escale,
@@ -261,6 +264,9 @@ def escale_launcher(cfg_file, msgs=[], verbosity=logging.NOTSET, keep_alive=None
                     raise
                 except:
                     pass
+        except:
+            logger.debug('%s', traceback.print_exc())
+            raise
         ui_controller.abort()
         log_listener.abort()
         ui_thread.join(1)
