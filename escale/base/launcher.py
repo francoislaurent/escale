@@ -169,33 +169,27 @@ def escale_launcher(cfg_file, msgs=[], verbosity=logging.NOTSET, keep_alive=None
     # flush messages
     flush_init_messages(logger, msgs)
     # parse keep_alive
-    logger.debug('keep_alive= %s', keep_alive)
     restart_delay = 0
     if keep_alive is None:
         # read from config
-        logger.debug('%s', config)
-        logger.debug('%s', config[default_section])
         global_config = parse_fields(config, default_section, global_fields, logger)
         keep_alive = global_config.get('keepalive', False)
-        logger.debug('keep_alive= %s', keep_alive)
-    logger.debug('restart_delay= %s', restart_delay)
     # `in` may coerce bools to ints
     if keep_alive not in [False, True] and isinstance(keep_alive, (int, float)):
         restart_delay = keep_alive
         keep_alive = True
+    logger.debug('keep_alive= %s', keep_alive)
+    logger.debug('restart_delay= %s', restart_delay)
     # wrap Process.start
     pidfile = get_pid_file(config)
     def startWorker(worker):
         worker.start()
-        try:
-            if os.path.isfile(pidfile):
-                with open(pidfile, 'a') as f:
-                    f.write('\n'+str(worker.pid))
-            else:
-                with open(pidfile, 'w') as f:
-                    f.write(str(worker.pid))
-        except:
-            raise
+        if os.path.isfile(pidfile):
+            with open(pidfile, 'a') as f:
+                f.write('\n'+str(worker.pid))
+        else:
+            with open(pidfile, 'w') as f:
+                f.write(str(worker.pid))
     # launch each client
     sections = config.sections()
     if sections[1:] or keep_alive: # if multiple sections
@@ -231,7 +225,9 @@ def escale_launcher(cfg_file, msgs=[], verbosity=logging.NOTSET, keep_alive=None
             if keep_alive:
                 active_workers = len(workers)
                 while 0 < active_workers:
+                    logger.debug('waiting for a process to return')
                     section, result = result_queue.get()
+                    logger.debug('%s', result)
                     if (isinstance(result, type) and issubclass(result, result_type)) \
                             or isinstance(result, result_type):
                         workers[section].join() # should have already returned
