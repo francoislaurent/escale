@@ -86,7 +86,7 @@ def stop(pidfile=None):
     if ispc():
         if PYTHON_VERSION == 3:
             import signal
-            os.kill(pid, signal.CTRL_C_EVENT)
+            os.kill(int(pid), signal.CTRL_C_EVENT)
         else:
             kill = ['taskkill', '/t', '/f', '/pid']
             #p = subprocess.Popen(['tasklist'], stdout=subprocess.PIPE)
