@@ -7,6 +7,10 @@
 #      Contribution: unsafe, priority and upload_max_wait attributes and their occurrences
 #                    reportTransferred
 
+# Copyright @ 2021, Institut Pasteur
+#      Contributor: François Laurent
+#      Contribution: shuffle puts pages with updates first
+
 # This file is part of the Escale software available at
 # "https://github.com/francoislaurent/escale" and is distributed under
 # the terms of the CeCILL-C license as circulated at the following URL
@@ -82,15 +86,26 @@ class IndexManager(Manager):
         Manager.sanityChecks(self)
         self.relay.clearIndex()
 
-    def shuffle(self, _list):
-        shuffle(_list)
+    def shuffle(self, _list, with_updates_first=False):
+        if with_updates_first:
+            with_, without_ = [], []
+            for page in _list:
+                if self.relay.hasUpdate(page):
+                    with_.append(page)
+                else:
+                    without_.append(page)
+            shuffle(with_)
+            shuffle(without_)
+            _list = with_ + without_
+        else:
+            shuffle(_list)
         return _list
 
     def download(self):
         trust = self.pull_overwrite or (not self.timestamp and self.checksum is None)
         lookup_missing = self.download_idle
         new = False
-        for page in self.shuffle(self.relay.listPages()):
+        for page in self.shuffle(self.relay.listPages(), with_update_first=True):
             index_loaded = self.relay.loaded(page)
             # the first `getUpdate` call for a page returns a full index
             # instead of an index update

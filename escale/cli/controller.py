@@ -2,6 +2,10 @@
 
 # Copyright © 2017, François Laurent
 
+# Copyright @ 2021, Institut Pasteur
+#   Contributor: François Laurent
+#   Contribution: `success` reported as an unexpected outcome
+
 # This file is part of the Escale software available at
 # "https://github.com/francoislaurent/escale" and is distributed under
 # the terms of the CeCILL-C license as circulated at the following URL
@@ -117,7 +121,7 @@ class DirectController(object):
         Log and notify client about termination on error.
         """
         if self.error_file:
-            t = time.strftime('%d/%m %H:%M', time.localtime())
+            t = time.strftime('%Y/%d/%m %H:%M', time.localtime())
             try:
                 with open(self.error_file, 'a') as f:
                     if f.tell() == 0:
@@ -131,14 +135,14 @@ class DirectController(object):
                 pass
             except:
                 self.logger.error('failed to log error')
-        if self.maintainer:
+        if exception not in ExpressInterrupt and self.maintainer:
             self.notifyMaintainer(exception, backtrace)
 
     def success(self, repository, result):
         """
         Notify client about task completion.
         """
-        pass
+        self.logger.info('escale is stopping')
 
     def restartWorker(self, repository, sleep_time=None):
         """

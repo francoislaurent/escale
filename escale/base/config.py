@@ -140,6 +140,7 @@ fields = dict(
     allow_page_deletion=('bool', ['allow page deletion', 'page deletion']),
     )
 
+# new in 0.7.12
 global_fields = dict(
     keepalive=(('bool', 'int'), ['keep alive']),
     )
