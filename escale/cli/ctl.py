@@ -82,10 +82,10 @@ def stop(pidfile=None):
         pid = str(f.read())
     if ispc():
         kill = ['taskkill', '/t', '/pid']
-        #p = subprocess.Popen(['tasklist'], stdout=subprocess.PIPE)
-        #subprocess.call(kill+[pid])
+        p = subprocess.Popen(['tasklist'], stdout=subprocess.PIPE)
+        subprocess.call(kill+[pid])
         os.unlink(pidfile)
-        subprocess.call(['taskkill', '/f', '/im', 'python.exe']) # self-kill
+        #subprocess.call(['taskkill', '/f', '/im', 'python.exe']) # self-kill
     else:
         kill = ['kill']
         p = subprocess.Popen(['ps', '-eo', 'ppid,pid'], stdout=subprocess.PIPE)
