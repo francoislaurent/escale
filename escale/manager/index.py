@@ -105,7 +105,7 @@ class IndexManager(Manager):
         trust = self.pull_overwrite or (not self.timestamp and self.checksum is None)
         lookup_missing = self.download_idle
         new = False
-        for page in self.shuffle(self.relay.listPages(), with_update_first=True):
+        for page in self.shuffle(self.relay.listPages(), with_updates_first=True):
             index_loaded = self.relay.loaded(page)
             # the first `getUpdate` call for a page returns a full index
             # instead of an index update
