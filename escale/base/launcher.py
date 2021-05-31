@@ -178,8 +178,8 @@ def escale_launcher(cfg_file, msgs=[], verbosity=logging.NOTSET, keep_alive=None
     if keep_alive not in [False, True] and isinstance(keep_alive, (int, float)):
         restart_delay = keep_alive
         keep_alive = True
-    logger.debug('keep_alive= %s', keep_alive)
-    logger.debug('restart_delay= %s', restart_delay)
+    #logger.debug('keep_alive= %s', keep_alive)
+    #logger.debug('restart_delay= %s', restart_delay)
     # wrap Process.start
     pidfile = get_pid_file(config)
     def startWorker(worker):
@@ -225,9 +225,9 @@ def escale_launcher(cfg_file, msgs=[], verbosity=logging.NOTSET, keep_alive=None
             if keep_alive:
                 active_workers = len(workers)
                 while 0 < active_workers:
-                    logger.debug('waiting for a process to return')
+                    #logger.debug('waiting for a process to return')
                     section, result = result_queue.get()
-                    logger.debug('%s', result)
+                    #logger.debug('%s', result)
                     if (isinstance(result, type) and issubclass(result, result_type)) \
                             or isinstance(result, result_type):
                         workers[section].join() # should have already returned
