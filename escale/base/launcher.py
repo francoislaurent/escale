@@ -174,6 +174,7 @@ def escale_launcher(cfg_file, msgs=[], verbosity=logging.NOTSET, keep_alive=None
         # read from config
         global_config = parse_fields(config, default_section, global_fields, logger)
         keep_alive = global_config.get('keepalive', False)
+        logger.debug('keep_alive= %s', keep_alive)
     # `in` may coerce bools to ints
     if keep_alive not in [False, True] and isinstance(keep_alive, (int, float)):
         restart_delay = keep_alive
@@ -194,6 +195,7 @@ def escale_launcher(cfg_file, msgs=[], verbosity=logging.NOTSET, keep_alive=None
     # launch each client
     sections = config.sections()
     if sections[1:] or keep_alive: # if multiple sections
+        logger.debug('ready')
         if PYTHON_VERSION == 3:
             log_queue = Queue()
             log_listener = QueueListener(log_queue)
@@ -206,6 +208,7 @@ def escale_launcher(cfg_file, msgs=[], verbosity=logging.NOTSET, keep_alive=None
         # logger
         logger_thread = threading.Thread(target=log_listener.listen)
         logger_thread.start()
+        logger.debug('listener thread started')
         # result handling
         result_queue = Queue()
         # user interface
@@ -244,7 +247,9 @@ def escale_launcher(cfg_file, msgs=[], verbosity=logging.NOTSET, keep_alive=None
                         active_workers -= 1
             else:
                 for worker in workers.values():
+                    logger.debug('waiting for a child process to return (1)')
                     worker.join()
+                    logger.debug('got it')
         except ExpressInterrupt as exc:
             logger.debug('%s', type(exc).__name__)
             for section, worker in workers.items():
