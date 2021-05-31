@@ -59,7 +59,10 @@ def start(pidfile=None):
                 python = 'python3'
             else:
                 python = 'python'
-        sub = subprocess.Popen([python, '-m', PROGRAM_NAME]) #, '-r'
+        kwargs = {}
+        if ispc():
+            kwargs['creationflags'] = subprocess.CREATE_NEW_PROCESS_GROUP
+        sub = subprocess.Popen([python, '-m', PROGRAM_NAME], **kwargs) #, '-r'
         with open(pidfile, 'w') as f:
             f.write(str(sub.pid))
     else:
