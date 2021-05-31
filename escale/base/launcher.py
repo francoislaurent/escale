@@ -178,6 +178,19 @@ def escale_launcher(cfg_file, msgs=[], verbosity=logging.NOTSET, keep_alive=None
     if keep_alive not in [False, True] and isinstance(keep_alive, (int, float)):
         restart_delay = keep_alive
         keep_alive = True
+    # wrap Process.start
+    pidfile = get_pid_file(config)
+    def startWorker(worker):
+        worker.start()
+        try:
+            if os.path.isfile(pidfile):
+                with open(pidfile, 'w') as f:
+                    f.write(str(worker.pid))
+            else:
+                with open(pidfile, 'a') as f:
+                    f.write('\n'+str(worker.pid))
+        except:
+            raise
     # launch each client
     sections = config.sections()
     if sections[1:] or keep_alive: # if multiple sections
@@ -206,7 +219,7 @@ def escale_launcher(cfg_file, msgs=[], verbosity=logging.NOTSET, keep_alive=None
                 name='{}.{}'.format(log_root, section),
                 args=(config, section, log_handler, ui_controller.conn))
             workers[section] = worker
-            ui_controller.startWorker(worker)
+            startWorker(worker)
         # wait for everyone to terminate
         try:
             if keep_alive:
@@ -222,7 +235,7 @@ def escale_launcher(cfg_file, msgs=[], verbosity=logging.NOTSET, keep_alive=None
                                 ui_controller.conn))
                         workers[section] = worker
                         ui_controller.restartWorker(section, restart_delay)
-                        ui_controller.startWorker(worker)
+                        startWorker(worker)
                     else:
                         active_workers -= 1
             else:
