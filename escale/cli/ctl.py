@@ -87,7 +87,7 @@ def stop(pidfile=None):
         if PYTHON_VERSION == 3:
             import signal
             try:
-                os.kill(int(pid), signal.CTRL_C_EVENT)
+                os.kill(int(pid), signal.SIGINT)
             except OSError as exc:
                 if exc.args and exc.args[0] == 22:
                     print("{} is not running".format(PROGRAM_NAME))
