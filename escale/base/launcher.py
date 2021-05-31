@@ -184,11 +184,11 @@ def escale_launcher(cfg_file, msgs=[], verbosity=logging.NOTSET, keep_alive=None
         worker.start()
         try:
             if os.path.isfile(pidfile):
-                with open(pidfile, 'w') as f:
-                    f.write(str(worker.pid))
-            else:
                 with open(pidfile, 'a') as f:
                     f.write('\n'+str(worker.pid))
+            else:
+                with open(pidfile, 'w') as f:
+                    f.write(str(worker.pid))
         except:
             raise
     # launch each client
