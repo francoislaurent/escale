@@ -4,7 +4,9 @@
 
 # Copyright @ 2021, Institut Pasteur
 #   Contributor: François Laurent
-#   Contributions: keep_alive from config, all PIDs are tracked
+#   Contributions: keep_alive read from config,
+#                  RestartRequest and keep_alive update,
+#                  all PIDs are tracked
 
 # This file is part of the Escale software available at
 # "https://github.com/francoislaurent/escale" and is distributed under
@@ -134,13 +136,12 @@ def escale(config, repository, log_handler=None, ui_connector=None):
     manager = make_client(config, repository, log_handler=log_handler, ui_connector=ui_connector)
     try:
         result = manager.run()
-    #except ExpressInterrupt:
-    #    raise
+    except ExpressInterrupt as exc:
+        manager.ui_controller.failure(repository, type(exc), exc)
     except Exception as exc:
-        if not manager.ui_controller.failure(repository, exc, traceback.format_exc()):
-            raise exc
+        manager.ui_controller.failure(repository, type(exc), exc)
     else:
-        manager.ui_controller.success(repository, result)
+        manager.ui_controller.success(repository, type(result), result)
 
 
 
@@ -178,8 +179,6 @@ def escale_launcher(cfg_file, msgs=[], verbosity=logging.NOTSET, keep_alive=None
     if keep_alive not in [False, True] and isinstance(keep_alive, (int, float)):
         restart_delay = keep_alive
         keep_alive = True
-    #logger.debug('keep_alive= %s', keep_alive)
-    #logger.debug('restart_delay= %s', restart_delay)
     # wrap Process.start
     pidfile = get_pid_file(config)
     def startWorker(worker):
@@ -220,17 +219,16 @@ def escale_launcher(cfg_file, msgs=[], verbosity=logging.NOTSET, keep_alive=None
             workers[section] = worker
             startWorker(worker)
         # wait for everyone to terminate
-        result_type = Exception if keep_alive else RestartRequest
+        recoverable_failure_type = Exception if keep_alive else RestartRequest
         try:
             if keep_alive:
                 active_workers = len(workers)
                 while 0 < active_workers:
-                    #logger.debug('waiting for a process to return')
-                    section, result = result_queue.get()
-                    #logger.debug('%s', result)
-                    if (isinstance(result, type) and issubclass(result, result_type)) \
-                            or isinstance(result, result_type):
-                        workers[section].join() # should have already returned
+                    section, result_type, result_val = result_queue.get()
+                    logger.debug('worker %s returned %s',
+                            section, result_type.__name__)
+                    workers[section].join() # should have already returned
+                    if issubclass(result_type, recoverable_failure_type):
                         # restart worker
                         worker = Process(target=escale,
                             name='{}.{}'.format(log_root, section),
@@ -245,27 +243,13 @@ def escale_launcher(cfg_file, msgs=[], verbosity=logging.NOTSET, keep_alive=None
                 for worker in workers.values():
                     worker.join()
         except ExpressInterrupt as exc:
-            logger.debug('%s', type(exc).__name__)
-            for section, worker in workers.items():
-                try:
-                    worker.terminate()
-                except ExpressInterrupt as exc:
-                    logger.debug('%s', type(exc).__name__)
-                    raise
-                except Exception as e:
-                    # 'NoneType' object has no attribute 'terminate'
-                    logger.warning("[%s]: %s", section, e)
-                    logger.debug("%s", workers)
+            logger.debug(type(exc).__name__)
             for worker in workers.values():
-                try:
-                    worker.join(1)
-                except ExpressInterrupt as exc:
-                    logger.debug('%s', type(exc).__name__)
-                    raise
-                except:
-                    pass
+                worker.terminate()
+            for worker in workers.values():
+                worker.join(1)
         except:
-            logger.debug('%s', traceback.print_exc())
+            logger.debug(traceback.format_exc())
             raise
         ui_controller.abort()
         log_listener.abort()

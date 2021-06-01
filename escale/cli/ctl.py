@@ -8,7 +8,8 @@
 
 # Copyright @ 2021, Institut Pasteur
 #    Contributor: François Laurent
-#    Contribution: multiple PIDs can be tracked
+#    Contribution: multiple PIDs can be tracked;
+#                  stop sends SIGINT on children processes
 
 # This file is part of the Escale software available at
 # "https://github.com/francoislaurent/escale" and is distributed under
@@ -90,9 +91,9 @@ def stop(pidfile=None):
     if ispc():
         if PYTHON_VERSION == 3:
             import signal
-            for pid in pids[::-1]:
+            for pid in pids[1::-1]:
                 try:
-                    os.kill(int(pid), signal.SIGTERM)
+                    os.kill(int(pid), signal.SIGINT)
                 except OSError as exc:
                     if exc.args and exc.args[0] == 22:
                         pass
@@ -106,7 +107,7 @@ def stop(pidfile=None):
             subprocess.call(kill)
             #os.unlink(pidfile)
             #subprocess.call(['taskkill', '/f', '/im', 'python.exe']) # self-kill
-    else:
+    elif False:
         pid = pids[0]
         kill = ['kill']
         p = subprocess.Popen(['ps', '-eo', 'ppid,pid'], stdout=subprocess.PIPE)
@@ -126,6 +127,9 @@ def stop(pidfile=None):
         #if PYTHON_VERSION == 3: # repeat
         #    time.sleep(1)
         #    subprocess.call(kill+[pid])
+    else:
+        for pid in pids[:1]:#[::-1]:
+            subprocess.call(['kill', '-s', 'SIGINT', pid])
     os.unlink(pidfile)
 
 

@@ -3,6 +3,11 @@
 # Copyright © 2017, Institut Pasteur
 #      Contributor: François Laurent
 
+# Copyright @ 2021, Institut Pasteur
+#      Contributor: François Laurent
+#      Contribution: update for recent subprocess that
+#                    returns str instead of bytes
+
 # This file is part of the Escale software available at
 # "https://github.com/francoislaurent/escale" and is distributed under
 # the terms of the CeCILL-C license as circulated at the following URL
@@ -14,6 +19,7 @@
 
 from escale import *
 from escale.base import *
+from escale.base.exceptions import *
 from ..relay import Relay
 from escale.base.subprocess import *
 import os
@@ -86,9 +92,10 @@ class RClone(Relay):
                 '{}:{}'.format(self.remote, self.repository), error=IOError)
         used = None
         total = None
-        _used_label = b'Total size:' # mod
-        #_total_label = b''
+        _used_label = 'Total size:'
+        #_total_label = ''
         for line in output.splitlines():
+            line = asstr(line)
             if line.startswith(_used_label):
                 used = float(line.split()[4][1:])
                 if total is not None:

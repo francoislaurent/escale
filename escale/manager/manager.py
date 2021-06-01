@@ -304,7 +304,7 @@ class Manager(Reporter):
         _fresh_start = True
         _last_error_time = 0
         _same_error_count = -1
-        _request_restart = False
+        _request_restart = None
         while True:
             new = False
             try:
@@ -327,6 +327,9 @@ class Manager(Reporter):
                     break
             except ExpressInterrupt:
                 raise
+            except RestartRequest as e:
+                last_error = e
+                break
             except PostponeRequest as e:
                 if e.args:
                     self.logger.debug(*e.args)
@@ -380,10 +383,6 @@ class Manager(Reporter):
         except:
             self.logger.error("cannot close the connection to '%s'", self.relay.address)
             self.logger.debug(traceback.format_exc())
-        if _request_restart:
-            raise RestartRestart \
-                if _request_restart == True \
-                else RequestRestart(_request_restart)
         try:
             raise last_error
         except UnboundLocalError:
