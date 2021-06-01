@@ -66,7 +66,10 @@ def start(pidfile=None):
                 python = 'python'
         kwargs = {}
         if ispc():
-            kwargs['creationflags'] = subprocess.CREATE_NEW_PROCESS_GROUP
+            try:
+                kwargs['creationflags'] = subprocess.CREATE_NEW_PROCESS_GROUP
+            except AttributeError:
+                pass
         sub = subprocess.Popen([python, '-m', PROGRAM_NAME], **kwargs) #, '-r'
         with open(pidfile, 'w') as f:
             f.write(str(sub.pid))
@@ -128,8 +131,11 @@ def stop(pidfile=None):
         #    time.sleep(1)
         #    subprocess.call(kill+[pid])
     else:
-        for pid in pids[:1]:#[::-1]:
+        for pid in pids[1::-1]:
             subprocess.call(['kill', '-s', 'SIGINT', pid])
+        time.sleep(1)
+        pid = pids[0]
+        subprocess.call(['kill', pid])
     os.unlink(pidfile)
 
 

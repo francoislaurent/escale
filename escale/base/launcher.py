@@ -259,7 +259,7 @@ def escale_launcher(cfg_file, msgs=[], verbosity=logging.NOTSET, keep_alive=None
         try:
             escale(config, sections[0])
         except ExpressInterrupt as exc:
-            logger.debug('%s', type(exc).__name__)
+            logger.debug(type(exc).__name__)
             raise
     logger.debug('exiting')
 
