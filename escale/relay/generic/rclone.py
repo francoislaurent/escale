@@ -166,7 +166,7 @@ class RClone(Relay):
             output = with_subprocess(self.rclone_bin, 'ls', relay_file, output=True)
             if isinstance(output, tuple):
                 _, error = output
-                error = asstr(error) # mod
+                error = asstr(error)
                 error = error.rstrip().rstrip('.')
                 if error.endswith('not found'):
                     return False
@@ -184,7 +184,7 @@ class RClone(Relay):
                 try:
                     return not output or int(output.lstrip()[0])
                 except IndexError:
-                    self.logger.debug("unexpected rclone output for relay file '%s': %s", relay_file, asstr(output)) # mod
+                    self.logger.debug("unexpected rclone output for relay file '%s': %s", relay_file, asstr(output))
                     return False
             break
 
@@ -199,9 +199,10 @@ class RClone(Relay):
                 output=True)
         if isinstance(output, tuple):
             _, error = output
+            error = asstr(error)
             error_count = 1
             for line in error.splitlines():
-                if line.startswith(b'Errors:'): # mod
+                if line.startswith('Errors:'):
                     error_count = int(line.split()[-1])
                     break
             if 0 < error_count:
