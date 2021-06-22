@@ -124,7 +124,7 @@ class RClone(Relay):
                 '{}:{}'.format(self.remote, relay_dir),
                 error=IOError) #'--fast-list', 
         except IOError as e:
-            err = asstr(e.args[0].rstrip()) # mod [required]
+            err = asstr(e.args[0].rstrip())
             if err.endswith('Unknown type *files.DeletedMetadata'):
                 self.logger.debug(err)
                 return []
@@ -136,7 +136,7 @@ class RClone(Relay):
             sizes = []
             mtimes = []
             for line in ls.splitlines():
-                line = asstr(line) # mod
+                line = asstr(line)
                 record = line.split(None, 3)
                 size = record[0]
                 path = record[3]
@@ -220,7 +220,7 @@ class RClone(Relay):
                 output=True)
         if isinstance(output, tuple):
             _, error = output
-            error = asstr(error) # mod
+            error = asstr(error)
             if error.splitlines()[-1].startswith('Elapsed time:'):
                 pass
             elif 'Failed to create file system for "' in error:

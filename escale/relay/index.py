@@ -492,7 +492,38 @@ class IndexRelay(AbstractIndexRelay):
         self.base_relay.listing_cache = cache
 
     def remoteListing(self):
+        """
+        *new in 0.7.13*: `remoteListing` returns the list of recently modified
+        entries (more recent then in cache) if any, else the entire listing.
+        """
+        if self.listing_cache is None:
+            previous_listing = None
+        else:
+            previous_listing = { f: t for f, t in self.listing_cache }
+        #
         self.base_relay.remoteListing()
+        # *new in 0.7.13*: put modified indices first
+        recent = []
+        if previous_listing:
+            old = []
+            for entry in self.listing_cache:
+                f, t = entry
+                try:
+                    t_prev = previous_listing[f]
+                except KeyError:
+                    pass
+                else:
+                    if t is not None:
+                        if t_prev == t:
+                            old.append(entry)
+                            continue
+                        assert t_prev < t
+                recent.append(entry)
+            self.listing_cache = recent + old
+        if recent:
+            return recent
+        else:
+            return self.listing_cache
 
     def refreshListing(self, remote_dir='', force=False):
         now = time.time()
@@ -677,10 +708,15 @@ class IndexRelay(AbstractIndexRelay):
     def allPages(self):
         return [ self.page('a') ]
 
-    def listPages(self, remote_dir=''):
-        self.refreshListing(remote_dir)
+    def listPages(self, remote_dir='', recent_only=False):
+        if recent_only:
+            # remote_dir is actually not supported
+            listing = self.remoteListing()
+        else:
+            self.refreshListing(remote_dir)
+            listing = self.listing_cache
         files = []
-        for filename, _ in self.listing_cache:
+        for filename, _ in listing:
             if self._persistent_index_prefix:
                 if filename.startswith(self._persistent_index_prefix):
                     filename = filename[len(self._persistent_index_prefix):]

@@ -57,11 +57,10 @@ setup(
         'Operating System :: POSIX :: Linux',
         'Operating System :: Unix',
         'Topic :: Communications :: File Sharing',
-        'Programming Language :: Python :: 2',
-        'Programming Language :: Python :: 2.7',
         'Programming Language :: Python :: 3',
         'Programming Language :: Python :: 3.5',
         'Programming Language :: Python :: 3.6',
+        'Programming Language :: Python :: 3.8',
     ],
     package_dir = {'syncacre': PROGRAM_NAME},
     packages = ['syncacre', PROGRAM_NAME] + \
