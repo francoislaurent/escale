@@ -94,7 +94,7 @@ def stop(pidfile=None):
     if ispc():
         if PYTHON_VERSION == 3:
             import signal
-            for pid in pids[1::-1]:
+            for pid in pids[::-1]:
                 try:
                     os.kill(int(pid), signal.SIGINT)
                 except OSError as exc:
