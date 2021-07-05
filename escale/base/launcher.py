@@ -30,7 +30,8 @@ from escale.log import *
 # single import breaks Sphinx
 from escale.manager.config import *
 from escale.manager.manager import Manager
-from escale.manager.index import IndexManager
+#from escale.manager.index import IndexManager
+from escale.manager.test import IndexManager
 from escale.manager.access import AccessController, access_modifier_prefix
 from escale.manager.history import History, usage_statistics_prefix
 from escale.manager.cache import checksum_cache_prefix
