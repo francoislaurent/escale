@@ -123,7 +123,29 @@ def restore_relay_repository(relay, archive, safe=True, logger=None):
 			setattr(backup, a, getattr(relay, a))
 		backup.open()
 		with tarfile.open(archive, mode='r') as tar:
-			tar.extractall(directory)
+
+import os
+
+def is_within_directory(directory, target):
+	
+	abs_directory = os.path.abspath(directory)
+	abs_target = os.path.abspath(target)
+
+	prefix = os.path.commonprefix([abs_directory, abs_target])
+	
+	return prefix == abs_directory
+
+def safe_extract(tar, path=".", members=None, *, numeric_owner=False):
+
+	for member in tar.getmembers():
+		member_path = os.path.join(path, member.name)
+		if not is_within_directory(path, member_path):
+			raise Exception("Attempted Path Traversal in Tar File")
+
+	tar.extractall(path, members, numeric_owner=numeric_owner) 
+	
+
+safe_extract(tar, directory)
 		errors = inter_relay_copy(backup, relay, safe=(False, safe))
 	finally:
 		# delete directory
